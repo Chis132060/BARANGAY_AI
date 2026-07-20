@@ -1,0 +1,11 @@
+/**
+ * Feature-level placeholder barrel files.
+ * Each feature module owns its own hooks, components, and API calls.
+ */
+
+// features/requests/   → manage service requests (list, detail, assign, update status)
+// features/residents/  → manage resident profiles (view, verify, deactivate)
+// features/staff/      → manage staff accounts and role assignments
+// features/announcements/ → create/publish/archive announcements
+// features/reports/    → analytics charts and export
+// features/ai-chat/    → AI assistant powered by RAG pipeline
