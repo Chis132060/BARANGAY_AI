@@ -5,10 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
-import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  username: z.string().trim().min(1, "Please enter your username or email"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
@@ -25,7 +25,7 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { username: "", password: "" },
   });
 
   async function onSubmit(values: LoginValues) {
@@ -33,11 +33,14 @@ export function LoginForm() {
     setLoading(true);
 
     const supabase = createClient();
+    const loginEmail = values.username.toLowerCase() === "admin"
+      ? "admin@barangay.gov"
+      : values.username;
 
-    console.log("[LOGIN] Attempting sign in for:", values.email);
+    console.log("[LOGIN] Attempting sign in for:", loginEmail);
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: values.email,
+      email: loginEmail,
       password: values.password,
     });
 
@@ -62,19 +65,19 @@ export function LoginForm() {
       )}
 
       <div>
-        <label htmlFor="email" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-          Email Address
+        <label htmlFor="username" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+          Username or Email
         </label>
         <input
-          id="email"
-          type="email"
+          id="username"
+          type="text"
           disabled={loading}
-          placeholder="admin@barangay.gov"
+          placeholder="Admin"
           className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
-          {...register("email")}
+          {...register("username")}
         />
-        {errors.email && (
-          <p className="mt-1 text-xs text-destructive font-medium">{errors.email.message}</p>
+        {errors.username && (
+          <p className="mt-1 text-xs text-destructive font-medium">{errors.username.message}</p>
         )}
       </div>
 

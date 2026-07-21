@@ -14,13 +14,6 @@ export default function LoginPage() {
         </div>
 
         <LoginForm />
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Need an admin account?{" "}
-          <a href="/signup" className="text-primary font-semibold hover:underline">
-            Create Account
-          </a>
-        </p>
       </div>
     </main>
   );
