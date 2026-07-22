@@ -1,0 +1,93 @@
+BARANGAY DOCUMENT SERVICES GUIDE
+=================================
+
+Document Title: Complete Guide to Barangay Document Services
+Issued By: Barangay Office
+Year: 2024
+
+This guide covers all certificates and documents available at the Barangay Hall and
+through the Smart Barangay PWA portal.
+
+=== 1. CERTIFICATE OF INDIGENCY ===
+PURPOSE: For residents with low income seeking assistance for medical, educational, or legal needs.
+REQUIREMENTS:
+  - Valid Government ID
+  - Proof of low income (Sworn Affidavit or Certificate from DSWD/Social Worker)
+  - Referral letter from requesting institution (hospital, school, court)
+FEE: FREE (no processing fee)
+PROCESSING TIME: 10-20 minutes walk-in; 1 business day online
+VALIDITY: 3 months from date of issue
+USE CASES: Hospital bills, burial assistance, scholarship application, legal aid
+
+=== 2. CERTIFICATE OF RESIDENCY ===
+PURPOSE: Confirms that the applicant is a registered resident of the barangay.
+REQUIREMENTS:
+  - Valid Government ID
+  - Proof of Address: recent utility bill OR Lease Contract OR sworn affidavit by landlord
+FEE: ₱30.00
+PROCESSING TIME: 15-20 minutes walk-in; 1 business day online
+VALIDITY: 6 months from date of issue
+USE CASES: School enrollment, voter registration, opening bank accounts
+
+=== 3. BARANGAY BUSINESS CLEARANCE ===
+PURPOSE: Required before applying for a Mayor's Permit / Business License.
+REQUIREMENTS:
+  - DTI Certificate (sole proprietor) or SEC Registration (corporation/partnership)
+  - Lease Contract or Land Title / Tax Declaration
+  - Fire Safety Inspection Report (from BFP)
+  - Environmental Compliance Certificate (for applicable businesses)
+  - Sanitary Permit (for food businesses)
+FEE:
+  - Micro-enterprise (capital < ₱3M): ₱500
+  - Small Business (capital ₱3M-₱15M): ₱1,000
+  - Medium/Large Business: ₱2,000
+PROCESSING TIME: 2-3 business days (requires inspection)
+VALIDITY: 1 year (renewable annually)
+
+=== 4. BARANGAY ID ===
+PURPOSE: Official Barangay identification card for registered residents.
+REQUIREMENTS:
+  - Proof of Residency
+  - 2 pcs 1x1 ID photo (white background)
+  - Birth Certificate (for minors)
+FEE: ₱50.00 (replacement ₱75.00)
+PROCESSING TIME: 3-5 business days
+VALIDITY: 3 years
+
+=== 5. CERTIFICATE OF GOOD MORAL CHARACTER ===
+PURPOSE: Certifies that the applicant has good standing in the community.
+REQUIREMENTS:
+  - Valid Government ID
+  - 2 Character References from known community members
+FEE: ₱50.00
+PROCESSING TIME: 30 minutes to 1 business day
+USE CASES: Job applications, scholarship, police clearance pre-requisite
+
+=== 6. SOLO PARENT CERTIFICATE ===
+PURPOSE: Entitles solo parents to benefits under RA 8972 (Solo Parents' Welfare Act).
+REQUIREMENTS:
+  - Birth Certificates of children
+  - Proof of solo parent status (death certificate, annulment decree, etc.)
+  - 2 pcs 2x2 ID photo
+FEE: FREE
+PROCESSING TIME: 3-5 business days (requires social worker assessment)
+VALIDITY: 1 year (must be renewed annually)
+
+=== 7. BARANGAY PROTECTION ORDER (BPO) ===
+PURPOSE: Protects victims of domestic violence and abuse.
+HOW TO FILE: Visit the Barangay Hall and speak with the VAWC Desk Officer or Barangay Captain.
+REQUIREMENTS: Incident report + sworn statement of the victim
+FEE: FREE
+PROCESSING TIME: Same day (emergency); 24-48 hours otherwise
+Note: BPO is effective for 15 days. For longer protection, refer to RTC for Temporary/Permanent Protection Order.
+
+=== HOW TO APPLY ONLINE (Smart Barangay PWA) ===
+1. Register/Log in to your resident account
+2. Select the document you need from the AI Chat or Request section
+3. Fill up the in-chat form sent by the AI
+4. Upload required documents (clear photos or scanned copies)
+5. Pay via GCash/Maya or at the Barangay Hall
+6. Track your request status on the Updates page
+7. Receive your document (pickup or Barangay courier delivery)
+
+For assistance, ask the Smart Barangay AI or visit the Barangay Hall.

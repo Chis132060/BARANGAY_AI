@@ -2,7 +2,7 @@ import { fetchDocumentRequests, updateRequestStatus } from "../actions";
 import { RequestsClient } from "./components/RequestsClient";
 
 export const metadata = {
-  title: "Document Requests Queue",
+  title: "Document Requests Queue | Smart Barangay Admin",
   description: "Barangay document requests tracking queue.",
 };
 
@@ -13,7 +13,6 @@ export default async function DocumentRequestsPage() {
     initialRequests = await fetchDocumentRequests();
   } catch (err) {
     console.error("Database connection offline. Showing fallback mock data.", err);
-    // Mock local data fallback if migrations have not been applied yet
     initialRequests = [
       {
         id: "1",
@@ -34,21 +33,11 @@ export default async function DocumentRequestsPage() {
     ];
   }
 
-  async function refreshAction(status: string) {
-    "use server";
-    return fetchDocumentRequests(status);
-  }
-
-  async function updateStatusAction(id: string, status: string, remarks = "") {
-    "use server";
-    return updateRequestStatus(id, status, remarks);
-  }
-
   return (
     <RequestsClient
       initialRequests={initialRequests}
-      onRefresh={refreshAction}
-      onUpdateStatus={updateStatusAction}
+      onRefresh={fetchDocumentRequests}
+      onUpdateStatus={updateRequestStatus}
     />
   );
 }

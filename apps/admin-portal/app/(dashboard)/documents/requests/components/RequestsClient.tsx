@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Filter } from "lucide-react";
 import { RequestsTable } from "./RequestsTable";
-import { DocumentRequestItem } from "../../actions";
+import type { DocumentRequestItem } from "../../actions";
 
 interface RequestsClientProps {
   initialRequests: DocumentRequestItem[];
