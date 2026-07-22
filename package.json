@@ -7,17 +7,21 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:admin":   "npm run dev --workspace=apps/admin-portal",
-    "dev:pwa":     "npm run dev --workspace=apps/resident-pwa",
-    "dev:api":     "npm run dev --workspace=apps/api",
+    "dev:admin": "npm run dev --workspace=apps/admin-portal",
+    "dev:pwa": "npm run dev --workspace=apps/resident-pwa",
+    "dev:api": "npm run dev --workspace=apps/api",
     "build:admin": "npm run build --workspace=apps/admin-portal",
-    "build:pwa":   "npm run build --workspace=apps/resident-pwa",
-    "build:all":   "npm run build:admin && npm run build:pwa",
-    "lint":        "npm run lint --workspaces --if-present",
-    "type-check":  "npm run type-check --workspaces --if-present"
+    "build:pwa": "npm run build --workspace=apps/resident-pwa",
+    "build:all": "npm run build:admin && npm run build:pwa",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present"
   },
   "engines": {
     "node": ">=20.0.0",
-    "npm":  ">=10.0.0"
+    "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5"
   }
 }

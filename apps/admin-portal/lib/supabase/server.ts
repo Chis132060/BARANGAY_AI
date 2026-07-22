@@ -1,10 +1,16 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getMockSupabaseClient } from "./mock-supabase";
 
 export function createClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const cookieStore = cookies();
+  if (!url || url.includes("pedevaqxrudflvostpja") || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+    return getMockSupabaseClient(cookieStore) as any;
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    url,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
@@ -29,3 +35,4 @@ export function createClient() {
     }
   );
 }
+

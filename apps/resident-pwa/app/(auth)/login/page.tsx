@@ -1,6 +1,8 @@
 "use client";
 
 import { LoginForm } from "@/components/login-form";
+import Link from "next/link";
+import { Bot } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -32,11 +34,27 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{" "}
-          <a href="/register" className="text-blue-600 font-medium hover:underline">
+          <Link href="/register" className="text-blue-600 font-medium hover:underline">
             Register
-          </a>
+          </Link>
         </p>
+
+        {/* Guest Mode Divider */}
+        <div className="flex items-center gap-3 mt-5">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400 font-medium">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <Link
+          href="/chat"
+          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-700 transition-all"
+        >
+          <Bot className="h-4 w-4 text-blue-500" />
+          Continue as Guest (AI Chat Only)
+        </Link>
       </div>
     </main>
   );
 }
+

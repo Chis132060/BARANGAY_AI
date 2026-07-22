@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS residents (
     senior_status BOOLEAN DEFAULT false,
     pwd_status BOOLEAN DEFAULT false,
     four_ps_status BOOLEAN DEFAULT false,
+    verification_status VARCHAR(20) DEFAULT 'Pending' CHECK (verification_status IN ('Pending', 'Verified', 'Rejected')),
+    id_type VARCHAR(50),
+    id_photo_url TEXT,
+    rejection_reason TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -233,3 +237,22 @@ INSERT INTO roles (name) VALUES
 ('Treasurer'),
 ('Staff')
 ON CONFLICT (name) DO NOTHING;
+
+-- 8. AI Chatbot Messages table with Row Level Security
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    sender VARCHAR(10) CHECK (sender IN ('user', 'ai')),
+    message TEXT NOT NULL,
+    form_type VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own chat messages" ON chat_messages
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own chat messages" ON chat_messages
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+

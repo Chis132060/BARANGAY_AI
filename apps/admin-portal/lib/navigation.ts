@@ -35,6 +35,7 @@ export const navigationConfig: NavigationModule[] = [
     icon: Users,
     children: [
       { title: "Residents", href: "/residents" },
+      { title: "Verification Queue", href: "/residents/verification" },
       { title: "Household", href: "/residents/household" },
       { title: "Senior Citizen", href: "/residents/senior" },
       { title: "PWD", href: "/residents/pwd" },

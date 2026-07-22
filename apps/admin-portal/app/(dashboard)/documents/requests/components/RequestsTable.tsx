@@ -1,6 +1,6 @@
 "use client";
 
-import { DocumentRequestItem } from "../../actions";
+import type { DocumentRequestItem } from "../../actions";
 
 const STATUS_STYLES: Record<string, string> = {
   Pending: "bg-yellow-100 text-yellow-700",
