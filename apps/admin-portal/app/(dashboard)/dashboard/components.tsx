@@ -1,13 +1,14 @@
 "use client";
 
-import { Users, Home, Award, HelpCircle, FileText, AlertTriangle, Briefcase, TrendingUp, TrendingDown, ArrowUpRight, ShieldCheck, Plus, Sparkles } from "lucide-react";
+import { Users, Home, Award, HelpCircle, FileText, AlertTriangle, Briefcase, TrendingUp, TrendingDown, Plus, Sparkles, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 interface MetricCardProps {
   title: string;
   value: number | string;
-  icon: any;
+  icon: LucideIcon;
   description: string;
+  href: string;
   trend?: {
     value: string;
     isPositive: boolean;
@@ -15,9 +16,13 @@ interface MetricCardProps {
   colorClass: string;
 }
 
-export function MetricCard({ title, value, icon: Icon, description, trend, colorClass }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, description, href, trend, colorClass }: MetricCardProps) {
   return (
-    <div className="bg-card rounded-2xl p-5 border border-border shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 space-y-3 relative overflow-hidden group">
+    <Link
+      href={href}
+      aria-label={`Open ${title}`}
+      className="block bg-card rounded-2xl p-5 border border-border shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group"
+    >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</span>
         <div className={`p-2.5 rounded-xl ${colorClass} transition-transform group-hover:scale-110`}>
@@ -41,7 +46,7 @@ export function MetricCard({ title, value, icon: Icon, description, trend, color
       <div className="w-full bg-muted/50 h-1.5 rounded-full overflow-hidden">
         <div className="bg-primary h-full rounded-full w-2/3 opacity-75" />
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -66,6 +71,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.totalPopulation.toLocaleString(),
       icon: Users,
       description: "Verified residents in barangay database",
+      href: "/residents",
       trend: { value: "+5.2%", isPositive: true },
       colorClass: "bg-blue-500/10 text-blue-600 border border-blue-500/20",
     },
@@ -74,6 +80,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.totalHouseholds.toLocaleString(),
       icon: Home,
       description: "Registered residential household units",
+      href: "/residents/household",
       trend: { value: "+2.1%", isPositive: true },
       colorClass: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
     },
@@ -82,6 +89,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.registeredVoters.toLocaleString(),
       icon: Award,
       description: "COMELEC registered voters in precinct",
+      href: "/community/precinct",
       trend: { value: "+8.4%", isPositive: true },
       colorClass: "bg-purple-500/10 text-purple-600 border border-purple-500/20",
     },
@@ -90,6 +98,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.seniorCitizens.toLocaleString(),
       icon: Sparkles,
       description: "OSCA registered senior pensioners",
+      href: "/residents/senior",
       trend: { value: "+1.5%", isPositive: true },
       colorClass: "bg-amber-500/10 text-amber-600 border border-amber-500/20",
     },
@@ -98,6 +107,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.pwdResidents.toLocaleString(),
       icon: HelpCircle,
       description: "Persons with Disability registered",
+      href: "/residents/pwd",
       trend: { value: "0%", isPositive: true },
       colorClass: "bg-indigo-500/10 text-indigo-600 border border-indigo-500/20",
     },
@@ -106,6 +116,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.pendingRequests,
       icon: FileText,
       description: "Document clearances awaiting approval",
+      href: "/documents/requests",
       trend: { value: "-12%", isPositive: true },
       colorClass: "bg-sky-500/10 text-sky-600 border border-sky-500/20",
     },
@@ -114,6 +125,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.activeComplaints,
       icon: AlertTriangle,
       description: "Open Katarungang Pambarangay cases",
+      href: "/cases/complaints",
       trend: { value: "+2 cases", isPositive: false },
       colorClass: "bg-rose-500/10 text-rose-600 border border-rose-500/20",
     },
@@ -122,6 +134,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       value: metrics.registeredBusinesses,
       icon: Briefcase,
       description: "Permitted commercial establishments",
+      href: "/business/registry",
       trend: { value: "+4.0%", isPositive: true },
       colorClass: "bg-teal-500/10 text-teal-600 border border-teal-500/20",
     },

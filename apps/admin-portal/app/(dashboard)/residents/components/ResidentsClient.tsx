@@ -1,37 +1,108 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Search, Filter, Sparkles, X } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Plus, Search, Filter, X } from "lucide-react";
 import { ResidentTable } from "./ResidentTable";
 import { ResidentForm } from "../forms/ResidentForm";
 import type { ResidentListItem } from "../actions";
 
+type ClassificationFilter = "All" | "Voter" | "Senior" | "PWD" | "4Ps";
+
+interface ResidentFilters {
+  search: string;
+  classification: ClassificationFilter;
+}
+
 interface ResidentsClientProps {
   initialResidents: ResidentListItem[];
+  initialSearch?: string;
   onRefresh: (search: string, filter: string) => Promise<ResidentListItem[]>;
 }
 
-export function ResidentsClient({ initialResidents, onRefresh }: ResidentsClientProps) {
-  const [residents, setResidents] = useState<ResidentListItem[]>(initialResidents);
-  const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
+function getResidentAge(birthDate: string) {
+  const birth = new Date(birthDate);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
 
-  async function handleFilterChange(newFilter: string) {
-    setFilter(newFilter);
-    const updated = await onRefresh(search, newFilter);
-    setResidents(updated);
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
   }
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const updated = await onRefresh(search, filter);
-    setResidents(updated);
+  return age;
+}
+
+function useDebouncedValue(value: string, delay = 300) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedValue(value), delay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [delay, value]);
+
+  return debouncedValue;
+}
+
+export function ResidentsClient({ initialResidents, initialSearch = "", onRefresh }: ResidentsClientProps) {
+  const [residents, setResidents] = useState<ResidentListItem[]>(initialResidents);
+  const [showForm, setShowForm] = useState(false);
+  const [filters, setFilters] = useState<ResidentFilters>({
+    search: initialSearch,
+    classification: "All",
+  });
+  const debouncedSearch = useDebouncedValue(filters.search);
+
+  useEffect(() => {
+    setFilters((current) => ({ ...current, search: initialSearch }));
+  }, [initialSearch]);
+
+  const displayedResidents = useMemo(() => {
+    const normalizedSearch = debouncedSearch.trim().toLowerCase();
+
+    return residents.filter((resident) => {
+      const fullName = [
+        resident.first_name,
+        resident.middle_name,
+        resident.last_name,
+      ].filter(Boolean).join(" ");
+      const address = resident.address
+        ? [
+            resident.address.house_number,
+            resident.address.street,
+            resident.address.purok ? `Purok ${resident.address.purok}` : "",
+          ].filter(Boolean).join(" ")
+        : "";
+
+      const matchesSearch = !normalizedSearch || [
+        fullName,
+        resident.first_name,
+        resident.middle_name ?? "",
+        resident.last_name,
+        address,
+        resident.address?.purok ?? "",
+        resident.contact_number ?? "",
+        resident.id,
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
+
+      const matchesClassification =
+        filters.classification === "All" ||
+        (filters.classification === "Voter" && resident.voter_status) ||
+        (filters.classification === "Senior" && getResidentAge(resident.birth_date) >= 60) ||
+        (filters.classification === "PWD" && resident.pwd_status) ||
+        (filters.classification === "4Ps" && resident.four_ps_status);
+
+      return matchesSearch && matchesClassification;
+    });
+  }, [debouncedSearch, filters.classification, residents]);
+
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
   }
 
   async function handleSuccess() {
     setShowForm(false);
-    const updated = await onRefresh(search, filter);
+    const updated = await onRefresh("", "All");
     setResidents(updated);
   }
 
@@ -72,19 +143,16 @@ export function ResidentsClient({ initialResidents, onRefresh }: ResidentsClient
           <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search resident name..."
+            value={filters.search}
+            onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+            placeholder="Search name, address, purok, contact, or ID..."
             className="w-full pl-9 pr-8 py-2 text-xs font-medium bg-card border border-input rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-2xs"
           />
-          {search && (
+          {filters.search && (
             <button
               type="button"
-              onClick={async () => {
-                setSearch("");
-                const updated = await onRefresh("", filter);
-                setResidents(updated);
-              }}
+              onClick={() => setFilters((current) => ({ ...current, search: "" }))}
+              aria-label="Clear resident search"
               className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />
@@ -94,12 +162,12 @@ export function ResidentsClient({ initialResidents, onRefresh }: ResidentsClient
 
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-          {["All", "Voter", "Senior", "PWD", "4Ps"].map((tab) => (
+          {(["All", "Voter", "Senior", "PWD", "4Ps"] as ClassificationFilter[]).map((tab) => (
             <button
               key={tab}
-              onClick={() => handleFilterChange(tab)}
+              onClick={() => setFilters((current) => ({ ...current, classification: tab }))}
               className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                filter === tab
+                filters.classification === tab
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-muted/60 hover:bg-muted text-muted-foreground border border-transparent hover:border-border"
               }`}
@@ -111,7 +179,7 @@ export function ResidentsClient({ initialResidents, onRefresh }: ResidentsClient
       </div>
 
       {/* Main Table */}
-      <ResidentTable residents={residents} />
+      <ResidentTable residents={displayedResidents} />
     </div>
   );
 }

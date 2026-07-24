@@ -6,8 +6,15 @@ export const metadata = {
   description: "Barangay Residents database and registry details.",
 };
 
-export default async function ResidentsPage() {
+interface ResidentsPageProps {
+  searchParams?: {
+    search?: string;
+  };
+}
+
+export default async function ResidentsPage({ searchParams }: ResidentsPageProps) {
   let initialResidents = [];
+  const initialSearch = searchParams?.search ?? "";
 
   try {
     initialResidents = await fetchResidents();
@@ -46,5 +53,11 @@ export default async function ResidentsPage() {
     ];
   }
 
-  return <ResidentsClient initialResidents={initialResidents} onRefresh={fetchResidents} />;
+  return (
+    <ResidentsClient
+      initialResidents={initialResidents}
+      initialSearch={initialSearch}
+      onRefresh={fetchResidents}
+    />
+  );
 }
