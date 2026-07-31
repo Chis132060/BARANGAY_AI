@@ -256,3 +256,106 @@ CREATE POLICY "Users can view their own chat messages" ON chat_messages
 CREATE POLICY "Users can insert their own chat messages" ON chat_messages
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- 9. AI RAG Tables (Added for AI Brain Upgrade)
+
+-- Knowledge documents uploaded by staff
+CREATE TABLE IF NOT EXISTS knowledge_docs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(200) NOT NULL,
+    source_type VARCHAR(30) CHECK (source_type IN ('pdf', 'docx', 'txt', 'md', 'manual')),
+    file_url TEXT,
+    audience VARCHAR(20) DEFAULT 'public' CHECK (audience IN ('public', 'staff', 'admin')),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'draft', 'archived')),
+    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Chunked + embedded knowledge paragraphs (the vector store)
+CREATE TABLE IF NOT EXISTS knowledge_chunks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    doc_id UUID REFERENCES knowledge_docs(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    embedding vector(768),
+    metadata JSONB DEFAULT '{}',     
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS knowledge_chunks_embedding_idx ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+-- Session memory table
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    session_token TEXT NOT NULL UNIQUE,
+    started_at TIMESTAMPTZ DEFAULT now(),
+    last_active_at TIMESTAMPTZ DEFAULT now(),
+    turn_count INTEGER DEFAULT 0,
+    expires_at TIMESTAMPTZ DEFAULT now() + INTERVAL '2 hours'
+);
+
+ALTER TABLE chat_messages 
+    ADD COLUMN IF NOT EXISTS session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS citations JSONB DEFAULT '[]',
+    ADD COLUMN IF NOT EXISTS confidence FLOAT,
+    ADD COLUMN IF NOT EXISTS model_used VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS tokens_used INTEGER;
+
+-- AI audit log
+CREATE TABLE IF NOT EXISTS ai_audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+    query_text TEXT NOT NULL,
+    retrieved_chunk_ids UUID[] DEFAULT '{}',
+    response_text TEXT NOT NULL,
+    model_used VARCHAR(50),
+    tokens_prompt INTEGER,
+    tokens_completion INTEGER,
+    latency_ms INTEGER,
+    flagged BOOLEAN DEFAULT false,
+    flag_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE knowledge_docs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_chunks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public knowledge readable by all authenticated users') THEN
+        CREATE POLICY "Public knowledge readable by all authenticated users"
+            ON knowledge_chunks FOR SELECT
+            USING (
+                EXISTS (
+                    SELECT 1 FROM knowledge_docs d
+                    WHERE d.id = knowledge_chunks.doc_id
+                      AND d.status = 'active'
+                      AND d.audience = 'public'
+                )
+            );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users manage their own sessions') THEN
+        CREATE POLICY "Users manage their own sessions"
+            ON chat_sessions FOR ALL
+            USING (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Audit logs: admins only') THEN
+        CREATE POLICY "Audit logs: admins only"
+            ON ai_audit_logs FOR SELECT
+            USING (
+                EXISTS (
+                    SELECT 1 FROM users u
+                    JOIN roles r ON u.role_id = r.id
+                    WHERE u.id = auth.uid()
+                      AND r.name IN ('Super Admin', 'Barangay Captain', 'Secretary')
+                )
+            );
+    END IF;
+END
+$$;
