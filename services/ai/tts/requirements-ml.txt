@@ -1,0 +1,5 @@
+# Heavy ML dependencies for the TTS service.
+# Install separately (e.g. `npm run ai:setup -- --with-ml`) — pulls torch + f5-tts (~2+ GB).
+torch>=2.2.0
+torchaudio>=2.2.0
+f5-tts>=1.1.5,<2.0.0

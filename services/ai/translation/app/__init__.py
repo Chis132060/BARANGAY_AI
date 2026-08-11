@@ -1,0 +1,1 @@
+"""Barangay AI Translation service."""

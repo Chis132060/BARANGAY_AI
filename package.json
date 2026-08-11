@@ -14,7 +14,25 @@
     "build:pwa": "npm run build --workspace=apps/resident-pwa",
     "build:all": "npm run build:admin && npm run build:pwa",
     "lint": "npm run lint --workspaces --if-present",
-    "type-check": "npm run type-check --workspaces --if-present"
+    "type-check": "npm run type-check --workspaces --if-present",
+
+    "ai:up": "docker compose up -d --build",
+    "ai:down": "docker compose down",
+    "ai:logs": "docker compose logs -f",
+    "ai:build": "docker compose build",
+    "ai:status": "docker compose ps",
+
+    "ai:dev:pdf": "cd services/ai/pdf-processor && .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001",
+    "ai:dev:translation": "cd services/ai/translation && .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8002",
+    "ai:dev:tts": "cd services/ai/tts && .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8003",
+
+    "ai:setup": "python scripts/setup_ai_venvs.py",
+    "ai:models": "python services/ai/translation/scripts/download_models.py",
+
+    "ai:test": "npm run ai:test:pdf && npm run ai:test:translation && npm run ai:test:tts",
+    "ai:test:pdf": "cd services/ai/pdf-processor && .venv\\Scripts\\python.exe -m pytest -q",
+    "ai:test:translation": "cd services/ai/translation && .venv\\Scripts\\python.exe -m pytest -q",
+    "ai:test:tts": "cd services/ai/tts && .venv\\Scripts\\python.exe -m pytest -q"
   },
   "engines": {
     "node": ">=20.0.0",

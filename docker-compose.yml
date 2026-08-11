@@ -1,0 +1,106 @@
+name: barangay-ai
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Barangay AI — Isolated AI services layer.
+#
+# Networking model:
+#   - Each service binds to 127.0.0.1 only (no public exposure).
+#   - The application/API layer (Next.js apps or the FastAPI gateway) is the
+#     only consumer; it reaches the services over the internal network.
+#   - Model weights and generated artifacts live in local volumes, never in
+#     the image or the repository.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  pdf-processor:
+    build:
+      context: ./services/ai/pdf-processor
+      dockerfile: Dockerfile
+    container_name: barangay-ai-pdf-processor
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
+    env_file:
+      - .env
+    environment:
+      PDF_MAX_BYTES: ${PDF_MAX_BYTES:-26214400}
+      PDF_DOWNLOAD_TIMEOUT_SECONDS: ${PDF_DOWNLOAD_TIMEOUT_SECONDS:-30}
+      PDF_EXTRACTION_TIMEOUT_SECONDS: ${PDF_EXTRACTION_TIMEOUT_SECONDS:-180}
+      PDF_RATE_LIMIT_PER_MINUTE: ${PDF_RATE_LIMIT_PER_MINUTE:-20}
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  translation:
+    build:
+      context: ./services/ai/translation
+      dockerfile: Dockerfile
+    container_name: barangay-ai-translation
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8000"
+    env_file:
+      - .env
+    environment:
+      TRANSLATION_MODEL_ROOT: ${TRANSLATION_MODEL_ROOT:-/app/models}
+      TRANSLATION_DEVICE: ${TRANSLATION_DEVICE:-cpu}
+      TRANSLATION_COMPUTE_TYPE: ${TRANSLATION_COMPUTE_TYPE:-int8}
+      TRANSLATION_MAX_TEXT_LENGTH: ${TRANSLATION_MAX_TEXT_LENGTH:-1000}
+      TRANSLATION_RATE_LIMIT_PER_MINUTE: ${TRANSLATION_RATE_LIMIT_PER_MINUTE:-60}
+    volumes:
+      - ./services/ai/translation/models:/app/models
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  tts:
+    build:
+      context: ./services/ai/tts
+      dockerfile: Dockerfile
+    container_name: barangay-ai-tts
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8003:8000"
+    env_file:
+      - .env
+    environment:
+      TTS_MODEL_NAME: ${TTS_MODEL_NAME:-F5TTS_v1_Base}
+      TTS_MODEL_PATH: ${TTS_MODEL_PATH:-}
+      TTS_DEVICE: ${TTS_DEVICE:-cpu}
+      TTS_OUTPUT_DIR: ${TTS_OUTPUT_DIR:-/app/output}
+      TTS_MAX_TEXT_LENGTH: ${TTS_MAX_TEXT_LENGTH:-1000}
+      TTS_AUDIO_RETENTION_HOURS: ${TTS_AUDIO_RETENTION_HOURS:-24}
+      TTS_PUBLIC_BASE_URL: ${TTS_PUBLIC_BASE_URL:-http://127.0.0.1:8003}
+      TTS_RATE_LIMIT_PER_MINUTE: ${TTS_RATE_LIMIT_PER_MINUTE:-30}
+      TTS_REF_AUDIO: ${TTS_REF_AUDIO:-}
+      TTS_REF_TEXT: ${TTS_REF_TEXT:-}
+      TTS_REF_AUDIO_URL: ${TTS_REF_AUDIO_URL:-}
+    volumes:
+      - ./services/ai/tts/models:/app/models
+      - tts_audio:/app/output
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  ai-net:
+    driver: bridge
+
+volumes:
+  tts_audio:
+    driver: local
