@@ -1,0 +1,7 @@
+fastapi>=0.110.0,<1.0.0
+uvicorn[standard]>=0.29.0,<1.0.0
+pydantic>=2.5.0,<3.0.0
+python-dotenv>=1.0.1,<2.0.0
+# Lingvanex models run on CTranslate2 (OpenNMT) with SentencePiece tokenizers.
+ctranslate2>=4.3.0,<5.0.0
+sentencepiece>=0.1.99,<1.0.0

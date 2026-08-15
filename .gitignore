@@ -12,6 +12,7 @@ dist/
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # IDE & system
 .vscode/
@@ -33,3 +34,29 @@ yarn-error.log*
 
 # Local-only seeders with private credentials
 *.local.js
+
+# ── Python / AI services ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+*.pth
+*.safetensors
+*.ckpt
+*.pt
+
+# Model weights & generated artifacts — never committed
+services/ai/*/models/*
+!services/ai/*/models/.gitkeep
+services/ai/*/output/
+services/ai/*/tmp/
+services/ai/*/generated/
+services/ai/translation/models/*.zip
+services/ai/tts/models/*.zip
+
+# Generated audio / documents
+services/ai/*/output/**/*.wav
+services/ai/*/output/**/*.mp3
