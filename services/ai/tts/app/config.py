@@ -14,6 +14,11 @@ class Settings:
     TTS_MODEL_NAME: str = os.getenv("TTS_MODEL_NAME", "F5TTS_v1_Base") or "F5TTS_v1_Base"
     TTS_MODEL_PATH: str = os.getenv("TTS_MODEL_PATH", "") or ""
 
+    # MMS-TTS model names for Cebuano, Tagalog, and English
+    MMS_TTS_CEB_MODEL: str = os.getenv("MMS_TTS_CEB_MODEL", "facebook/mms-tts-ceb")
+    MMS_TTS_TGL_MODEL: str = os.getenv("MMS_TTS_TGL_MODEL", "facebook/mms-tts-tgl")
+    MMS_TTS_ENG_MODEL: str = os.getenv("MMS_TTS_ENG_MODEL", "facebook/mms-tts-eng")
+
     # cpu (default) | cuda | auto — with automatic CPU fallback.
     TTS_DEVICE: str = (os.getenv("TTS_DEVICE", "cpu") or "cpu").lower()
 

@@ -4,11 +4,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
   Bot, User, Send, Sparkles, Lock, ArrowRight,
-  FileText, Globe, AlertCircle, Clock,
+  FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InChatFormCard } from "./InChatFormCard";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
+import { useTTS, TTSLanguage } from "@/hooks/useTTS";
+import { useSTT } from "@/hooks/useSTT";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -65,6 +67,9 @@ export function ChatInterface() {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [sessionId] = useState<string>(() => uuidv4()); // stable per tab
+  const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
+  const { speak, stop, speakingId, loadingId } = useTTS();
+  const { isListening, isSupported, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -283,6 +288,46 @@ export function ChatInterface() {
                   <p className="whitespace-pre-line">{m.text}</p>
                 </div>
 
+                {/* TTS Audio Listen Controls */}
+                {!isUser && !m.isError && (
+                  <div className="flex items-center gap-1.5 px-1 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => speak(m.id, m.text, ttsLang)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-all ${
+                        speakingId === m.id
+                          ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                          : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                      }`}
+                    >
+                      {loadingId === m.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                      ) : speakingId === m.id ? (
+                        <VolumeX className="h-3 w-3 text-red-500" />
+                      ) : (
+                        <Volume2 className="h-3 w-3 text-blue-600" />
+                      )}
+                      <span>
+                        {loadingId === m.id
+                          ? "Loading..."
+                          : speakingId === m.id
+                          ? "Stop"
+                          : "Listen"}
+                      </span>
+                    </button>
+
+                    <select
+                      value={ttsLang}
+                      onChange={(e) => setTtsLang(e.target.value as TTSLanguage)}
+                      className="text-[10px] bg-gray-50 border border-gray-200 text-gray-600 rounded-full px-2 py-0.5 outline-none font-medium focus:border-blue-400 cursor-pointer"
+                    >
+                      <option value="tgl">🇵🇭 Tagalog</option>
+                      <option value="ceb">🇵🇭 Cebuano (Bisaya)</option>
+                      <option value="en">🇺🇸 English</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Citation badges */}
                 {!isUser && m.citations && m.citations.length > 0 && (
                   <div className="flex flex-wrap gap-1 px-1">
@@ -352,14 +397,43 @@ export function ChatInterface() {
         <input
           type="text"
           placeholder={
-            isLoggedIn
+            isListening
+              ? `Listening in ${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"}...`
+              : isLoggedIn
               ? "Ask AI or request a document..."
               : "Ask about policies, clearance, ordinances..."
           }
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-2xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+          className={`flex-1 border rounded-2xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+            isListening
+              ? "border-red-400 bg-red-50/50 text-red-900 font-medium placeholder-red-400 animate-pulse"
+              : "border-gray-300 bg-gray-50 text-gray-800"
+          }`}
         />
+
+        {/* Speech-to-Text (STT) Microphone Button */}
+        <button
+          type="button"
+          onClick={() =>
+            toggleListening(ttsLang, (transcribedText) => {
+              setInput(transcribedText);
+            })
+          }
+          title={
+            isListening
+              ? "Listening... Click to stop"
+              : `Voice Input (${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"})`
+          }
+          className={`h-10 w-10 rounded-2xl flex items-center justify-center transition-all shadow shrink-0 ${
+            isListening
+              ? "bg-red-600 text-white animate-pulse"
+              : "bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600 border border-gray-200"
+          }`}
+        >
+          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        </button>
+
         <button
           type="submit"
           disabled={!input.trim() || loading}
