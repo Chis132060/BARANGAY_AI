@@ -12,6 +12,7 @@ from ..errors import ServiceError
 from ..ratelimit import rate_limiter
 from ..schemas.speech import TtsGenerateRequest, TtsGenerateResponse, TtsGenerationResult
 from ..services.f5tts import tts_service
+from ..services.mms_tts import mms_tts_service
 
 router = APIRouter()
 
@@ -34,6 +35,7 @@ async def generate_speech(payload: TtsGenerateRequest, request: Request):
     rate_limiter.check(_client_key(request), settings.TTS_RATE_LIMIT_PER_MINUTE)
 
     text = payload.text.strip()
+    language = (payload.language or "tgl").lower().strip()
     if not text:
         raise ServiceError("EMPTY_INPUT", "Text cannot be empty.", status_code=422)
     if len(text) > settings.TTS_MAX_TEXT_LENGTH:
@@ -43,8 +45,13 @@ async def generate_speech(payload: TtsGenerateRequest, request: Request):
             status_code=422,
         )
 
-    # Model inference is blocking (torch); run it off the event loop.
-    result = await asyncio.to_thread(tts_service.synthesize, text)
+    # Model inference is blocking; run off the main event loop.
+    # Try MMS-TTS for multi-language (ceb, tgl, en), with fallback to F5-TTS.
+    try:
+        result = await asyncio.to_thread(mms_tts_service.synthesize, text, language)
+    except Exception:
+        # Fallback to F5-TTS
+        result = await asyncio.to_thread(tts_service.synthesize, text)
 
     audio_url = f"{_audio_base_url(request)}/api/v1/tts/audio/{result['file_id']}"
 
