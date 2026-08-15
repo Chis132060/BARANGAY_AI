@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
 import {
   Bot, User, Send, Sparkles, Lock, ArrowRight,
-  FileText, Globe, ChevronUp,
+  FileText, Globe, AlertCircle, Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
 import { InChatFormCard } from "./InChatFormCard";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import Link from "next/link";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Citation {
+  id: string;
+}
 
 interface Message {
   id: string;
@@ -18,65 +24,51 @@ interface Message {
   formType?: string;
   formTitle?: string;
   guestActionTrigger?: boolean;
+  citations?: string[];
+  contextUsed?: boolean;
+  isError?: boolean;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Simple AI response engine that uses fetched document content
-// ────────────────────────────────────────────────────────────────────────────
-function searchDocumentContent(query: string, documentContent: string): string | null {
-  if (!documentContent) return null;
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  const q = query.toLowerCase();
+/** Detect form trigger keywords in AI response to keep backward-compat */
+function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
+  const FORM_KEYWORDS: { pattern: RegExp; formType: string; formTitle: string }[] = [
+    { pattern: /barangay clearance/i, formType: "clearance", formTitle: "Barangay Clearance" },
+    { pattern: /indigency/i, formType: "indigency", formTitle: "Certificate of Indigency" },
+    { pattern: /residency/i, formType: "residency", formTitle: "Certificate of Residency" },
+    { pattern: /business clearance/i, formType: "business", formTitle: "Business Clearance" },
+  ];
 
-  // Split docs into paragraphs, score each by keyword overlap
-  const paragraphs = documentContent
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 40);
-
-  const queryWords = q
-    .split(/\s+/)
-    .filter((w) => w.length > 3 && !["what", "is", "the", "are", "how", "can", "mga", "ang", "yung", "yong"].includes(w));
-
-  let bestParagraph = "";
-  let bestScore = 0;
-
-  for (const para of paragraphs) {
-    const paraLower = para.toLowerCase();
-    const score = queryWords.reduce((acc, word) => acc + (paraLower.includes(word) ? 1 : 0), 0);
-    if (score > bestScore) {
-      bestScore = score;
-      bestParagraph = para;
+  for (const { pattern, formType, formTitle } of FORM_KEYWORDS) {
+    if (pattern.test(text)) {
+      if (isLoggedIn) return { formType, formTitle };
+      return { guestActionTrigger: true };
     }
   }
-
-  if (bestScore >= 1 && bestParagraph) {
-    // Trim to a readable length
-    const trimmed = bestParagraph.length > 600 ? bestParagraph.slice(0, 600) + "…" : bestParagraph;
-    return trimmed;
-  }
-  return null;
+  return {};
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       sender: "ai",
-      text: "Kumusta! I am your Smart Barangay AI Assistant.\n\nAsk me anything about:\n• 📄 Barangay Clearance requirements\n• 📋 Ordinances and policies\n• 🏥 Certificate of Indigency\n• 🕐 Office hours\n• 🎉 Community events\n\nI read real Barangay policy documents to answer your questions!",
+      text: "Kumusta! I am your Smart Barangay AI Assistant.\n\nAsk me anything about:\n• 📄 Barangay Clearance requirements\n• 📋 Ordinances and policies\n• 🏥 Certificate of Indigency\n• 🕐 Office hours\n• 🎉 Community events\n\nI use real Barangay policy documents to give you accurate answers!",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
-  const [documentContent, setDocumentContent] = useState("");
-  const [docCount, setDocCount] = useState(0);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [sessionId] = useState<string>(() => uuidv4()); // stable per tab
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const supabase = createClient();
 
-  // ── Auth check + load saved messages (RLS-protected) ────────────────────
+  // ── Auth + load saved messages ─────────────────────────────────────────────
   useEffect(() => {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -84,11 +76,11 @@ export function ChatInterface() {
       setIsLoggedIn(loggedIn);
 
       if (loggedIn) {
-        // RLS: each user only sees their OWN chat_messages
         const { data: savedMsgs } = await supabase
           .from("chat_messages")
           .select("*")
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true })
+          .limit(50);
 
         if (savedMsgs && savedMsgs.length > 0) {
           setMessages(
@@ -97,6 +89,7 @@ export function ChatInterface() {
               sender: m.sender,
               text: m.message,
               formType: m.form_type,
+              citations: m.citations ?? [],
             }))
           );
         }
@@ -105,30 +98,18 @@ export function ChatInterface() {
     checkAuth();
   }, []);
 
-  // ── Fetch policy document content from /api/policies ────────────────────
-  useEffect(() => {
-    fetch("/api/policies")
-      .then((r) => r.json())
-      .then(({ content, documentCount }) => {
-        setDocumentContent(content || "");
-        setDocCount(documentCount || 0);
-      })
-      .catch(() => {
-        // Silently fall back to built-in knowledge base
-      });
-  }, []);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ── Send + AI processing ─────────────────────────────────────────────────
-  const handleSend = async (e: React.FormEvent) => {
+  // ── Send message ───────────────────────────────────────────────────────────
+  const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
     const userText = input.trim();
     setInput("");
+    setRateLimited(false);
 
     const userMsg: Message = {
       id: `user-${Date.now()}`,
@@ -138,7 +119,7 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    // Save user message to DB (RLS ensures guests cannot write)
+    // Persist user message (RLS ensures only logged-in users can write)
     if (isLoggedIn) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -146,78 +127,90 @@ export function ChatInterface() {
           user_id: user.id,
           sender: "user",
           message: userText,
+          session_id: null, // session_id FK expects UUID from chat_sessions
         });
       }
     }
 
-    setTimeout(async () => {
-      let aiReplyText = "";
-      let formType: string | undefined;
-      let formTitle: string | undefined;
-      let guestActionTrigger = false;
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText, sessionId }),
+      });
 
-      // 1️⃣ Try matching against real policy documents first
-      const docAnswer = searchDocumentContent(userText, documentContent);
-
-      // 2️⃣ Also try the structured knowledge base (for form triggering)
-      const match = findMatchingKnowledge(userText, isLoggedIn);
-
-      if (match) {
-        aiReplyText = docAnswer
-          ? `${match.reply}\n\n📄 From Barangay Document:\n${docAnswer}`
-          : match.reply;
-
-        if (match.canTriggerForm) {
-          formType = match.topic.formType;
-          formTitle = match.topic.title;
-        } else if (!isLoggedIn && match.topic.formType) {
-          guestActionTrigger = true;
-        }
-      } else if (docAnswer) {
-        // Document answered it even if not in structured knowledge
-        aiReplyText = `📄 Based on Barangay documents:\n\n${docAnswer}`;
-        // Guests asking about applications — suggest login
-        if (
-          !isLoggedIn &&
-          /apply|request|form|submit|certificate|clearance|permit/i.test(userText)
-        ) {
-          guestActionTrigger = true;
-        }
-      } else {
-        aiReplyText =
-          "I'm here to help! You can ask me about:\n• Barangay Clearances\n• Certificate of Indigency or Residency\n• Business Clearance\n• Ordinances & curfew policies\n• Office hours and events\n\nTry asking in Filipino or English!";
+      if (res.status === 429) {
+        setRateLimited(true);
+        const errorMsg: Message = {
+          id: `ai-err-${Date.now()}`,
+          sender: "ai",
+          text: "⏳ You're sending messages too quickly. Please wait a moment before asking again.",
+          isError: true,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+        setLoading(false);
+        return;
       }
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const aiText: string = data.answer ?? "";
+      const citations: string[] = data.citations ?? [];
+      const contextUsed: boolean = data.context_used ?? false;
+
+      // Auto-detect form triggers from AI response
+      const formHints = detectFormTrigger(aiText, isLoggedIn);
 
       const aiMsg: Message = {
         id: `ai-${Date.now()}`,
         sender: "ai",
-        text: aiReplyText,
-        formType,
-        formTitle,
-        guestActionTrigger,
+        text: aiText,
+        citations,
+        contextUsed,
+        ...formHints,
       };
       setMessages((prev) => [...prev, aiMsg]);
 
-      // Save AI response to DB (RLS-protected per user)
+      // Persist AI response
       if (isLoggedIn) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase.from("chat_messages").insert({
             user_id: user.id,
             sender: "ai",
-            message: aiReplyText,
-            form_type: formType || null,
+            message: aiText,
+            form_type: formHints.formType ?? null,
+            citations: citations,
+            model_used: "gemini-1.5-flash",
           });
         }
       }
-
+    } catch (err: any) {
+      const errorMsg: Message = {
+        id: `ai-err-${Date.now()}`,
+        sender: "ai",
+        text: "⚠️ I'm having trouble connecting right now. Please try again in a moment.",
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setLoading(false);
-    }, 650);
-  };
+    }
+  }, [input, loading, isLoggedIn, sessionId, supabase]);
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen max-w-lg mx-auto bg-white overflow-hidden">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+
+      {/* Header */}
       <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-between shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow">
@@ -227,22 +220,13 @@ export function ChatInterface() {
             <h1 className="text-sm font-bold tracking-tight">Smart Barangay AI</h1>
             <p className="text-[10px] text-blue-100 font-medium flex items-center gap-1">
               {isLoggedIn ? (
-                <>🔒 Resident Mode · RLS Active</>
+                <>🔒 Resident Mode · RAG Active</>
               ) : (
-                <>
-                  <Globe className="h-2.5 w-2.5" /> Guest Mode
-                </>
-              )}
-              {docCount > 0 && (
-                <span className="ml-1.5 text-green-300 flex items-center gap-0.5">
-                  <FileText className="h-2.5 w-2.5" /> {docCount} doc{docCount > 1 ? "s" : ""} loaded
-                </span>
+                <><Globe className="h-2.5 w-2.5" /> Guest Mode · RAG Active</>
               )}
             </p>
           </div>
         </div>
-
-        {/* Sign-in button for guests */}
         {!isLoggedIn && (
           <Link
             href="/login"
@@ -253,13 +237,13 @@ export function ChatInterface() {
         )}
       </div>
 
-      {/* ── Guest Info Banner ────────────────────────────────────────────── */}
+      {/* Guest banner */}
       {!isLoggedIn && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-2 text-xs text-amber-800 shrink-0">
           <Globe className="h-3.5 w-3.5 text-amber-500 shrink-0" />
           <span>
-            <strong>Guest Mode</strong> — You can ask about policies. 
-            <Link href="/login" className="ml-1 text-blue-700 font-semibold underline">
+            <strong>Guest Mode</strong> — You can ask about policies.{" "}
+            <Link href="/login" className="text-blue-700 font-semibold underline">
               Sign in
             </Link>{" "}
             to request documents &amp; track applications.
@@ -267,7 +251,15 @@ export function ChatInterface() {
         </div>
       )}
 
-      {/* ── Messages Stream ──────────────────────────────────────────────── */}
+      {/* Rate-limit warning */}
+      {rateLimited && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-2 text-xs text-red-700 shrink-0">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>Too many messages. Please slow down a bit.</span>
+        </div>
+      )}
+
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-gray-50/40">
         {messages.map((m) => {
           const isUser = m.sender === "user";
@@ -275,26 +267,48 @@ export function ChatInterface() {
             <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
               {!isUser && (
                 <div className="h-7 w-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  {m.isError ? <AlertCircle className="h-3.5 w-3.5 text-red-500" /> : <Sparkles className="h-3.5 w-3.5" />}
                 </div>
               )}
-              <div className="max-w-[85%] space-y-2">
+              <div className="max-w-[85%] space-y-1.5">
                 <div
                   className={`p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm ${
                     isUser
                       ? "bg-blue-600 text-white rounded-br-none font-medium"
+                      : m.isError
+                      ? "bg-red-50 text-red-700 rounded-bl-none border border-red-200"
                       : "bg-white text-gray-800 rounded-bl-none border border-gray-200"
                   }`}
                 >
                   <p className="whitespace-pre-line">{m.text}</p>
                 </div>
 
-                {/* Interactive in-chat form for logged-in residents */}
+                {/* Citation badges */}
+                {!isUser && m.citations && m.citations.length > 0 && (
+                  <div className="flex flex-wrap gap-1 px-1">
+                    {m.citations.slice(0, 3).map((cid, i) => (
+                      <span
+                        key={cid}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-medium rounded-full border border-blue-200"
+                      >
+                        <FileText className="h-2.5 w-2.5" />
+                        Source {i + 1}
+                      </span>
+                    ))}
+                    {!m.contextUsed && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-full border border-amber-200">
+                        ⚠️ Verify with barangay staff
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* In-chat form for residents */}
                 {m.formType && m.formTitle && (
                   <InChatFormCard formType={m.formType} title={m.formTitle} />
                 )}
 
-                {/* Guest action prompt */}
+                {/* Guest CTA */}
                 {m.guestActionTrigger && (
                   <Link
                     href="/login"
@@ -313,19 +327,24 @@ export function ChatInterface() {
           );
         })}
 
-        {/* Typing indicator */}
+        {/* Thinking indicator */}
         {loading && (
           <div className="flex gap-2.5 items-center text-xs text-gray-400 font-medium">
             <div className="h-7 w-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center animate-pulse">
               <Bot className="h-3.5 w-3.5" />
             </div>
-            <span className="animate-pulse">AI is reading documents…</span>
+            <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-2xl border border-gray-200 shadow-sm">
+              <span className="animate-bounce delay-0">●</span>
+              <span className="animate-bounce delay-75">●</span>
+              <span className="animate-bounce delay-150">●</span>
+              <span className="ml-1">Searching barangay documents…</span>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ── Input Bar ───────────────────────────────────────────────────── */}
+      {/* Input */}
       <form
         onSubmit={handleSend}
         className="p-3 border-t bg-white flex items-center gap-2 shrink-0 shadow-[0_-1px_6px_rgba(0,0,0,0.06)]"
@@ -350,7 +369,6 @@ export function ChatInterface() {
         </button>
       </form>
 
-      {/* Guest Auth Modal */}
       <GuestAuthModal isOpen={showGuestModal} onClose={() => setShowGuestModal(false)} />
     </div>
   );
