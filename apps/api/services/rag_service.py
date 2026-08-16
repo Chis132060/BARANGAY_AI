@@ -7,9 +7,12 @@ Memory and audit are orchestrated by the router via BackgroundTasks.
 import time
 from typing import List, Dict, Any, Optional
 
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+from services.ai.manager import AIProviderManager
+from services.ai.interfaces import AIRequest
 
 from core.config import settings
 from services.supabase_service import get_supabase_client
@@ -48,20 +51,15 @@ class RAGService:
     def embeddings(self):
         if not self._embeddings:
             self._embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/text-embedding-004",
+                model="models/gemini-embedding-2",
                 google_api_key=settings.GEMINI_API_KEY
             )
         return self._embeddings
 
     @property
-    def llm(self):
+    def llm(self) -> AIProviderManager:
         if not self._llm:
-            self._llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                google_api_key=settings.GEMINI_API_KEY,
-                temperature=0.1,
-                max_output_tokens=1024,
-            )
+            self._llm = AIProviderManager()
         return self._llm
 
     # ── Ingestion ────────────────────────────────────────────────────────────
@@ -161,9 +159,10 @@ class RAGService:
         system_content = SYSTEM_PROMPT.format(context=context_text, history=history_text)
         messages = [SystemMessage(content=system_content), HumanMessage(content=query)]
 
-        # 5. LLM call
-        ai_msg = self.llm.invoke(messages)
-        raw_answer = ai_msg.content
+        # 5. LLM call via Provider Manager (handles failover)
+        request = AIRequest(messages=messages, temperature=0.1, max_tokens=1024)
+        ai_response = self.llm.generate(request)
+        raw_answer = ai_response.content
 
         # 6. Output guard — redact PII
         sanitized_answer, was_flagged, flag_reason = check_output(raw_answer)
