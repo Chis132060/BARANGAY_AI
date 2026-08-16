@@ -1,58 +1,61 @@
-feat(ai): Implement complete RAG Brain Architecture and Multi-Provider Failover System
+feat(ai): Implement Production-Grade RAG Expansion and AI Grounding
 
-This commit finalizes the Smart Barangay AI Brain architecture, transforming the platform from a simple keyword-based chatbot into a highly resilient, production-ready AI RAG (Retrieval-Augmented Generation) pipeline. This implementation guarantees that the AI services remain highly available by not relying on any single AI provider.
+This massive update entirely overhauls the Smart Barangay AI architecture, transforming it into a highly reliable, deterministic, and strictly grounded AI Brain. The goal of this release is to heavily reduce hallucinations and eliminate the AI's ability to guess when data is unavailable, all while maintaining high availability through our multi-provider failover system.
 
-### Detailed Architectural Overview
+### Layer 1: Circuit Breaker & Health Diagnostics Upgrades
+We abstracted the core circuit breaker implementation into a new `CircuitStateStore` interface to guarantee horizontally scalable resilience. Currently, the system utilizes a concrete `InMemoryCircuitStateStore`, which ensures the application functions flawlessly in a single-instance deployment context. By building this abstraction now, we allow the engineering team to easily hot-swap to a distributed Redis backend when the API needs to scale across multiple servers, without rewriting the provider manager. 
 
-#### 1. Multi-Provider AI Failover System
-To ensure maximum uptime, we implemented a sophisticated, distributed-systems approach to managing AI API dependencies. We built a unified `AIProviderManager` equipped with built-in circuit breakers, intelligent error classification, configurable failover priority, and normalized responses. 
+Additionally, we added a dedicated `GET /api/v1/health/ai` diagnostic endpoint to the `rag_router.py` controller. This critical observability endpoint exposes the real-time circuit state (CLOSED, OPEN, HALF_OPEN) and the failure count for all configured AI providers (Gemini, Groq, OpenRouter, etc.). This makes production debugging significantly easier and safer by providing health visibility without ever exposing sensitive internal API keys.
 
-If the primary AI provider goes down, times out, hits a rate limit, or throws an authentication error, the system will automatically reroute the user's request to the next available healthy provider without the user even noticing.
+**Files Added/Modified:**
+- `apps/api/services/ai/circuit_breaker.py`: Refactored to include the `CircuitStateStore` interface.
+- `apps/api/services/ai/manager.py`: Updated to pass the state store and expose a `get_health()` diagnostic dictionary.
+- `apps/api/routers/rag_router.py`: Added the explicit `/health/ai` GET endpoint.
 
-**Prioritized AI Providers Configured:**
-1. **Gemini** (`gemini-3.5-flash`) - *Primary Provider*
-2. **Groq** (`llama-3.1-8b-instant`) - *Fallback Provider 1*
-3. **OpenRouter** (`meta-llama/llama-3.1-8b-instruct`) - *Fallback Provider 2*
-4. **Ollama** (`llama3.1`) - *Fallback Provider 3 (Local/Hosted)*
+### Layer 2: Database Schema & Knowledge Expansion
+We authored a brand new Supabase SQL migration script `20260816000002_rag_expansion.sql` to permanently alter how the AI understands data provenance. Instead of blindly trusting all text, this migration safely alters the existing `knowledge_chunks` and `knowledge_docs` tables to support strict metadata tracking.
 
-**Circuit Breaker Pattern:**
-We implemented a `CircuitBreaker` class that monitors the health of each API endpoint. If an API fails consecutively beyond the threshold (e.g., 3 times), the circuit trips to an `OPEN` state. This prevents the system from hammering a dead API, giving it a 30-second cooldown period before testing it again in a `HALF-OPEN` state.
+It introduces new Enum columns including `source_type` (WEB, LOCAL, DATABASE, TOOL) and `trust_level` (AUTHORITATIVE, VERIFIED, GENERAL, UNVERIFIED). Furthermore, it tracks exact ingestion lifecycles via `content_hash`, `published_at`, `retrieved_at`, and `version` columns. Finally, it dynamically updates the `match_knowledge_chunks` Postgres RPC to return this rich metadata back to the Python backend. This ensures the AI always knows exactly where a piece of information came from and how much priority it should be given during generation.
 
-**Intelligent Error Classification:**
-The system uses an `error_classifier.py` to differentiate between unrecoverable client errors (like a bad prompt triggering a content safety filter) and recoverable upstream errors (like a 429 Rate Limit, a 503 Gateway Timeout, or a 401 Auth Error). Only recoverable errors trigger the automatic failover, preventing infinite loops on bad requests.
+**Files Added/Modified:**
+- `infra/supabase/migrations/20260816000002_rag_expansion.sql`: The database schema evolution script introducing the new constraints and enums.
 
-#### 2. Vector Database Infrastructure
-We integrated Supabase and the PostgreSQL `pgvector` extension to handle the semantic retrieval of barangay documents. 
-- We upgraded the table schema from accepting 768 dimensions to supporting massive 3,072-dimensional arrays, matching the output of Google's absolute latest embedding model (`gemini-embedding-2`).
-- We implemented a remote procedure call (`match_knowledge_chunks`) that performs blazing-fast exact nearest-neighbor cosine-similarity searches across the database.
+### Layer 3: Explicit Query Routing & Secure Tool Architecture
+We completely removed the AI's dangerous unrestricted ability to arbitrarily query the database. Instead, we built a highly strict server-side `QueryRouter` inside the `apps/api/services/ai/grounding/query_router.py` module. 
 
-#### 3. Automated Data Ingestion
-To populate the AI's "Brain", we built an automated data ingestion pipeline. The system reads raw text files, chunks them using semantic boundaries, converts those chunks into 3,072-dimension vectors, and batch-inserts them into Supabase. It automatically resolves foreign key constraints by validating against the `knowledge_docs` table before pushing chunks.
+This router inspects every incoming user query deterministically *before* generation even begins. It forces the query down one of four specific execution paths: `LIVE_DATA`, `RAG`, `HYBRID`, or `GENERAL`. For dynamic real-time questions (like "How many active buses are running?"), it completely bypasses the semantic vector search and instead triggers explicit, sandboxed Python tools in `apps/api/services/ai/tools.py`. If the backend tool returns no data, the AI is mathematically blocked from guessing the answer.
 
-### Complete List of Files & Folders Added/Modified
+**Files Added/Modified:**
+- `apps/api/services/ai/grounding/query_router.py`: Implements the `QueryRouter` class and `Route` enums.
+- `apps/api/services/ai/tools.py`: Implements the `BackendTools` static class containing strictly authorized mock and live data fetchers.
 
-**New Folders Created:**
-- `apps/api/services/ai/` - The core directory for all AI resilience abstractions.
-- `apps/api/services/ai/providers/` - The directory containing all the independent API adapters.
+### Layer 4: Grounding & Evidence Validation Layer
+We introduced a sophisticated pre- and post-generation validation layer in the `apps/api/services/ai/grounding/` package. 
 
-**New Code/Files Created:**
-- `apps/api/services/ai/manager.py` - The central orchestrator handling failovers and routing.
-- `apps/api/services/ai/circuit_breaker.py` - The state machine preventing API abuse during outages.
-- `apps/api/services/ai/error_classifier.py` - The logic that parses HTTP and Langchain errors.
-- `apps/api/services/ai/interfaces.py` - Defines strict inputs/outputs so all AI models behave identically.
-- `apps/api/services/ai/providers/base_provider.py` - The universal adapter for Langchain models.
-- `apps/api/services/ai/providers/gemini_provider.py` - Connects to Google's Gemini API.
-- `apps/api/services/ai/providers/groq_provider.py` - Connects to Groq's high-speed inference API.
-- `apps/api/services/ai/providers/openrouter_provider.py` - Connects to OpenRouter's model routing API.
-- `apps/api/services/ai/providers/ollama_provider.py` - Connects to local/hosted Ollama instances.
-- `apps/api/seed_knowledge.py` - The script responsible for ingesting, chunking, and embedding the seed documents.
-- `infra/supabase/migrations/20260816000000_vector_db_init.sql` - The initial Supabase pgvector schema.
-- `infra/supabase/migrations/20260816000001_fix_vector_dimensions.sql` - The patch to upgrade vector dimension size to 3072.
-- `apps/api/test_chat.py`, `test_failover.py`, `test_apis.py` - Comprehensive testing tools for the QA pipeline.
+First, the `ContextValidator` filters out irrelevant RAG chunks before they can ever reach the LLM's prompt. It ranks retrieved documents using a weighted mathematical formula based on semantic similarity and trusted source level. If all chunks fall below the minimum relevance threshold, it throws them out to prevent the model from getting confused by noise.
 
-**Files Modified:**
-- `apps/api/services/rag_service.py` - Completely refactored the core RAG logic to utilize the new `AIProviderManager` instead of a hardcoded Gemini instance.
-- `apps/api/core/config.py` - Expanded to support `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `OLLAMA_API_KEY`, and variables for failover timeouts and circuit breaker thresholds.
-- `.env` / `.env.example` - Appended the new keys to the environment configurations securely.
+After the LLM generates a response, the `ResponseValidator` kicks in. It performs strict deterministic checks to ensure the LLM's output matches the expected JSON schema, and that the LLM is not fabricating source citations that weren't actually provided in the context window. If the LLM violates these strict rules, the system fails the validation layer and immediately triggers an automatic failover to the next healthy AI provider, effectively trapping hallucinations before they reach the user.
 
-This architecture ensures the Smart Barangay system is enterprise-ready and fully immune to localized AI provider outages.
+**Files Added/Modified:**
+- `apps/api/services/ai/grounding/context_validator.py`: Analyzes and rejects poor-quality RAG chunks.
+- `apps/api/services/ai/grounding/response_validator.py`: Deterministically validates schema and citations post-generation.
+- `apps/api/services/ai/grounding/__init__.py`: Exports the grounding modules cleanly.
+
+### Layer 5: Multi-Source Ingestion Engine
+We replaced the simple, legacy local-file ingestion script with a massive, production-grade ingestion engine. This is fully manageable via the new `manage_knowledge.py` command-line interface. 
+
+Inside `apps/api/services/ingestion/`, we developed `web_scraper.py`, an incredibly robust web crawler. To prevent critical security vulnerabilities, it is protected by strict Server-Side Request Forgery (SSRF) blocking logic, resolving IPs via DNS to ensure the AI cannot be tricked into scanning internal private networks. It strips malicious scripts, navigation menus, and ads using BeautifulSoup, and hashes the final content to prevent expensive duplicate vector embeddings. We also developed `db_sync.py`, a schema-agnostic database synchronizer that transforms raw Supabase JSON rows into highly readable natural language paragraphs optimized specifically for semantic search.
+
+**Files Added/Modified:**
+- `apps/api/manage_knowledge.py`: The new CLI orchestrator supporting `--source web`, `--source db`, and `--source local`.
+- `apps/api/services/ingestion/web_scraper.py`: Secure crawler with BeautifulSoup extraction and SSRF guards.
+- `apps/api/services/ingestion/db_sync.py`: Converts SQL/Supabase rows into semantic text for RAG.
+- `apps/api/requirements.txt`: Added `beautifulsoup4` dependency.
+
+### Layer 6: RAG Orchestrator Refactor
+Finally, we performed a complete, from-scratch rewrite of `apps/api/services/rag_service.py` to seamlessly wire all these independent architectural layers together into a single, cohesive brain. 
+
+The main `/chat` endpoint pipeline now follows an exact, strict execution path: Intent Detection → Tool Execution / Quality-Aware Retrieval → Context Validation → Strict Prompt Builder → Provider Generation → Response Validation. We also implemented a heavily restricted System Prompt that enforces an absolute priority hierarchy: `AUTHORITATIVE DATA > OFFICIAL DATABASE > VERIFIED DOCUMENTS > GENERAL KNOWLEDGE`. As a result of this entire pipeline, the system is now explicitly programmed to state "I don't have enough reliable information to answer that" rather than inventing a hallucinated response to satisfy the user.
+
+**Files Added/Modified:**
+- `apps/api/services/rag_service.py`: Completely redesigned to act as the central AI Orchestrator utilizing the validators, tools, and routers.
