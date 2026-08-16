@@ -17,6 +17,10 @@ class Settings:
     AI_PROVIDER_FALLBACK_2: str = os.getenv("AI_PROVIDER_FALLBACK_2", "openrouter")
     AI_PROVIDER_FALLBACK_3: str = os.getenv("AI_PROVIDER_FALLBACK_3", "ollama")
     
+    # Embedding Config
+    EMBEDDING_PROVIDER_PRIMARY: str = os.getenv("EMBEDDING_PROVIDER_PRIMARY", "gemini")
+    EMBEDDING_PROVIDER_FALLBACK: str = os.getenv("EMBEDDING_PROVIDER_FALLBACK", "local")
+    
     AI_PROVIDER_TIMEOUT_MS: int = int(os.getenv("AI_PROVIDER_TIMEOUT_MS", "15000"))
     AI_CIRCUIT_FAILURE_THRESHOLD: int = int(os.getenv("AI_CIRCUIT_FAILURE_THRESHOLD", "3"))
     AI_CIRCUIT_COOLDOWN_SECONDS: int = int(os.getenv("AI_CIRCUIT_COOLDOWN_SECONDS", "30"))

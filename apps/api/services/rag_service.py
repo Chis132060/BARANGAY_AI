@@ -7,8 +7,8 @@ import time
 import json
 import logging
 from typing import List, Dict, Any, Optional
-
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from typing import List, Dict, Any, Optional
+from services.ai.embeddings import embedding_manager
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from services.ai.manager import AIProviderManager
@@ -62,13 +62,8 @@ class RAGService:
         self.supabase = get_supabase_client()
 
     @property
-    def embeddings(self):
-        if not self._embeddings:
-            self._embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/gemini-embedding-2",
-                google_api_key=settings.GEMINI_API_KEY
-            )
-        return self._embeddings
+    def embedding_manager(self):
+        return embedding_manager
 
     @property
     def provider_manager(self) -> AIProviderManager:
@@ -82,35 +77,71 @@ class RAGService:
             self._query_router = QueryRouter(self.provider_manager)
         return self._query_router
 
-    # ── Ingestion (Mocked for legacy compatibility, use manage_knowledge.py instead) ──
     async def ingest_document(self, doc_id: str, text: str, metadata: dict) -> int:
         from langchain.text_splitter import RecursiveCharacterTextSplitter
+        from services.ai.embeddings.queue import EmbeddingQueue
+        import uuid
+        
         splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=64)
         chunks = splitter.split_text(text)
         if not chunks: return 0
-        embeddings = self.embeddings.embed_documents(chunks)
+        
+        # Ensure document exists in knowledge_docs
+        doc_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, doc_id))
+        
+        # We need to insert into knowledge_docs first to satisfy foreign keys
+        doc_record = {
+            "id": doc_uuid,
+            "title": metadata.get("title", "Unknown"),
+            "source_type": metadata.get("source_type", "LOCAL"),
+            "source_url": metadata.get("source_url", ""),
+            "author": metadata.get("author", "System")
+        }
+        self.supabase.table("knowledge_docs").upsert(doc_record).execute()
+        
         records = [
             {
-                "doc_id": doc_id,
+                "document_id": doc_uuid,
                 "chunk_index": i,
                 "content": chunk,
-                "embedding": emb,
-                "metadata": metadata,
+                "trust_level": metadata.get("trust_level", "UNVERIFIED"),
+                "source_type": metadata.get("source_type", "LOCAL"),
+                "content_hash": metadata.get("content_hash", "")
             }
-            for i, (chunk, emb) in enumerate(zip(chunks, embeddings))
+            for i, chunk in enumerate(chunks)
         ]
+        
+        inserted_chunks = []
         for i in range(0, len(records), 50):
-            self.supabase.table("knowledge_chunks").insert(records[i:i + 50]).execute()
+            res = self.supabase.table("knowledge_chunks").insert(records[i:i + 50]).execute()
+            inserted_chunks.extend(res.data)
+            
+        # Queue the chunks for embedding
+        queue = EmbeddingQueue(self.embedding_manager)
+        queue.add_jobs(doc_uuid, inserted_chunks)
+        
+        # Optionally, process immediately for CLI testing
+        queue.process_queue()
+        
         return len(chunks)
 
-    # ── Retrieval ────────────────────────────────────────────────────────────
     async def search_knowledge(self, query: str, limit: int = 8, threshold: float = 0.5) -> List[Dict[str, Any]]:
-        query_embedding = self.embeddings.embed_query(query)
-        response = self.supabase.rpc(
-            "match_knowledge_chunks",
+        # Find active provider
+        provider = self.embedding_manager.get_primary_provider()
+        if not provider:
+            return []
+            
+        # Embed query in the active vector space
+        response = self.embedding_manager.embed_for_space([query], provider.space_id)
+        query_embedding = response.embeddings[0]
+        
+        rpc_name = f"match_knowledge_embeddings_{provider.name}"
+        db_response = self.supabase.rpc(
+            rpc_name,
             {"query_embedding": query_embedding, "match_threshold": threshold, "match_count": limit}
         ).execute()
-        return response.data or []
+        
+        return db_response.data or []
 
     # ── Generation ───────────────────────────────────────────────────────────
     async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None) -> dict:

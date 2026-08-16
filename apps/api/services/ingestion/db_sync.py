@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from services.supabase_service import supabase_service
+from services.supabase_service import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class DBSyncService:
     """
     
     def __init__(self):
-        self.supabase = supabase_service.client
+        self.supabase = get_supabase_client()
 
     def hash_content(self, text: str) -> str:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()

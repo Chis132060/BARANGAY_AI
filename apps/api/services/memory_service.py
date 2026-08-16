@@ -1,64 +1,82 @@
 """
 memory_service.py
-In-process session memory store keyed by session_id.
-Holds the last K turns so the LLM has conversation context.
+Persistent session memory store backed by Supabase `ai_sessions` and `ai_messages`.
 """
 
-from collections import defaultdict, deque
-from typing import List, Dict
-import time
+from typing import List, Dict, Optional
+import logging
+from services.supabase_service import get_supabase_client
 
-# Keep only the last N turns per session (1 turn = 1 user + 1 AI message)
+logger = logging.getLogger(__name__)
+
+# Keep only the last N turns per session in memory retrieval
 MAX_TURNS = 10
-# Sessions expire after 2 hours of inactivity (in seconds)
-SESSION_TTL = 7200
-
-
-class _Session:
-    def __init__(self):
-        self.history: deque[Dict[str, str]] = deque(maxlen=MAX_TURNS * 2)
-        self.last_active: float = time.time()
-
-    def add(self, role: str, content: str):
-        self.history.append({"role": role, "content": content})
-        self.last_active = time.time()
-
-    def get_history(self) -> List[Dict[str, str]]:
-        return list(self.history)
-
-    def is_expired(self) -> bool:
-        return (time.time() - self.last_active) > SESSION_TTL
-
 
 class MemoryService:
     def __init__(self):
-        self._sessions: Dict[str, _Session] = {}
-
-    def _cleanup(self):
-        """Remove expired sessions to prevent memory leaks."""
-        expired = [sid for sid, s in self._sessions.items() if s.is_expired()]
-        for sid in expired:
-            del self._sessions[sid]
+        self.supabase = get_supabase_client()
 
     def get_history(self, session_id: str) -> List[Dict[str, str]]:
         """Return conversation history for a session."""
-        self._cleanup()
-        if session_id not in self._sessions:
+        try:
+            # Fetch the last (MAX_TURNS * 2) messages, ordered by created_at DESC
+            res = self.supabase.table("ai_messages") \
+                .select("role, content") \
+                .eq("session_id", session_id) \
+                .order("created_at", desc=True) \
+                .limit(MAX_TURNS * 2) \
+                .execute()
+                
+            if not res.data:
+                return []
+                
+            # Reverse to chronological order
+            messages = res.data[::-1]
+            return [{"role": m["role"], "content": m["content"]} for m in messages]
+        except Exception as e:
+            logger.error(f"Failed to get history for session {session_id}: {e}")
             return []
-        return self._sessions[session_id].get_history()
 
-    def add_turn(self, session_id: str, user_message: str, ai_response: str):
+    def add_turn(self, session_id: str, user_message: str, ai_response: str, 
+                 metadata: Optional[Dict] = None, client_request_id: Optional[str] = None):
         """Append one complete turn (user + AI) to session memory."""
-        if session_id not in self._sessions:
-            self._sessions[session_id] = _Session()
-        session = self._sessions[session_id]
-        session.add("user", user_message)
-        session.add("assistant", ai_response)
+        try:
+            # First, update the session updated_at timestamp
+            self.supabase.table("ai_sessions").update({
+                "updated_at": "now()"
+            }).eq("id", session_id).execute()
+
+            # We insert the user message and AI response
+            # If client_request_id is provided, we attach it to the user message for idempotency.
+            user_msg = {
+                "session_id": session_id,
+                "role": "user",
+                "content": user_message
+            }
+            if client_request_id:
+                user_msg["client_request_id"] = client_request_id
+
+            ai_msg = {
+                "session_id": session_id,
+                "role": "assistant",
+                "content": ai_response,
+                "metadata": metadata or {}
+            }
+            
+            # Insert sequentially to ensure correct ordering if they have the exact same timestamp
+            # Wait, Supabase lets us insert a list, which maintains order in the DB generally, 
+            # but separating them ensures the AI message is strictly after the User message.
+            self.supabase.table("ai_messages").insert([user_msg, ai_msg]).execute()
+            
+        except Exception as e:
+            logger.error(f"Failed to add turn for session {session_id}: {e}")
 
     def clear_session(self, session_id: str):
-        """Explicitly clear a session (e.g., on logout)."""
-        self._sessions.pop(session_id, None)
-
+        """Explicitly clear a session (deletes it from DB)."""
+        try:
+            self.supabase.table("ai_sessions").delete().eq("id", session_id).execute()
+        except Exception as e:
+            logger.error(f"Failed to clear session {session_id}: {e}")
 
 # Singleton used across the app
 memory_service = MemoryService()

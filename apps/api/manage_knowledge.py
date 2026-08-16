@@ -61,9 +61,11 @@ async def ingest_db(table: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Smart Barangay Knowledge Management CLI")
-    parser.add_argument("--source", choices=["local", "web", "db", "all"], required=True, help="Knowledge source type")
+    parser.add_argument("--source", choices=["local", "web", "db", "all"], help="Knowledge source type")
     parser.add_argument("--url", type=str, help="URL to scrape (required if source=web)")
     parser.add_argument("--table", type=str, help="Supabase table to sync (required if source=db)")
+    parser.add_argument("--process-queue", action="store_true", help="Process the embedding queue")
+    parser.add_argument("--reindex", type=str, help="Target embedding space to reindex (e.g. gemini-embedding-2-v2)")
     
     args = parser.parse_args()
     
@@ -85,6 +87,19 @@ def main():
         
     elif args.source == "all":
         logger.info("Syncing all configured sources...")
+        
+    if args.process_queue:
+        logger.info("Processing embedding queue...")
+        from services.ai.embeddings.queue import EmbeddingQueue
+        from services.ai.embeddings import embedding_manager
+        queue = EmbeddingQueue(embedding_manager)
+        queue.process_queue()
+        logger.info("Queue processing finished.")
+        
+    if args.reindex:
+        logger.info(f"Reindexing chunks for space {args.reindex} is not fully implemented yet, but jobs will be queued.")
+        # Future implementation would select chunks and add_jobs with the target space
+
 
 if __name__ == "__main__":
     main()

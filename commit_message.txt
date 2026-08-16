@@ -1,61 +1,18 @@
-feat(ai): Implement Production-Grade RAG Expansion and AI Grounding
+feat(ai): Implement Production GraphQL API, QA/QC Framework, and Embedding Fallbacks
 
-This massive update entirely overhauls the Smart Barangay AI architecture, transforming it into a highly reliable, deterministic, and strictly grounded AI Brain. The goal of this release is to heavily reduce hallucinations and eliminate the AI's ability to guess when data is unavailable, all while maintaining high availability through our multi-provider failover system.
+This massive architectural release completely separates the core AI Brain logic from the transport layer by establishing a secure, production-grade Strawberry GraphQL API on top of FastAPI. Furthermore, it incorporates strict embedding space isolation to completely eliminate vector dimension mismatch issues, and establishes the full ISO-aligned Quality Assurance (QA) and Quality Control (QC) frameworks.
 
-### Layer 1: Circuit Breaker & Health Diagnostics Upgrades
-We abstracted the core circuit breaker implementation into a new `CircuitStateStore` interface to guarantee horizontally scalable resilience. Currently, the system utilizes a concrete `InMemoryCircuitStateStore`, which ensures the application functions flawlessly in a single-instance deployment context. By building this abstraction now, we allow the engineering team to easily hot-swap to a distributed Redis backend when the API needs to scale across multiple servers, without rewriting the provider manager. 
+### Presentation Layer (GraphQL & FastAPI)
+We have introduced a dedicated `apps/api/graphql` directory which houses the entire Strawberry GraphQL implementation. The `schema.py` establishes the core `Query`, `Mutation`, and `Subscription` types, ensuring that the frontend interacts with a strictly typed API rather than raw backend services. To enforce security, `security.py` introduces JWT context extraction and handles query depth protections to prevent complex recursive query attacks. Furthermore, `types.py` guarantees the exact JSON structures for sources and responses, while `errors.py` normalizes all failure states (such as `AI_UNAVAILABLE` or `RATE_LIMITED`) so that internal stack traces or API keys are never leaked to the client.
 
-Additionally, we added a dedicated `GET /api/v1/health/ai` diagnostic endpoint to the `rag_router.py` controller. This critical observability endpoint exposes the real-time circuit state (CLOSED, OPEN, HALF_OPEN) and the failure count for all configured AI providers (Gemini, Groq, OpenRouter, etc.). This makes production debugging significantly easier and safer by providing health visibility without ever exposing sensitive internal API keys.
+### Real-Time Streaming Layer
+To support dynamic, snappy user interfaces, we introduced `apps/api/services/stream_service.py`. This service handles the explicit `AIStreamEvent` lifecycle over WebSockets (via GraphQL Subscriptions). It correctly emits `STARTED`, `TOKEN`, `SOURCE`, `PROVIDER_FALLBACK`, `COMPLETED`, and `ERROR` events. Most importantly, it implements a "Buffer-Then-Validate" strategy: tokens are streamed instantly to the user for low latency, but the system internally buffers the entire response text. Only after the text undergoes rigorous hallucination and source grounding checks via the `ResponseValidator` does the stream yield its final `COMPLETED(grounded=True/False)` event. This ensures the frontend never mistakenly trusts unvalidated AI generation.
 
-**Files Added/Modified:**
-- `apps/api/services/ai/circuit_breaker.py`: Refactored to include the `CircuitStateStore` interface.
-- `apps/api/services/ai/manager.py`: Updated to pass the state store and expose a `get_health()` diagnostic dictionary.
-- `apps/api/routers/rag_router.py`: Added the explicit `/health/ai` GET endpoint.
+### Persistent Session Memory Layer
+We have entirely removed the volatile in-memory dictionary from `memory_service.py`. Conversation history is now permanently backed by PostgreSQL via the new `20260816000004_graphql_sessions.sql` migration. This migration creates the `ai_sessions` and `ai_messages` tables. To prevent double-posting from mobile application network drops, we implemented strict message idempotency using a unique `client_request_id` constraint on the `ai_messages` table. The data is secured using Row Level Security (RLS) policies, guaranteeing that users can only fetch or modify sessions they own.
 
-### Layer 2: Database Schema & Knowledge Expansion
-We authored a brand new Supabase SQL migration script `20260816000002_rag_expansion.sql` to permanently alter how the AI understands data provenance. Instead of blindly trusting all text, this migration safely alters the existing `knowledge_chunks` and `knowledge_docs` tables to support strict metadata tracking.
+### Embedding and Ingestion Layer
+The AI knowledge ingestion pipeline has been hardened to gracefully handle `429 Quota Exceeded` errors without losing chunks. We established `apps/api/services/ai/embeddings/manager.py` and `queue.py` to route embedding requests to completely isolated vector spaces. The migration `20260816000003_embedding_spaces.sql` provisions separate tables (`knowledge_embeddings_gemini` and `knowledge_embeddings_local`) specifically typed for their dimensions (`vector(3072)` and `vector(384)`). This mathematically prevents cross-model retrieval poisoning.
 
-It introduces new Enum columns including `source_type` (WEB, LOCAL, DATABASE, TOOL) and `trust_level` (AUTHORITATIVE, VERIFIED, GENERAL, UNVERIFIED). Furthermore, it tracks exact ingestion lifecycles via `content_hash`, `published_at`, `retrieved_at`, and `version` columns. Finally, it dynamically updates the `match_knowledge_chunks` Postgres RPC to return this rich metadata back to the Python backend. This ensures the AI always knows exactly where a piece of information came from and how much priority it should be given during generation.
-
-**Files Added/Modified:**
-- `infra/supabase/migrations/20260816000002_rag_expansion.sql`: The database schema evolution script introducing the new constraints and enums.
-
-### Layer 3: Explicit Query Routing & Secure Tool Architecture
-We completely removed the AI's dangerous unrestricted ability to arbitrarily query the database. Instead, we built a highly strict server-side `QueryRouter` inside the `apps/api/services/ai/grounding/query_router.py` module. 
-
-This router inspects every incoming user query deterministically *before* generation even begins. It forces the query down one of four specific execution paths: `LIVE_DATA`, `RAG`, `HYBRID`, or `GENERAL`. For dynamic real-time questions (like "How many active buses are running?"), it completely bypasses the semantic vector search and instead triggers explicit, sandboxed Python tools in `apps/api/services/ai/tools.py`. If the backend tool returns no data, the AI is mathematically blocked from guessing the answer.
-
-**Files Added/Modified:**
-- `apps/api/services/ai/grounding/query_router.py`: Implements the `QueryRouter` class and `Route` enums.
-- `apps/api/services/ai/tools.py`: Implements the `BackendTools` static class containing strictly authorized mock and live data fetchers.
-
-### Layer 4: Grounding & Evidence Validation Layer
-We introduced a sophisticated pre- and post-generation validation layer in the `apps/api/services/ai/grounding/` package. 
-
-First, the `ContextValidator` filters out irrelevant RAG chunks before they can ever reach the LLM's prompt. It ranks retrieved documents using a weighted mathematical formula based on semantic similarity and trusted source level. If all chunks fall below the minimum relevance threshold, it throws them out to prevent the model from getting confused by noise.
-
-After the LLM generates a response, the `ResponseValidator` kicks in. It performs strict deterministic checks to ensure the LLM's output matches the expected JSON schema, and that the LLM is not fabricating source citations that weren't actually provided in the context window. If the LLM violates these strict rules, the system fails the validation layer and immediately triggers an automatic failover to the next healthy AI provider, effectively trapping hallucinations before they reach the user.
-
-**Files Added/Modified:**
-- `apps/api/services/ai/grounding/context_validator.py`: Analyzes and rejects poor-quality RAG chunks.
-- `apps/api/services/ai/grounding/response_validator.py`: Deterministically validates schema and citations post-generation.
-- `apps/api/services/ai/grounding/__init__.py`: Exports the grounding modules cleanly.
-
-### Layer 5: Multi-Source Ingestion Engine
-We replaced the simple, legacy local-file ingestion script with a massive, production-grade ingestion engine. This is fully manageable via the new `manage_knowledge.py` command-line interface. 
-
-Inside `apps/api/services/ingestion/`, we developed `web_scraper.py`, an incredibly robust web crawler. To prevent critical security vulnerabilities, it is protected by strict Server-Side Request Forgery (SSRF) blocking logic, resolving IPs via DNS to ensure the AI cannot be tricked into scanning internal private networks. It strips malicious scripts, navigation menus, and ads using BeautifulSoup, and hashes the final content to prevent expensive duplicate vector embeddings. We also developed `db_sync.py`, a schema-agnostic database synchronizer that transforms raw Supabase JSON rows into highly readable natural language paragraphs optimized specifically for semantic search.
-
-**Files Added/Modified:**
-- `apps/api/manage_knowledge.py`: The new CLI orchestrator supporting `--source web`, `--source db`, and `--source local`.
-- `apps/api/services/ingestion/web_scraper.py`: Secure crawler with BeautifulSoup extraction and SSRF guards.
-- `apps/api/services/ingestion/db_sync.py`: Converts SQL/Supabase rows into semantic text for RAG.
-- `apps/api/requirements.txt`: Added `beautifulsoup4` dependency.
-
-### Layer 6: RAG Orchestrator Refactor
-Finally, we performed a complete, from-scratch rewrite of `apps/api/services/rag_service.py` to seamlessly wire all these independent architectural layers together into a single, cohesive brain. 
-
-The main `/chat` endpoint pipeline now follows an exact, strict execution path: Intent Detection → Tool Execution / Quality-Aware Retrieval → Context Validation → Strict Prompt Builder → Provider Generation → Response Validation. We also implemented a heavily restricted System Prompt that enforces an absolute priority hierarchy: `AUTHORITATIVE DATA > OFFICIAL DATABASE > VERIFIED DOCUMENTS > GENERAL KNOWLEDGE`. As a result of this entire pipeline, the system is now explicitly programmed to state "I don't have enough reliable information to answer that" rather than inventing a hallucinated response to satisfy the user.
-
-**Files Added/Modified:**
-- `apps/api/services/rag_service.py`: Completely redesigned to act as the central AI Orchestrator utilizing the validators, tools, and routers.
+### Quality Assurance and ISO Compliance Layer
+Finally, we have massively expanded the `docs/compliance/` directory with 24 distinct architectural documents detailing our alignment with ISO 27001, 42001, and 23894. This includes `graphql-security.md`, `qa-policy.md`, and `incident-management.md`. We also created the foundational test scaffold directories (`tests/graphql/` and `tests/ai/`), laying the groundwork for exhaustive End-to-End, Load, and Chaos testing required by our strict Quality Gates before any production deployment.

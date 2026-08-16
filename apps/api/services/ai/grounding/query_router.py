@@ -3,7 +3,8 @@ import logging
 from enum import Enum
 from typing import Optional
 
-from services.ai.interfaces import AIRequest, Message
+from services.ai.interfaces import AIRequest
+from langchain_core.messages import SystemMessage, HumanMessage
 from services.ai.manager import AIProviderManager
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,8 @@ class QueryRouter:
 
         request = AIRequest(
             messages=[
-                Message(role="system", content=system_prompt),
-                Message(role="user", content=query)
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=query)
             ],
             temperature=0.0,
             response_format={"type": "json_object"}

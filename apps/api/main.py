@@ -4,6 +4,9 @@ from pydantic import BaseModel
 from typing import Optional, List
 import os
 from dotenv import load_dotenv
+from strawberry.fastapi import GraphQLRouter
+from graphql.schema import schema
+from graphql.security import get_context
 
 # Load environment variables
 load_dotenv()
