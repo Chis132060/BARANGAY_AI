@@ -5,7 +5,7 @@ import uuid
 from dotenv import load_dotenv
 
 load_dotenv()
-from services.rag_service import rag_service
+from services.orchestrator import rag_service
 
 SEED_DIR = Path(__file__).parent / "seed_docs"
 

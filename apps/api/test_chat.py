@@ -1,5 +1,5 @@
 import asyncio
-from services.rag_service import rag_service
+from services.orchestrator import rag_service
 
 async def test_chat():
     print("Testing AI Brain RAG Pipeline...\n")

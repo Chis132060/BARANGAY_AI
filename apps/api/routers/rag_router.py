@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Optional
 
-from services.rag_service import rag_service
+from services.orchestrator import rag_service
 from services.audit_service import audit_service
 
 router = APIRouter()
@@ -90,3 +90,11 @@ async def clear_session_memory(session_id: str):
     from services.memory_service import memory_service
     memory_service.clear_session(session_id)
     return {"status": "cleared", "session_id": session_id}
+
+@router.get("/health/ai")
+async def ai_health_check():
+    """Returns the circuit breaker and health status of all AI providers."""
+    # Assuming rag_service uses an AIProviderManager internally
+    if hasattr(rag_service, 'provider_manager'):
+        return rag_service.provider_manager.get_health()
+    return {"status": "unknown", "message": "AIProviderManager not initialized"}

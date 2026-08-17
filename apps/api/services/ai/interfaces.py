@@ -26,6 +26,7 @@ class AIRequest:
     messages: List[BaseMessage]
     temperature: float = 0.1
     max_tokens: int = 1024
+    response_format: Optional[Dict[str, Any]] = None
 
 @dataclass
 class AIResponse:

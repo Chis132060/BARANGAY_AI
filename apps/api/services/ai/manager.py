@@ -6,7 +6,7 @@ from core.config import settings
 from services.ai.interfaces import (
     AIRequest, AIResponse, AIServiceUnavailableError, ProviderHealth
 )
-from services.ai.circuit_breaker import CircuitBreaker
+from services.ai.circuit_breaker import CircuitBreaker, InMemoryCircuitStateStore
 from services.ai.error_classifier import classify_error, should_failover
 
 from services.ai.providers.gemini_provider import GeminiProvider
@@ -38,20 +38,50 @@ class AIProviderManager:
                 if p not in self.providers:
                     self.providers.append(p)
                     
-        # Initialize circuit breakers per provider
+        # Initialize circuit state store and breakers per provider
+        self.circuit_store = InMemoryCircuitStateStore()
         self.circuit_breakers = {
             p: CircuitBreaker(
+                provider_name=p,
+                store=self.circuit_store,
                 failure_threshold=settings.AI_CIRCUIT_FAILURE_THRESHOLD,
                 cooldown_seconds=settings.AI_CIRCUIT_COOLDOWN_SECONDS
             ) for p in self.providers
         }
         
         self.health_tracking = {
-            p: {"last_error": None} for p in self.providers
+            p: {"status": "healthy", "last_error": None} for p in self.providers
         }
 
+    def get_health(self) -> dict:
+        """Returns diagnostic health information for all providers."""
+        health_info = {}
+        for p in self.providers:
+            breaker = self.circuit_breakers[p]
+            status = self.health_tracking[p]["status"]
+            if breaker.state.name != "CLOSED":
+                status = "degraded" if breaker.state.name == "HALF_OPEN" else "failing"
+                
+            health_info[p] = {
+                "status": status,
+                "circuit": breaker.state.name.lower(),
+                "failures": self.circuit_store.get_failures(p),
+            }
+        return {"providers": health_info}
+
     def generate(self, request: AIRequest) -> AIResponse:
+        import os
         request_id = str(uuid.uuid4())
+        
+        if os.getenv("MOCK_LLM_API") == "true":
+            logger.info(f"AI MOCK [{request_id}]: Generating mock response")
+            return AIResponse(
+                content='{"answer": "This is a mocked response for load testing.", "confidence": 0.99, "sources": []}',
+                provider="mock",
+                model="mock-model",
+                latency_ms=15,
+                request_id=request_id
+            )
         
         for attempt, provider_name in enumerate(self.providers, 1):
             breaker = self.circuit_breakers[provider_name]
@@ -71,6 +101,7 @@ class AIProviderManager:
                 
                 # Record Success
                 breaker.record_success()
+                self.health_tracking[provider_name]["status"] = "healthy"
                 
                 # Log success metrics
                 logger.info(
@@ -85,6 +116,7 @@ class AIProviderManager:
                 breaker.record_failure()
                 
                 error_type = classify_error(e)
+                self.health_tracking[provider_name]["status"] = "failing"
                 self.health_tracking[provider_name]["last_error"] = str(e)
                 
                 logger.error(
