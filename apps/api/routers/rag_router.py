@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Optional
 
-from services.rag_service import rag_service
+from services.orchestrator import rag_service
 from services.audit_service import audit_service
 
 router = APIRouter()

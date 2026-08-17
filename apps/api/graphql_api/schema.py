@@ -1,12 +1,12 @@
 import strawberry
 from typing import List, Optional
 import uuid
-from .types import AISession, AIHealth, AIResponse, AIMessage, PageInfo, AISessionConnection
+from .types import AISession, AIHealth, AIResponse, AIMessage, PageInfo, AISessionConnection, AIStreamEvent
 from .security import require_auth
 from .errors import AIError, create_error
 from services.supabase_service import get_supabase_client
-from services.rag_service import rag_service
-from services.memory_service import memory_service
+from services.orchestrator import rag_service
+from services.memory.memory_service import memory_service
 
 # Define input types
 @strawberry.input
@@ -130,9 +130,8 @@ from services.stream_service import stream_ai_response
 @strawberry.type
 class Subscription:
     @strawberry.subscription
-    async def ai_response_stream(self, info: strawberry.Info, session_id: str, message: str) -> "AIStreamEvent":
-        # Authentication should occur in WebSockets via init payload (handled by context/middleware)
-        # We delegate directly to the stream service
+    async def ai_response_stream(self, info: strawberry.Info, session_id: str, message: str) -> AIStreamEvent:
+        # Authentication occurs in WebSocket init payload (handled by context/middleware)
         async for event in stream_ai_response(session_id, message):
             yield event
 

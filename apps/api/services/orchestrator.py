@@ -22,6 +22,10 @@ from services.knowledge_graph.graph_store import graph_store
 from services.memory.memory_retriever import memory_retriever
 from services.memory.memory_policy import MemoryPolicy
 from services.memory.memory_service import memory_service
+from services.ai.language.language_detector import detect_language
+from services.ai.language.normalization import QueryNormalizer
+from services.ai.language.multilingual_retriever import multilingual_retriever
+from services.ai.language.response_language import build_language_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +49,8 @@ STRICT RULES:
 --- CONVERSATION HISTORY ---
 {history}
 
+{language_instruction}
+
 Format your response as JSON (use double braces in the template, single in your output):
 {{"answer": "your grounded answer here", "confidence": 0.95, "sources": ["chunk_id_1", "chunk_id_2"]}}
 """
@@ -55,6 +61,7 @@ class BoundedOrchestrator:
         self.context_validator = ContextValidator()
         self.response_validator = ResponseValidator()
         self.supabase = get_supabase_client()
+        self.query_normalizer = QueryNormalizer(self.provider_manager)
         self.MAX_ITERATIONS = 3 # Bounded DAG constraint
 
     async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None) -> dict:
@@ -65,47 +72,59 @@ class BoundedOrchestrator:
         if not is_safe:
             return self._build_response("I cannot process that request.", [], False, "BLOCKED", 0.0)
 
-        # 2. Intent Detection & Model Routing
-        # Route to tools if query is about live Barangay operational data
-        tool_keywords = ["official", "officials", "captain", "kagawad", "announcement", 
-                         "service", "clearance", "certificate", "current", "latest", "who is"]
-        kg_keywords = ["related", "requires", "connected", "relationship"]
+        # 2. Intent Detection & Language Normalization
+        detected_lang = detect_language(query)
+        normalized_data = self.query_normalizer.normalize(query, detected_lang)
+        intent = normalized_data.get("intent", "GENERAL")
         
-        requires_tools = any(kw in query.lower() for kw in tool_keywords)
-        requires_kg = any(kw in query.lower() for kw in kg_keywords)
+        # 3. Answerability: NEEDS_CLARIFICATION
+        if intent == "AMBIGUOUS":
+            msg = "I'm sorry, could you please clarify what you would like to know?"
+            if detected_lang == "ceb": msg = "Pasayloa ko, unsa imong gusto mahibal-an?"
+            return self._build_response(msg, [], False, "NEEDS_CLARIFICATION", 1.0)
+            
+        requires_tools = intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
+        requires_kg = ("related" in query.lower() or "requires" in query.lower())
         
         target_model_class = model_router.route_query(query, requires_tools=requires_tools, requires_kg=requires_kg)
         
-        # 3. Tool Planner (Bounded loop)
+        # 4. Tool Planner (Bounded loop)
         tool_results = None
         if requires_tools:
             executed, result = tool_planner.plan_and_execute(query, user_role="RESIDENT")
             if executed:
                 tool_results = result
                 
-        # 4. Hybrid Retrieval + Reranking
-        raw_chunks = await hybrid_retriever.retrieve(query, top_k=5)
+        # 5. Multilingual Retrieval + Reranking
+        raw_chunks = await multilingual_retriever.retrieve(query, top_k=5)
         valid_chunks = self.context_validator.validate_and_rank(raw_chunks)
         chunk_ids = [str(c["id"]) for c in valid_chunks]
         
-        # 5. Knowledge Graph Traversal
+        # 6. Answerability: NOT_ANSWERABLE
+        if not valid_chunks and not tool_results and intent != "GENERAL":
+            msg = "I don't have enough reliable information to answer that."
+            if detected_lang == "ceb": msg = "Wala koy igo nga kasaligang impormasyon aron matubag kana."
+            return self._build_response(msg, [], False, "NOT_ANSWERABLE", 1.0)
+        
+        # 7. Knowledge Graph Traversal
         kg_edges = []
         if requires_kg:
-            kg_edges = graph_store.query_relationships("Barangay Clearance", depth=1)
+            kg_edges = graph_store.query_relationships(normalized_data.get("service", ""), depth=1)
             
-        # 6. Memory Retrieval
+        # 8. Memory Retrieval
         history_text = "NONE"
         if session_id:
             history_text = memory_retriever.get_intelligent_context(session_id)
             
-        # 7. Prompt Assembly
+        # 9. Prompt Assembly with Response Language Policy
         context_text = "\n\n".join(f"--- ID: {c['id']} ---\n{c['content']}" for c in valid_chunks) or "NONE"
         kg_text = json.dumps(kg_edges, indent=2) if kg_edges else "NONE"
         tools_text = json.dumps(tool_results, indent=2) if tool_results else "NONE"
+        lang_instruction = build_language_instruction(detected_lang)
         
         messages = [
             SystemMessage(content=SYSTEM_PROMPT.format(
-                context=context_text, kg_edges=kg_text, tools=tools_text, history=history_text
+                context=context_text, kg_edges=kg_text, tools=tools_text, history=history_text, language_instruction=lang_instruction
             )),
             HumanMessage(content=query)
         ]

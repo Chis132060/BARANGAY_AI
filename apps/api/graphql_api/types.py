@@ -61,9 +61,11 @@ class AIHealth:
     primaryProvider: str
     activeProviders: int
 
+import enum
+
 # Streaming Enums and Types
 @strawberry.enum
-class AIStreamEventType(strawberry.Enum):
+class AIStreamEventType(enum.Enum):
     STARTED = "STARTED"
     TOOL_STARTED = "TOOL_STARTED"
     TOOL_COMPLETED = "TOOL_COMPLETED"

@@ -70,7 +70,18 @@ class AIProviderManager:
         return {"providers": health_info}
 
     def generate(self, request: AIRequest) -> AIResponse:
+        import os
         request_id = str(uuid.uuid4())
+        
+        if os.getenv("MOCK_LLM_API") == "true":
+            logger.info(f"AI MOCK [{request_id}]: Generating mock response")
+            return AIResponse(
+                content='{"answer": "This is a mocked response for load testing.", "confidence": 0.99, "sources": []}',
+                provider="mock",
+                model="mock-model",
+                latency_ms=15,
+                request_id=request_id
+            )
         
         for attempt, provider_name in enumerate(self.providers, 1):
             breaker = self.circuit_breakers[provider_name]

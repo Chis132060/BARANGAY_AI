@@ -5,7 +5,7 @@ from services.ai.manager import AIProviderManager
 from services.ai.interfaces import AIRequest
 from langchain_core.messages import SystemMessage, HumanMessage
 from .registry import tool_registry
-from apps.api.services.ai.policy.policy_engine import policy_engine
+from services.ai.policy.policy_engine import policy_engine
 
 logger = logging.getLogger(__name__)
 

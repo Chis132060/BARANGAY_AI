@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 from services.ingestion.web_scraper import WebScraper
 from services.ingestion.db_sync import DBSyncService
-from services.rag_service import rag_service
+from services.orchestrator import rag_service
 
 async def ingest_web(url: str):
     logger.info(f"Starting web ingestion for {url}...")

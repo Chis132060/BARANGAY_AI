@@ -5,8 +5,8 @@ from typing import Optional, List
 import os
 from dotenv import load_dotenv
 from strawberry.fastapi import GraphQLRouter
-from graphql.schema import schema
-from graphql.security import get_context
+from graphql_api.schema import schema
+from graphql_api.security import get_context
 
 # Load environment variables
 load_dotenv()
@@ -28,6 +28,8 @@ app.add_middleware(
 
 from routers import rag_router
 
+graphql_app = GraphQLRouter(schema, context_getter=get_context)
+app.include_router(graphql_app, prefix="/graphql")
 app.include_router(rag_router.router, prefix="/api/v1")
 
 @app.get("/")
