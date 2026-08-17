@@ -16,15 +16,15 @@ class MemoryService:
     def __init__(self):
         self.supabase = get_supabase_client()
 
-    def get_history(self, session_id: str) -> List[Dict[str, str]]:
+    def get_history(self, session_id: str, limit: int = MAX_TURNS) -> List[Dict[str, str]]:
         """Return conversation history for a session."""
         try:
-            # Fetch the last (MAX_TURNS * 2) messages, ordered by created_at DESC
+            # Fetch the last (limit * 2) messages, ordered by created_at DESC
             res = self.supabase.table("ai_messages") \
                 .select("role, content") \
                 .eq("session_id", session_id) \
                 .order("created_at", desc=True) \
-                .limit(MAX_TURNS * 2) \
+                .limit(limit * 2) \
                 .execute()
                 
             if not res.data:
