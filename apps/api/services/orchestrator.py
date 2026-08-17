@@ -45,12 +45,8 @@ STRICT RULES:
 --- CONVERSATION HISTORY ---
 {history}
 
-Format your response as JSON:
-{
-  "answer": "your grounded answer here",
-  "confidence": 0.95,
-  "sources": ["list", "of", "chunk_ids", "used"]
-}
+Format your response as JSON (use double braces in the template, single in your output):
+{{"answer": "your grounded answer here", "confidence": 0.95, "sources": ["chunk_id_1", "chunk_id_2"]}}
 """
 
 class BoundedOrchestrator:
@@ -70,9 +66,13 @@ class BoundedOrchestrator:
             return self._build_response("I cannot process that request.", [], False, "BLOCKED", 0.0)
 
         # 2. Intent Detection & Model Routing
-        # Fast model for simple FAQ, Strong for complex intent
-        requires_tools = ("bus" in query.lower() or "active" in query.lower())
-        requires_kg = ("related" in query.lower() or "requires" in query.lower())
+        # Route to tools if query is about live Barangay operational data
+        tool_keywords = ["official", "officials", "captain", "kagawad", "announcement", 
+                         "service", "clearance", "certificate", "current", "latest", "who is"]
+        kg_keywords = ["related", "requires", "connected", "relationship"]
+        
+        requires_tools = any(kw in query.lower() for kw in tool_keywords)
+        requires_kg = any(kw in query.lower() for kw in kg_keywords)
         
         target_model_class = model_router.route_query(query, requires_tools=requires_tools, requires_kg=requires_kg)
         
@@ -148,11 +148,20 @@ class BoundedOrchestrator:
         # 9. Output Guard
         sanitized_answer, was_flagged, flag_reason = check_output(final_answer)
         
-        # 10. Persist to Memory
+        # 10. Persist to Memory (only if a real session exists)
         if session_id:
-            memory_service.add_turn(session_id, query, sanitized_answer)
+            try:
+                memory_service.add_turn(session_id, query, sanitized_answer)
+            except Exception as e:
+                logger.error(f"Failed to persist memory for session {session_id}: {e}")
             
-        return self._build_response(sanitized_answer, final_citations, bool(valid_chunks or tool_results), "PASS" if not was_flagged else "BLOCKED", final_confidence)
+        return self._build_response(
+            sanitized_answer, 
+            final_citations, 
+            bool(valid_chunks or tool_results), 
+            "PASS" if not was_flagged else "BLOCKED", 
+            final_confidence
+        )
 
     def _build_response(self, answer: str, citations: List[str], grounded: bool, status: str, confidence: float) -> dict:
         return {

@@ -39,32 +39,106 @@ class ToolRegistry:
 tool_registry = ToolRegistry()
 
 # -------------------------------------------------------------------------
-# Register Default Tools (Hardcoded parameter validation happens in handlers)
+# Register Barangay-Specific Tools
+# These are the ONLY tools the AI is permitted to call. Each one queries
+# the real authoritative production PostgreSQL tables — not duplicates.
+# The LLM never calls these directly; the PolicyEngine must approve first.
 # -------------------------------------------------------------------------
 
-def fetch_active_buses(barangay_id: str = "DEFAULT") -> dict:
+def fetch_barangay_officials(is_active: bool = True) -> dict:
     """
-    Connects to the PostgreSQL database to fetch real-time active buses.
+    Fetches current Barangay officials (Captain, Kagawad, SK) from the
+    authoritative `barangay_officials` production table.
     """
     from services.supabase_service import get_supabase_client
     import logging
     logger = logging.getLogger(__name__)
-    
     try:
         supabase = get_supabase_client()
-        # Fetch buses where status is ACTIVE
-        res = supabase.table("buses").select("bus_id, current_location, status").eq("status", "ACTIVE").execute()
+        query = supabase.table("barangay_officials").select(
+            "full_name, position, committee, contact_number"
+        )
+        if is_active:
+            query = query.eq("is_active", True)
+        res = query.execute()
         return {"status": "success", "data": res.data}
     except Exception as e:
-        logger.error(f"Failed to fetch active buses from DB: {e}")
-        return {"status": "error", "message": "Could not retrieve live bus data at this time."}
+        logger.error(f"Failed to fetch officials: {e}")
+        return {"status": "error", "message": "Could not retrieve official data at this time."}
 
 tool_registry.register(
     ToolSchema(
-        name="get_active_buses",
-        description="Returns live data from the database on active buses currently operating.",
-        domain="SERVICES",
-        parameters_schema={"barangay_id": "string (optional)"}
+        name="get_barangay_officials",
+        description="Returns the current list of active Barangay officials including the Captain, Kagawad members, and SK Chairperson from the live database.",
+        domain="PUBLIC_KNOWLEDGE",
+        parameters_schema={"is_active": "boolean (optional, default true)"}
     ),
-    fetch_active_buses
+    fetch_barangay_officials
+)
+
+
+def fetch_barangay_services(service_name: str = None) -> dict:
+    """
+    Fetches available Barangay services (clearances, certificates, etc.)
+    including requirements, fees, and processing time from the authoritative
+    `barangay_services` production table.
+    """
+    from services.supabase_service import get_supabase_client
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        supabase = get_supabase_client()
+        query = supabase.table("barangay_services").select(
+            "service_name, description, requirements, processing_days, fee_php"
+        ).eq("is_available", True)
+        if service_name:
+            query = query.ilike("service_name", f"%{service_name}%")
+        res = query.execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        logger.error(f"Failed to fetch services: {e}")
+        return {"status": "error", "message": "Could not retrieve service information at this time."}
+
+tool_registry.register(
+    ToolSchema(
+        name="get_barangay_services",
+        description="Returns the list of Barangay services available to residents, including requirements, fees, and processing time. Examples: Barangay Clearance, Certificate of Indigency, Business Permit Endorsement.",
+        domain="PUBLIC_KNOWLEDGE",
+        parameters_schema={"service_name": "string (optional filter, e.g., 'Clearance')"}
+    ),
+    fetch_barangay_services
+)
+
+
+def fetch_announcements(category: str = None) -> dict:
+    """
+    Fetches active published announcements from the authoritative
+    `barangay_announcements` production table. Only returns non-expired,
+    published records — never stale or unpublished content.
+    """
+    from services.supabase_service import get_supabase_client
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        supabase = get_supabase_client()
+        # RLS policy on the table already enforces is_published=TRUE and expiry
+        query = supabase.table("barangay_announcements").select(
+            "title, body, category, published_at"
+        ).order("published_at", desc=True).limit(10)
+        if category:
+            query = query.eq("category", category.upper())
+        res = query.execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        logger.error(f"Failed to fetch announcements: {e}")
+        return {"status": "error", "message": "Could not retrieve announcements at this time."}
+
+tool_registry.register(
+    ToolSchema(
+        name="get_announcements",
+        description="Returns the latest published Barangay announcements for residents. Can be filtered by category: HEALTH, SAFETY, EVENT, or GENERAL.",
+        domain="PUBLIC_KNOWLEDGE",
+        parameters_schema={"category": "string (optional: HEALTH | SAFETY | EVENT | GENERAL)"}
+    ),
+    fetch_announcements
 )

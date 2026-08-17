@@ -17,15 +17,16 @@ AVAILABLE TOOLS:
 {tools}
 
 RULES:
-1. If the question requires live database records (e.g. current bus locations, live statuses), output a JSON request for the correct tool.
-2. If the question is about general knowledge or policies, return `{"tool": "NONE"}`.
-3. You CANNOT write SQL. Only select from the available tools.
+1. If the question requires live database records (e.g. current Barangay officials, available services, published announcements), output a JSON request for the correct tool.
+2. If the question is about general knowledge, laws, or policies that are already in the knowledge base, return `{{"tool": "NONE"}}`.
+3. You CANNOT write SQL. Only select from the available tools above.
+4. Never invent tool names that are not in the list above.
 
 Output strictly in JSON:
-{
+{{
   "tool": "tool_name_or_NONE",
-  "parameters": {"param_key": "param_value"}
-}
+  "parameters": {{"param_key": "param_value"}}
+}}
 """
 
 class ToolPlanner:

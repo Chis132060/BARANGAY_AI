@@ -1,8 +1,8 @@
 import logging
 from typing import List, Dict, Any
 from services.supabase_service import get_supabase_client
-from services.ai.embeddings.manager import embedding_manager
-from apps.api.services.ai.retrieval.reranker import reranker
+from services.ai.embeddings import embedding_manager
+from services.ai.retrieval.reranker import reranker
 
 logger = logging.getLogger(__name__)
 

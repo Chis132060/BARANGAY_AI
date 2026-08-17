@@ -27,7 +27,7 @@ class QueryRouter:
         system_prompt = (
             "You are a strict query classification router for a barangay/city AI assistant.\n"
             "Classify the user's query into exactly one of these four categories:\n"
-            "1. LIVE_DATA: For dynamic, real-time backend data (e.g., 'How many active buses?', 'What are today's announcements?', 'Who is logged in?').\n"
+            "1. LIVE_DATA: For dynamic, real-time backend data (e.g., 'Who is the barangay captain?', 'What are today's announcements?', 'Who is logged in?').\n"
             "2. RAG: For static knowledge, documents, policies, or general barangay information (e.g., 'What is the barangay mission?', 'How do I apply for a permit?').\n"
             "3. HYBRID: If the query asks for BOTH live data and static policies.\n"
             "4. GENERAL: General conversation or questions completely unrelated to the application (e.g., 'What is Python?', 'Hello', 'Translate this').\n\n"
