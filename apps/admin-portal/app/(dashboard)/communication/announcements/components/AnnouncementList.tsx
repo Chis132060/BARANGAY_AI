@@ -22,6 +22,21 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  async function optimizeImage(file: File): Promise<File> {
+    if (file.size <= 900 * 1024 && file.type === "image/webp") return file;
+    const bitmap = await createImageBitmap(file);
+    const maxSize = 1600;
+    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
+    return blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webp`, { type: "image/webp" }) : file;
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -32,11 +47,18 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
       const { data: { user } } = await supabase.auth.getUser();
       let image_url: string | null = null;
       if (imageFile) {
-        const safeName = imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "-");
-        const path = `${Date.now()}-${safeName}`;
-        const upload = await supabase.storage.from("announcement-images").upload(path, imageFile, { upsert: false, contentType: imageFile.type });
-        if (upload.error) throw new Error(upload.error.message);
-        image_url = supabase.storage.from("announcement-images").getPublicUrl(path).data.publicUrl;
+        const optimizedImage = await optimizeImage(imageFile);
+        if (supabase.storage?.from) {
+          const safeName = optimizedImage.name.replace(/[^a-zA-Z0-9.-]/g, "-");
+          const path = `${Date.now()}-${safeName}`;
+          const upload = await supabase.storage.from("announcement-images").upload(path, optimizedImage, { upsert: false, contentType: optimizedImage.type, cacheControl: "31536000" });
+          if (upload.error) throw new Error(upload.error.message);
+          image_url = supabase.storage.from("announcement-images").getPublicUrl(path).data.publicUrl;
+        } else {
+          // Local mock mode has no object storage; keep the preview so the
+          // announcement flow remains testable without Supabase Storage.
+          image_url = imagePreview;
+        }
       }
 
       const { data, error } = await supabase
