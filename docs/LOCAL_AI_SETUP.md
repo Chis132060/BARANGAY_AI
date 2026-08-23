@@ -10,6 +10,7 @@ Copy `apps/api/.env.example` to `apps/api/.env`, then set:
 GEMINI_API_KEY=your_rotated_gemini_key
 GEMINI_MODEL=gemini-2.5-flash
 AI_PROVIDER_PRIMARY=gemini
+OLLAMA_ENABLED=false
 ```
 
 The key must be configured before starting FastAPI because providers are initialized during application startup.
@@ -33,3 +34,5 @@ AI_TTS_SERVICE_URL=http://localhost:8003
 4. Open `/chat` and test English, Tagalog, Cebuano, and Voice Mode.
 
 If the API is unavailable, the PWA shows a fallback response. If the TTS service is unavailable, the browser speech fallback may still read responses.
+
+Ollama is disabled by default. Set `OLLAMA_ENABLED=true` only when a local Ollama server and the configured model are ready. Keep `AI_PROVIDER_PRIMARY=gemini` so Gemini is used when Ollama is unavailable.
