@@ -238,7 +238,7 @@ export function ChatInterface() {
       const errorMsg: Message = {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-        text: "⚠️ I'm having trouble connecting right now. Please try again in a moment.",
+      text: `⚠️ ${err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli."}`,
         isError: true,
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -433,7 +433,7 @@ export function ChatInterface() {
       {voiceMode && (
         <div className="bg-blue-50 border-t border-blue-100 px-4 py-3 text-center shrink-0">
           <p className="text-sm font-bold text-blue-900">Voice Mode</p>
-          <p className="text-xs text-blue-700 mt-0.5">Magsalita sa {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano" : "English"}. Awtomatikong sasagot ang Barangay AI.</p>
+          <p className="text-xs text-blue-700 mt-0.5">Magsalita sa {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano (Filipino voice recognition)" : "English"}. Awtomatikong sasagot ang Barangay AI.</p>
           {!isSupported && <p className="text-xs text-red-600 mt-1">Hindi suportado ng browser ang voice input. Subukan ang Chrome o Edge.</p>}
         </div>
       )}
