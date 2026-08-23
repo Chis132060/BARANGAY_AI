@@ -454,7 +454,7 @@ export function ChatInterface() {
               <span className="animate-bounce delay-0">●</span>
               <span className="animate-bounce delay-75">●</span>
               <span className="animate-bounce delay-150">●</span>
-              <span className="ml-1">Searching barangay documents…</span>
+              <span className="ml-1">Inaayos ko ang sagot…</span>
             </div>
           </div>
         )}
@@ -467,6 +467,12 @@ export function ChatInterface() {
           <p className="text-sm font-bold text-blue-900">Voice Mode</p>
           <p className="text-xs text-blue-700 mt-0.5">Magsalita sa {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano (Filipino voice recognition)" : "English"}. Awtomatikong sasagot ang Barangay AI.</p>
           {!isSupported && <p className="text-xs text-red-600 mt-1">Hindi suportado ng browser ang voice input. Subukan ang Chrome o Edge.</p>}
+        </div>
+      )}
+      {voiceMode && (
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-20 h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 text-white flex items-center justify-center shadow-xl border-4 border-white ${isListening || speakingId ? "animate-pulse ring-4 ring-blue-200" : ""}`} aria-label="Barangay AI voice assistant">
+          <Bot className="h-8 w-8" />
+          {(isListening || speakingId) && <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-400 border-2 border-white" />}
         </div>
       )}
       <form
