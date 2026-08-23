@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FileText, CheckCircle2, Loader2, Sparkles, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +15,7 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const purposeInputRef = useRef<HTMLTextAreaElement>(null);
 
   const supabase = createClient();
 
@@ -77,7 +78,7 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
   }
 
   return (
-    <div className="my-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl shadow-sm text-xs space-y-3 animate-in slide-in-from-bottom-2 duration-300">
+    <div role="region" aria-label={`${title} application form`} onClick={() => purposeInputRef.current?.focus()} className="my-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl shadow-sm text-xs space-y-3 animate-in slide-in-from-bottom-2 duration-300 cursor-text">
       <div className="flex items-center gap-2 text-blue-900 font-bold">
         <div className="h-7 w-7 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-xs">
           <Sparkles className="h-4 w-4" />
@@ -96,16 +97,19 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
 
       <form onSubmit={handleSubmit} className="space-y-2.5">
         <div>
-          <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">
-            Purpose / Additional Notes
+          <label htmlFor={`purpose-${formType}`} className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">
+            What do you need this for?
           </label>
-          <input
-            type="text"
+          <textarea
+            id={`purpose-${formType}`}
+            ref={purposeInputRef}
             required
-            placeholder="e.g., Employment, Bank Requirement, School Enrollment..."
+            rows={2}
+            placeholder="Type the purpose, e.g. employment, school enrollment, bank requirement..."
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full min-h-14 resize-none border-2 border-blue-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200 bg-white placeholder:text-gray-400"
           />
         </div>
 
