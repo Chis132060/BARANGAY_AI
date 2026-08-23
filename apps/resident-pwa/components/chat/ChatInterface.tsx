@@ -238,7 +238,7 @@ export function ChatInterface() {
       const errorMsg: Message = {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-        text: "⚠️ I'm having trouble connecting right now. Please try again in a moment.",
+      text: `⚠️ ${err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli."}`,
         isError: true,
       };
       setMessages((prev) => [...prev, errorMsg]);

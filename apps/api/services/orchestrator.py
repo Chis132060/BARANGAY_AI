@@ -192,6 +192,7 @@ class BoundedOrchestrator:
         return {
             "answer": answer,
             "citations": citations,
+            "chunk_ids": citations,
             "context_used": grounded,
             "flagged": status == "BLOCKED",
             "latency_ms": 0,
