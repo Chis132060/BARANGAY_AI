@@ -104,6 +104,18 @@ class BoundedOrchestrator:
         
         # 6. Answerability: NOT_ANSWERABLE
         if not valid_chunks and not tool_results and intent != "GENERAL":
+            # Safe service guidance keeps the assistant useful before the
+            # Barangay's signed document is ingested. Local fees and schedules
+            # remain explicitly unconfirmed.
+            q = query.lower()
+            service_key = "residency" if ("residen" in q or "lumulupyo" in q or "puyo" in q) else None
+            if service_key == "residency":
+                service_messages = {
+                    "tgl": "Para sa Certificate of Residency:\n1. Ihanda ang valid ID.\n2. Magdala ng proof of address kung kailangan (hal. utility bill o lease agreement).\n3. Sabihin ang purpose ng certificate.\n4. Kumpletuhin ang Barangay form at isumite sa verification.\n5. Kumpirmahin sa Barangay ang fee, processing time, schedule, at release method dahil wala pa itong approved local record sa AI.",
+                    "ceb": "Para sa Certificate of Residency:\n1. Andama ang valid ID.\n2. Pagdala og proof of address kung gikinahanglan (sama sa utility bill o lease agreement).\n3. Isulti ang katuyoan sa certificate.\n4. Kompletoha ang Barangay form ug isumite alang sa verification.\n5. Kumpirmaha sa Barangay ang bayad, processing time, schedule, ug paagi sa pag-release kay wala pa kini ma-approve nga local record sa AI.",
+                    "en": "For a Certificate of Residency:\n1. Prepare a valid ID.\n2. Bring proof of address if required, such as a utility bill or lease agreement.\n3. State the purpose of the certificate.\n4. Complete the Barangay form and submit it for verification.\n5. Confirm the fee, processing time, schedule, and release method with the Barangay because no approved local record is available to the AI yet.",
+                }
+                return self._build_response(service_messages.get(selected_language, service_messages["en"]), [], False, "VERIFY_LOCALLY", 0.8)
             msg = "I don't have enough reliable information to answer that."
             if selected_language == "tgl": msg = "Wala akong sapat na mapagkakatiwalaang impormasyon para masagot iyan."
             elif selected_language == "ceb": msg = "Wala koy igo nga kasaligang impormasyon aron matubag kana."
