@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   let supabase: any;
-  if (!url || url.includes("pedevaqxrudflvostpja") || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+  if (!url || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
