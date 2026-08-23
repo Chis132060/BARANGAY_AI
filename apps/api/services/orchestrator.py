@@ -113,9 +113,9 @@ class BoundedOrchestrator:
         # instead of returning a vague grounding failure.
         if not valid_chunks and not tool_results and intent == "GENERAL":
             scope_messages = {
-                "tgl": "Maaari kitang tulungan sa mga serbisyo, requirements, bayarin, oras ng opisina, ordinansa, announcements, at proseso ng Barangay. Para sa ibang paksa, mangyaring makipag-ugnayan sa Barangay staff.",
-                "ceb": "Makatabang ko sa mga serbisyo, kinahanglanon, bayranan, oras sa opisina, ordinansa, announcements, ug proseso sa Barangay. Alang sa ubang hilisgutan, palihog pakig-uban sa Barangay staff.",
-                "en": "I can help with Barangay services, requirements, fees, office hours, ordinances, announcements, and processes. For other topics, please contact Barangay staff.",
+                "tgl": "Ano ang kailangan mo? Maaari kitang tulungan sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, oras ng opisina, ordinansa, at announcements. Para sa ibang paksa, mangyaring makipag-ugnayan sa Barangay staff.",
+                "ceb": "Unsa imong kinahanglan? Makatabang ko sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, oras sa opisina, ordinansa, ug announcements. Alang sa ubang hilisgutan, palihog pakig-uban sa Barangay staff.",
+                "en": "What do you need? I can help with Barangay Clearance, Certificate of Indigency, Certificate of Residency, office hours, ordinances, and announcements. For other topics, please contact Barangay staff.",
             }
             return self._build_response(scope_messages.get(selected_language, scope_messages["en"]), [], False, "OUT_OF_SCOPE", 1.0)
         

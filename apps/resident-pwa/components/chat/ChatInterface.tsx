@@ -360,6 +360,19 @@ export function ChatInterface() {
                   <p className="whitespace-pre-line">{m.text}</p>
                 </div>
 
+                {m.id === "welcome" && (
+                  <div className="flex flex-wrap gap-1.5 px-1 pt-1">
+                    {["Barangay Clearance", "Certificate of Indigency", "Certificate of Residency", "Oras ng opisina", "Mga ordinansa"].map((suggestion) => (
+                      <button key={suggestion} type="button" onClick={() => {
+                        setInput(suggestion);
+                        window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+                      }} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100">
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* TTS Audio Listen Controls */}
                 {!isUser && !m.isError && (
                   <div className="flex items-center gap-1.5 px-1 pt-0.5">
