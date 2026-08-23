@@ -16,6 +16,7 @@ class Settings:
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "false").lower() == "true"
 
     # AI Failover Config
     AI_PROVIDER_PRIMARY: str = os.getenv("AI_PROVIDER_PRIMARY", "gemini")
