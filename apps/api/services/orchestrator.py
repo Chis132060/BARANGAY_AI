@@ -108,6 +108,16 @@ class BoundedOrchestrator:
             if selected_language == "tgl": msg = "Wala akong sapat na mapagkakatiwalaang impormasyon para masagot iyan."
             elif selected_language == "ceb": msg = "Wala koy igo nga kasaligang impormasyon aron matubag kana."
             return self._build_response(msg, [], False, "NOT_ANSWERABLE", 1.0)
+
+        # Give general or out-of-scope questions a clear, localized boundary
+        # instead of returning a vague grounding failure.
+        if not valid_chunks and not tool_results and intent == "GENERAL":
+            scope_messages = {
+                "tgl": "Ano ang kailangan mo? Maaari kitang tulungan sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, oras ng opisina, ordinansa, at announcements. Para sa ibang paksa, mangyaring makipag-ugnayan sa Barangay staff.",
+                "ceb": "Unsa imong kinahanglan? Makatabang ko sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, oras sa opisina, ordinansa, ug announcements. Alang sa ubang hilisgutan, palihog pakig-uban sa Barangay staff.",
+                "en": "What do you need? I can help with Barangay Clearance, Certificate of Indigency, Certificate of Residency, office hours, ordinances, and announcements. For other topics, please contact Barangay staff.",
+            }
+            return self._build_response(scope_messages.get(selected_language, scope_messages["en"]), [], False, "OUT_OF_SCOPE", 1.0)
         
         # 7. Knowledge Graph Traversal
         kg_edges = []

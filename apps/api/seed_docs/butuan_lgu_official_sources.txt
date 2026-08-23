@@ -1,0 +1,41 @@
+# OFFICIAL SOURCE REGISTRY — BARANGAY TANDANG SORA, BUTUAN CITY
+# Status: SOURCE MAP — local Barangay Administrator approval required
+# Last checked: 2026-08-23
+
+TARGET LGU
+Barangay: Tandang Sora
+City: Butuan City
+Province: Agusan del Norte
+
+SOURCE PRIORITY
+1. Current approved Barangay Tandang Sora documents and signed Citizen's Charter.
+2. Official Butuan City Government website and department Citizen's Charters.
+3. Official Sangguniang Panlungsod ng Butuan ordinances and resolutions.
+4. National government sources only for national-law or external-agency requirements.
+5. Never use an unofficial blog, social post, or search snippet as the only source for a fee, requirement, deadline, or penalty.
+
+OFFICIAL BUTUAN SOURCES
+City Government of Butuan: https://www.butuan.gov.ph/
+Butuan City contents/news: https://www.butuan.gov.ph/contents/
+Sangguniang Panlungsod Citizen's Charter: https://sp.butuan.gov.ph/citizenscharter/
+Sangguniang Panlungsod City Ordinances: https://sp.butuan.gov.ph/city-ordinances/
+
+VERIFIED CONTEXT
+The official Butuan City Ecological Profile identifies Tandang Sora as a barangay of Butuan City. Use the latest official profile/document for administrative facts and do not copy the old sample contact number from the seed files.
+
+WHAT MUST BE COLLECTED FROM THE BARANGAY
+1. Signed Barangay Citizen's Charter for every resident-facing service.
+2. Current clearance/certificate requirements, fees, processing times, validity, and release method.
+3. Current Barangay Hall address, schedule, hotline, email, emergency contacts, and payment channels.
+4. Approved Barangay ordinances, resolutions, curfew/noise/waste rules, and effectivity dates.
+5. Current complaint, blotter, mediation, VAWC, senior/PWD, youth, health, and social-assistance referral procedures.
+6. Current online request workflow and which services are available to guests versus registered residents.
+
+AI INGESTION RULE
+Until a Barangay-approved document is attached to a service, answer with: "Kailangan ko munang kumpirmahin ito sa Barangay Tandang Sora." Never fill missing values from another LGU or from the sample seed documents.
+
+REVIEW METADATA
+Document owner: Barangay Administrator — VERIFY LOCALLY
+Approving office: Barangay Tandang Sora — VERIFY LOCALLY
+Effective date: VERIFY LOCALLY
+Next review date: VERIFY LOCALLY
