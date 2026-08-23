@@ -60,7 +60,9 @@ export function useSTT(): UseSTTReturn {
 
       // Select target language recognition code
       if (language === "ceb") {
-        recognition.lang = "ceb-PH";
+        // Chrome/Edge commonly do not expose ceb-PH. Filipino is the closest
+        // supported recognition locale and still handles common Bisaya speech.
+        recognition.lang = "fil-PH";
       } else if (language === "tgl") {
         recognition.lang = "tl-PH";
       } else {
@@ -76,7 +78,9 @@ export function useSTT(): UseSTTReturn {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           transcriptText += event.results[i][0].transcript;
         }
-        if (onResult && transcriptText) {
+        // Do not submit interim words; wait until the browser marks the phrase final.
+        const isFinal = event.results[event.results.length - 1]?.isFinal;
+        if (onResult && transcriptText && isFinal) {
           onResult(transcriptText);
         }
       };
