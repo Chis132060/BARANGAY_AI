@@ -1,7 +1,13 @@
 import logging
 from typing import List, Dict, Any
-from sentence_transformers import CrossEncoder
 import os
+
+try:
+    from sentence_transformers import CrossEncoder
+except ImportError:
+    # Reranking is an optional quality enhancement. The API must still start
+    # and can fall back to the original retrieval order on small/local setups.
+    CrossEncoder = None
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +23,9 @@ class CrossEncoderReranker:
         self._initialize()
 
     def _initialize(self):
+        if CrossEncoder is None:
+            logger.warning("sentence-transformers is not installed; reranking disabled.")
+            return
         try:
             # Lazy load the model to save memory if not immediately needed,
             # but initializing here warms it up for the first request.
