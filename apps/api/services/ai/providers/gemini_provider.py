@@ -13,7 +13,7 @@ class GeminiProvider(BaseLangchainProvider):
 
     def _get_model(self, request: AIRequest) -> ChatGoogleGenerativeAI:
         return ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash",
+            model=settings.GEMINI_MODEL,
             google_api_key=settings.GEMINI_API_KEY,
             temperature=request.temperature,
             max_output_tokens=request.max_tokens,

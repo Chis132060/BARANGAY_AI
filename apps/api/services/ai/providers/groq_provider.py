@@ -13,7 +13,7 @@ class GroqProvider(BaseLangchainProvider):
 
     def _get_model(self, request: AIRequest) -> ChatGroq:
         return ChatGroq(
-            model="llama-3.1-8b-instant",
+            model=settings.GROQ_MODEL,
             api_key=settings.GROQ_API_KEY,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
