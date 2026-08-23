@@ -64,7 +64,7 @@ class BoundedOrchestrator:
         self.query_normalizer = QueryNormalizer(self.provider_manager)
         self.MAX_ITERATIONS = 3 # Bounded DAG constraint
 
-    async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None) -> dict:
+    async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None, language: str = "tgl") -> dict:
         start = time.time()
         
         # 1. Auth & Input Policy
@@ -74,13 +74,15 @@ class BoundedOrchestrator:
 
         # 2. Intent Detection & Language Normalization
         detected_lang = detect_language(query)
+        selected_language = language if language in ("tgl", "ceb", "en") else detected_lang
         normalized_data = self.query_normalizer.normalize(query, detected_lang)
         intent = normalized_data.get("intent", "GENERAL")
         
         # 3. Answerability: NEEDS_CLARIFICATION
         if intent == "AMBIGUOUS":
             msg = "I'm sorry, could you please clarify what you would like to know?"
-            if detected_lang == "ceb": msg = "Pasayloa ko, unsa imong gusto mahibal-an?"
+            if selected_language == "tgl": msg = "Paki-linaw po kung ano ang nais ninyong malaman."
+            elif selected_language == "ceb": msg = "Pasayloa ko, unsa imong gusto mahibal-an?"
             return self._build_response(msg, [], False, "NEEDS_CLARIFICATION", 1.0)
             
         requires_tools = intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
@@ -103,7 +105,8 @@ class BoundedOrchestrator:
         # 6. Answerability: NOT_ANSWERABLE
         if not valid_chunks and not tool_results and intent != "GENERAL":
             msg = "I don't have enough reliable information to answer that."
-            if detected_lang == "ceb": msg = "Wala koy igo nga kasaligang impormasyon aron matubag kana."
+            if selected_language == "tgl": msg = "Wala akong sapat na mapagkakatiwalaang impormasyon para masagot iyan."
+            elif selected_language == "ceb": msg = "Wala koy igo nga kasaligang impormasyon aron matubag kana."
             return self._build_response(msg, [], False, "NOT_ANSWERABLE", 1.0)
         
         # 7. Knowledge Graph Traversal
@@ -120,7 +123,8 @@ class BoundedOrchestrator:
         context_text = "\n\n".join(f"--- ID: {c['id']} ---\n{c['content']}" for c in valid_chunks) or "NONE"
         kg_text = json.dumps(kg_edges, indent=2) if kg_edges else "NONE"
         tools_text = json.dumps(tool_results, indent=2) if tool_results else "NONE"
-        lang_instruction = build_language_instruction(detected_lang)
+        # User-selected language is authoritative; detection is only a fallback for legacy callers.
+        lang_instruction = build_language_instruction(selected_language)
         
         messages = [
             SystemMessage(content=SYSTEM_PROMPT.format(
