@@ -78,7 +78,7 @@ export function ChatInterface() {
   const formRef = useRef<HTMLFormElement>(null);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const { speak, stop, speakingId, loadingId } = useTTS();
-  const { isListening, isSupported, toggleListening, stopListening } = useSTT();
+  const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -102,6 +102,18 @@ export function ChatInterface() {
       speak(latest.id, latest.text, ttsLang);
     }
   }, [voiceMode, loading, messages, speak, ttsLang]);
+
+  // Voice Mode is a hands-free loop: after each completed answer, listen again.
+  useEffect(() => {
+    if (!voiceMode || !isSupported || isListening || loading) return;
+    const timer = window.setTimeout(() => {
+      startListening(ttsLang, (transcribedText) => {
+        setInput(transcribedText);
+        window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [voiceMode, isSupported, isListening, loading, startListening, ttsLang]);
 
   const selectLanguage = (language: TTSLanguage) => {
     setTtsLang(language);
@@ -268,7 +280,12 @@ export function ChatInterface() {
             </p>
           </div>
         </div>
-        <button type="button" onClick={() => setVoiceMode((value) => !value)} aria-label="Voice mode"
+        <button type="button" onClick={() => {
+            setVoiceMode((value) => {
+              if (value) stopListening();
+              return !value;
+            });
+          }} aria-label="Voice mode"
           className={`h-9 px-3 rounded-full hover:bg-white/30 text-xs font-bold border border-white/30 ${voiceMode ? "bg-white text-blue-700" : "bg-white/20 text-white"}`}>🎙️ {voiceMode ? "Voice On" : "Voice"}</button>
         <button type="button" onClick={() => setShowLanguagePicker(true)} aria-label="Palitan ang wika"
           className="h-9 w-9 rounded-full bg-white/20 hover:bg-white/30 text-sm border border-white/30">{ttsLang === "tgl" ? "🇵🇭" : ttsLang === "ceb" ? "🗣️" : "🇺🇸"}</button>
@@ -461,7 +478,7 @@ export function ChatInterface() {
         />
 
         {/* Speech-to-Text (STT) Microphone Button */}
-        <button
+        {!voiceMode && <button
           type="button"
           onClick={() => toggleListening(ttsLang, (transcribedText) => {
             setInput(transcribedText);
@@ -479,15 +496,15 @@ export function ChatInterface() {
           }`}
         >
           {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </button>
+        </button>}
 
-        <button
+        {!voiceMode && <button
           type="submit"
           disabled={!input.trim() || loading}
           className="h-10 w-10 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center transition-all shadow disabled:opacity-40 shrink-0"
         >
           <Send className="h-4 w-4" />
-        </button>
+        </button>}
       </form>
 
       <GuestAuthModal isOpen={showGuestModal} onClose={() => setShowGuestModal(false)} />

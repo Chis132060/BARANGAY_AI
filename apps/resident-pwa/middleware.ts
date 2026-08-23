@@ -53,6 +53,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  // API routes perform their own authentication/rate limiting. Do not turn
+  // guest API requests into an HTML login redirect (which breaks JSON clients).
+  if (pathname.startsWith("/api/")) return response;
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
   if (!user && !isPublic) {
