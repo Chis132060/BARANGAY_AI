@@ -7,9 +7,10 @@ const PUBLIC_ROUTES = ["/login", "/auth/callback"];
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let supabase: any;
-  if (!url || url.includes("pedevaqxrudflvostpja") || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+  if (process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
@@ -21,9 +22,15 @@ export async function middleware(request: NextRequest) {
     };
     supabase = getMockSupabaseClient(requestCookieStore);
   } else {
+    if (!url || !anonKey) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      return NextResponse.redirect(redirectUrl);
+    }
+
     supabase = createServerClient(
       url,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      anonKey,
       {
         cookies: {
           get(name: string) {

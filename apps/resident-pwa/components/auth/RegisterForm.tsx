@@ -73,20 +73,34 @@ export function RegisterForm() {
       if (authError) throw new Error(authError.message);
 
       // 2. Insert resident profile with Pending verification status
-      const { error: resError } = await supabase.from("residents").insert({
-        first_name: formData.firstName,
-        middle_name: formData.middleName,
-        last_name: formData.lastName,
-        birth_date: formData.birthDate,
-        gender: formData.gender,
-        contact_number: formData.contactNumber,
-        civil_status: "Single",
-        verification_status: "Pending",
-        id_type: formData.idType,
-        id_photo_url: formData.idPhotoUrl || previewImage || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
-      });
+      const { data: resident, error: resError } = await supabase
+        .from("residents")
+        .insert({
+          first_name: formData.firstName,
+          middle_name: formData.middleName,
+          last_name: formData.lastName,
+          birth_date: formData.birthDate,
+          gender: formData.gender,
+          contact_number: formData.contactNumber,
+          civil_status: "Single",
+          verification_status: "Pending",
+          id_type: formData.idType,
+          id_photo_url: formData.idPhotoUrl || previewImage || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
+        })
+        .select("id")
+        .single();
 
       if (resError) throw new Error(resError.message);
+      if (!resident?.id) throw new Error("Resident profile was not created.");
+
+      const { error: addressError } = await supabase.from("addresses").insert({
+        resident_id: resident.id,
+        house_number: formData.houseNumber,
+        street: formData.street,
+        purok: formData.purok,
+      });
+
+      if (addressError) throw new Error(addressError.message);
 
       setSubmitted(true);
     } catch (err: any) {
