@@ -6,6 +6,7 @@ except ImportError:
     except ImportError:
         from langchain_community.chat_models import ChatOllama
 from services.ai.interfaces import AIRequest
+from core.config import settings
 from services.ai.providers.base_provider import BaseLangchainProvider
 
 class OllamaProvider(BaseLangchainProvider):
