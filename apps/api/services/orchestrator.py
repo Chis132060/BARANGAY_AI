@@ -187,9 +187,14 @@ class BoundedOrchestrator:
         )
 
     def _build_response(self, answer: str, citations: List[str], grounded: bool, status: str, confidence: float) -> dict:
+        # Keep the router contract stable for both normal and early-return responses.
+        # Previously these fields were missing, causing FastAPI response validation to fail.
         return {
             "answer": answer,
             "citations": citations,
+            "context_used": grounded,
+            "flagged": status == "BLOCKED",
+            "latency_ms": 0,
             "grounded": grounded,
             "validation_status": status,
             "confidence": confidence,
