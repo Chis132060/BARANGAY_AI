@@ -77,6 +77,7 @@ export function ChatInterface() {
   const [voiceMode, setVoiceMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const lastVoiceReplyRef = useRef<string | null>(null);
+  const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
   const { speak, stop, speakingId, loadingId } = useTTS();
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -103,9 +104,20 @@ export function ChatInterface() {
     }
   }, [voiceMode, loading, messages, speak, ttsLang]);
 
+  useEffect(() => {
+    if (!voiceMode || voiceIntroLanguageRef.current === ttsLang) return;
+    voiceIntroLanguageRef.current = ttsLang;
+    const greeting: Record<TTSLanguage, string> = {
+      tgl: "Kumusta! Ako ang Barangay AI. Voice Mode na tayo. Magsalita ka lang pagkatapos ng aking pagbati at awtomatiko kitang sasagutin.",
+      ceb: "Maayong adlaw! Ako ang Barangay AI. Aktibo na ang Voice Mode. Pagsulti lang human sa akong pagtimbaya ug tubagon tika dayon.",
+      en: "Hello! I am Barangay AI. Voice Mode is now active. Speak after my greeting and I will answer you automatically.",
+    };
+    speak("voice-intro", greeting[ttsLang], ttsLang);
+  }, [voiceMode, ttsLang, speak]);
+
   // Voice Mode is a hands-free loop: after each completed answer, listen again.
   useEffect(() => {
-    if (!voiceMode || !isSupported || isListening || loading) return;
+    if (!voiceMode || !isSupported || isListening || loading || speakingId) return;
     const timer = window.setTimeout(() => {
       startListening(ttsLang, (transcribedText) => {
         setInput(transcribedText);
@@ -113,7 +125,7 @@ export function ChatInterface() {
       });
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [voiceMode, isSupported, isListening, loading, startListening, ttsLang]);
+  }, [voiceMode, isSupported, isListening, loading, speakingId, startListening, ttsLang]);
 
   const selectLanguage = (language: TTSLanguage) => {
     setTtsLang(language);
@@ -282,7 +294,10 @@ export function ChatInterface() {
         </div>
         <button type="button" onClick={() => {
             setVoiceMode((value) => {
-              if (value) stopListening();
+              if (value) {
+                stopListening();
+                voiceIntroLanguageRef.current = null;
+              }
               return !value;
             });
           }} aria-label="Voice mode"
