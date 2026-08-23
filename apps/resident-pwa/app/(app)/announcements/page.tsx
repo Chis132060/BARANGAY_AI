@@ -10,6 +10,7 @@ interface Announcement {
   description: string;
   category: string;
   published_date: string;
+  image_url?: string | null;
 }
 
 export default function AnnouncementsPage() {
@@ -27,7 +28,7 @@ export default function AnnouncementsPage() {
     try {
       const { data, error } = await supabase
         .from("announcements")
-        .select("id, title, description, category, published_date")
+        .select("id, title, description, category, published_date, image_url")
         .eq("status", "Published")
         .order("published_date", { ascending: false });
 
@@ -110,7 +111,9 @@ export default function AnnouncementsPage() {
       ) : (
         <div className="space-y-3">
           {filteredAnnouncements.map((ann) => (
-            <div key={ann.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs space-y-2">
+            <article key={ann.id} className="overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm">
+              {ann.image_url && <img src={ann.image_url} alt="" className="h-48 w-full object-cover" />}
+              <div className="p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
                   ann.category === "Emergency" ? "bg-red-100 text-red-700" :
@@ -126,7 +129,8 @@ export default function AnnouncementsPage() {
               </div>
               <h2 className="text-sm font-bold text-gray-900 leading-snug">{ann.title}</h2>
               <p className="text-xs text-gray-600 leading-relaxed">{ann.description}</p>
-            </div>
+              </div>
+            </article>
           ))}
         </div>
       )}
