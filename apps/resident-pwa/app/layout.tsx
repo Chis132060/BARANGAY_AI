@@ -26,6 +26,7 @@ export const metadata: Metadata = {
     title: "Smart Barangay",
     description: "Your digital barangay portal.",
   },
+  icons: { icon: "/logo.png", apple: "/logo.png" },
 };
 
 export const viewport: Viewport = {
