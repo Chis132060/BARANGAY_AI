@@ -66,6 +66,9 @@ const mockAnnouncements: any[] = [
 ];
 
 const mockChatMessages: any[] = [];
+const mockNotifications: any[] = [
+  { id: "n-1", user_id: "mock-resident-id", title: "Barangay Updates", message: "Tap here to view the latest announcements from Barangay Hall.", read_status: false, created_at: new Date().toISOString() },
+];
 const mockResidents: any[] = [];
 
 const tables: Record<string, any[]> = {
@@ -73,6 +76,7 @@ const tables: Record<string, any[]> = {
   document_requests: mockDocumentRequests,
   announcements: mockAnnouncements,
   chat_messages: mockChatMessages,
+  notifications: mockNotifications,
   residents: mockResidents,
 };
 

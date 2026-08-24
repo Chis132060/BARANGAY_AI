@@ -1,0 +1,71 @@
+# Smart Barangay Service Catalog — APPROVAL REQUIRED
+# Audience: resident-facing Barangay AI
+# Status: DRAFT BASELINE — Barangay Administrator must review before approval
+# Last reviewed: 2026-08-23
+
+IMPORTANT ANSWERING RULES
+1. Use this catalog for service routing and step-by-step guidance.
+2. Do not invent a fee, processing time, validity period, office schedule, address, or contact number.
+3. If a field says VERIFY LOCALLY, tell the resident that Barangay staff must confirm it.
+4. Requirements can vary by city, municipality, barangay, purpose, and current ordinance.
+5. Ask the purpose and whether the resident is already registered when the request is ambiguous.
+6. For emergency, abuse, medical, or legal matters, provide the configured human/emergency referral.
+
+SERVICE: BARANGAY CLEARANCE
+Purpose: General certification issued by the Barangay for an approved resident purpose.
+Ask first: purpose of the clearance, resident status, and whether the name/address is current in Barangay records.
+Common baseline requirements: valid government ID; proof of residency when records are incomplete; completed Barangay form.
+Steps: 1) Confirm purpose and requirements. 2) Visit the Barangay office or use the approved resident request flow. 3) Complete the form. 4) Submit the verified requirements. 5) Pay only the locally approved fee, if any. 6) Wait for the official release instruction. 7) Claim or receive the document through the approved channel.
+Fee: VERIFY LOCALLY — do not state a national/default amount.
+Processing time: VERIFY LOCALLY.
+Office and contact: VERIFY LOCALLY.
+
+SERVICE: CERTIFICATE OF RESIDENCY
+Purpose: Confirms that a person resides in the Barangay.
+Ask first: current address and purpose of the certificate.
+Common baseline requirements: valid government ID; proof of address if the address is not verified in records; completed Barangay form.
+Steps: 1) Confirm the address and purpose. 2) Submit the ID and any required proof of address. 3) Complete the form. 4) Wait for Barangay verification. 5) Pay only the locally approved fee, if any. 6) Claim through the official release channel.
+Fee: VERIFY LOCALLY.
+Processing time and validity: VERIFY LOCALLY.
+Office and contact: VERIFY LOCALLY.
+
+SERVICE: CERTIFICATE OF INDIGENCY
+Purpose: Supports an application for assistance when the resident meets the Barangay's indigency assessment requirements.
+Ask first: purpose of assistance, applicant/beneficiary, and required receiving agency.
+Common baseline requirements: valid ID; proof of residency; letter of purpose or referral and supporting documents when required by the receiving agency; Barangay assessment/interview when required.
+Steps: 1) Identify the assistance purpose. 2) Confirm the receiving agency's requirements. 3) Submit ID, residency proof, and purpose/supporting documents. 4) Complete the Barangay assessment if required. 5) Wait for authorized review and signature. 6) Claim the certificate or follow the approved release process.
+Fee: VERIFY LOCALLY. Do not assume it is free without a local approved source.
+Processing time and validity: VERIFY LOCALLY.
+Office and contact: VERIFY LOCALLY.
+External note: DSWD citizen charters may require a Barangay Certificate of Residency, Certificate of Indigency, or Certificate that the client needs assistance, plus other case-specific documents. Confirm the current DSWD requirements with the receiving office.
+
+SERVICE: BARANGAY BUSINESS CLEARANCE
+Purpose: Barangay-level business clearance or certification required by the local business-permit workflow.
+Ask first: business type, location, ownership type, new or renewal application, and city/municipality.
+Common baseline requirements: business registration documents and proof of business location; additional requirements depend on local ordinance and business type.
+Steps: 1) Confirm new or renewal application. 2) Check the local business-permit checklist. 3) Prepare registration and location documents. 4) Submit for Barangay review/inspection when required. 5) Pay the locally approved assessment. 6) Claim the clearance and continue to the city/municipal permit office if required.
+Fee, inspection, processing time, and validity: VERIFY LOCALLY.
+Office and contact: VERIFY LOCALLY.
+
+SERVICE: BARANGAY ID
+Purpose: Barangay identification service, if issued by this Barangay.
+Ask first: whether the Barangay currently issues IDs and whether the applicant is registered.
+Requirements, fee, processing time, validity, and photos: VERIFY LOCALLY.
+Steps: confirm availability; submit the locally required identity and residency documents; complete the form; pay the approved fee if applicable; wait for release.
+
+SERVICE: BARANGAY COMPLAINT OR BLOTTER REFERRAL
+Purpose: Route a resident to the proper Barangay desk for a complaint, incident report, or mediation request.
+Ask first: whether anyone is in immediate danger, the incident location, and the type of concern.
+Steps: 1) For immediate danger, contact the configured emergency number first. 2) Otherwise, provide the Barangay office/desk and schedule. 3) Bring identification and incident details only if requested. 4) Do not promise a legal result or reveal another person's private records.
+Office, desk, contact, and schedule: VERIFY LOCALLY.
+
+SERVICE: GENERAL CONTACT AND OFFICE HOURS
+Office address, hotline, email, office hours, holidays, payment channels, and online-request availability: VERIFY LOCALLY.
+If these fields are not approved in the knowledge base, say that Barangay staff must confirm them and provide the configured fallback contact.
+
+APPROVAL RECORD
+Barangay name: VERIFY LOCALLY.
+City/municipality: VERIFY LOCALLY.
+Approving official: VERIFY LOCALLY.
+Effective date: VERIFY LOCALLY.
+Next review date: VERIFY LOCALLY.

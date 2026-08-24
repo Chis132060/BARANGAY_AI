@@ -5,7 +5,7 @@ import { getMockSupabaseClient } from "./mock-supabase";
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const cookieStore = cookies();
-  if (!url || url.includes("pedevaqxrudflvostpja") || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+  if (!url || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
     return getMockSupabaseClient(cookieStore) as any;
   }
 
@@ -35,4 +35,3 @@ export function createClient() {
     }
   );
 }
-

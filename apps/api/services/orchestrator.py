@@ -104,10 +104,32 @@ class BoundedOrchestrator:
         
         # 6. Answerability: NOT_ANSWERABLE
         if not valid_chunks and not tool_results and intent != "GENERAL":
+            # Safe service guidance keeps the assistant useful before the
+            # Barangay's signed document is ingested. Local fees and schedules
+            # remain explicitly unconfirmed.
+            q = query.lower()
+            service_key = "residency" if ("residen" in q or "lumulupyo" in q or "puyo" in q) else None
+            if service_key == "residency":
+                service_messages = {
+                    "tgl": "Para sa Certificate of Residency:\n1. Ihanda ang valid ID.\n2. Magdala ng proof of address kung kailangan (hal. utility bill o lease agreement).\n3. Sabihin ang purpose ng certificate.\n4. Kumpletuhin ang Barangay form at isumite sa verification.\n5. Kumpirmahin sa Barangay ang fee, processing time, schedule, at release method dahil wala pa itong approved local record sa AI.",
+                    "ceb": "Para sa Certificate of Residency:\n1. Andama ang valid ID.\n2. Pagdala og proof of address kung gikinahanglan (sama sa utility bill o lease agreement).\n3. Isulti ang katuyoan sa certificate.\n4. Kompletoha ang Barangay form ug isumite alang sa verification.\n5. Kumpirmaha sa Barangay ang bayad, processing time, schedule, ug paagi sa pag-release kay wala pa kini ma-approve nga local record sa AI.",
+                    "en": "For a Certificate of Residency:\n1. Prepare a valid ID.\n2. Bring proof of address if required, such as a utility bill or lease agreement.\n3. State the purpose of the certificate.\n4. Complete the Barangay form and submit it for verification.\n5. Confirm the fee, processing time, schedule, and release method with the Barangay because no approved local record is available to the AI yet.",
+                }
+                return self._build_response(service_messages.get(selected_language, service_messages["en"]), [], False, "VERIFY_LOCALLY", 0.8)
             msg = "I don't have enough reliable information to answer that."
             if selected_language == "tgl": msg = "Wala akong sapat na mapagkakatiwalaang impormasyon para masagot iyan."
             elif selected_language == "ceb": msg = "Wala koy igo nga kasaligang impormasyon aron matubag kana."
             return self._build_response(msg, [], False, "NOT_ANSWERABLE", 1.0)
+
+        # Give general or out-of-scope questions a clear, localized boundary
+        # instead of returning a vague grounding failure.
+        if not valid_chunks and not tool_results and intent == "GENERAL":
+            scope_messages = {
+                "tgl": "Ano ang kailangan mo? Maaari kitang tulungan sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, oras ng opisina, ordinansa, at announcements. Para sa ibang paksa, mangyaring makipag-ugnayan sa Barangay staff.",
+                "ceb": "Unsa imong kinahanglan? Makatabang ko sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, oras sa opisina, ordinansa, ug announcements. Alang sa ubang hilisgutan, palihog pakig-uban sa Barangay staff.",
+                "en": "What do you need? I can help with Barangay Clearance, Certificate of Indigency, Certificate of Residency, office hours, ordinances, and announcements. For other topics, please contact Barangay staff.",
+            }
+            return self._build_response(scope_messages.get(selected_language, scope_messages["en"]), [], False, "OUT_OF_SCOPE", 1.0)
         
         # 7. Knowledge Graph Traversal
         kg_edges = []
