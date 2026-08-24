@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
 
 const PUBLIC_ROUTES = ["/login", "/auth/callback"];
@@ -10,7 +11,7 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let supabase: any;
-  if (process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+  if (isMockSupabaseEnabled(url)) {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
