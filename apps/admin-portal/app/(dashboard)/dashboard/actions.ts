@@ -13,6 +13,7 @@ export interface DashboardMetrics {
   pendingRequests: number;
   activeComplaints: number;
   registeredBusinesses: number;
+  pendingRegistrations: number;
 }
 
 export interface MonthlyTransactionItem {
@@ -39,6 +40,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     { count: pendingRequests },
     { count: activeComplaints },
     { count: registeredBusinesses },
+    { count: pendingRegistrations },
   ] = await Promise.all([
     supabase.from("residents").select("*", { count: "exact", head: true }),
     supabase.from("households").select("*", { count: "exact", head: true }),
@@ -49,6 +51,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     supabase.from("document_requests").select("*", { count: "exact", head: true }).eq("status", "Pending"),
     supabase.from("complaints").select("*", { count: "exact", head: true }).neq("status", "Closed"),
     supabase.from("businesses").select("*", { count: "exact", head: true }).eq("status", "Active"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending"),
   ]);
 
   return {
@@ -62,6 +65,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     pendingRequests: pendingRequests || 0,
     activeComplaints: activeComplaints || 0,
     registeredBusinesses: registeredBusinesses || 0,
+    pendingRegistrations: pendingRegistrations || 0,
   };
 }
 

@@ -71,12 +71,25 @@ const mockAnnouncements: any[] = [
 const mockChatMessages: any[] = [];
 const mockResidents: any[] = [];
 
+const mockRoles: any[] = [
+  { id: "role-resident", name: "Resident" },
+  { id: "role-super-admin", name: "Super Admin" },
+  { id: "role-captain", name: "Barangay Captain" },
+  { id: "role-secretary", name: "Secretary" },
+  { id: "role-treasurer", name: "Treasurer" },
+  { id: "role-staff", name: "Staff" },
+];
+
+const mockUsers: any[] = [];
+
 const tables: Record<string, any[]> = {
   document_types: mockDocumentTypes,
   document_requests: mockDocumentRequests,
   announcements: mockAnnouncements,
   chat_messages: mockChatMessages,
   residents: mockResidents,
+  roles: mockRoles,
+  users: mockUsers,
 };
 
 function checkIsLoggedIn(cookieStore?: any): boolean {

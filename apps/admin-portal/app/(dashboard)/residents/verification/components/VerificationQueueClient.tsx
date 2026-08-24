@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   UserCheck,
   UserX,
@@ -15,9 +15,10 @@ import {
   Phone,
   ShieldCheck,
 } from "lucide-react";
-import { approveResident, rejectResident } from "../../actions";
+import { approveResident, rejectResident, fetchPendingVerifications } from "../../actions";
 import type { PendingResident } from "../../actions";
 import { useAuth } from "@/components/auth-provider";
+import { createClient } from "@/lib/supabase/client";
 
 interface VerificationQueueClientProps {
   initialResidents: PendingResident[];
@@ -36,6 +37,34 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   const [rejectReason, setRejectReason] = useState("");
 
   const canApprove = hasPermission("residents", "canApprove");
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    const channel = supabase
+      .channel("verification-queue")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "residents" },
+        async () => {
+          try {
+            const latest = await fetchPendingVerifications();
+            if (!cancelled) {
+              setResidents(latest);
+              setError(null);
+            }
+          } catch {
+            /* keep showing the current list */
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filtered = residents.filter((r) => {
     if (r.verification_status !== "Pending") return false;
@@ -213,6 +242,9 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
                   <h3 className="truncate text-lg font-bold text-foreground">
                     {item.first_name} {item.middle_name ? `${item.middle_name} ` : ""}{item.last_name}
                   </h3>
+                  {item.email && (
+                    <p className="truncate text-xs text-muted-foreground">{item.email}</p>
+                  )}
                   <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock3 className="h-3.5 w-3.5" />
                     Submitted {timeAgo(item.created_at)}
@@ -333,7 +365,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
 
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
-                Rejection Reason (optional)
+                Rejection Reason (required)
               </label>
               <textarea
                 rows={3}
@@ -353,7 +385,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
               </button>
               <button
                 onClick={() => handleReject(rejectModalId)}
-                disabled={processingId === rejectModalId}
+                disabled={processingId === rejectModalId || !rejectReason.trim()}
                 className="flex items-center gap-2 bg-destructive hover:bg-destructive/95 text-destructive-foreground font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md disabled:opacity-50"
               >
                 {processingId === rejectModalId && <Loader2 className="h-4 w-4 animate-spin" />}

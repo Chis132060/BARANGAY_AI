@@ -71,11 +71,41 @@ export function RegisterForm() {
       });
 
       if (authError) throw new Error(authError.message);
+      const authUserId = authData.user?.id;
+
+      if (!authUserId) {
+        setErrorMsg("Registration started. Please check your email to confirm your account, then sign in.");
+        return;
+      }
+
+      const { data: residentRole, error: roleError } = await supabase
+        .from("roles")
+        .select("id")
+        .eq("name", "Resident")
+        .single();
+
+      if (roleError) throw new Error(roleError.message);
+      if (!residentRole?.id) throw new Error("Resident role is not configured. Please contact the barangay office.");
+
+      const fullName = [formData.firstName, formData.middleName, formData.lastName]
+        .filter(Boolean)
+        .join(" ");
+
+      const { error: userError } = await supabase.from("users").insert({
+        id: authUserId,
+        name: fullName,
+        email: formData.email,
+        role_id: residentRole.id,
+      });
+
+      if (userError) throw new Error(userError.message);
 
       // 2. Insert resident profile with Pending verification status
       const { data: resident, error: resError } = await supabase
         .from("residents")
         .insert({
+          user_id: authUserId,
+          email: formData.email,
           first_name: formData.firstName,
           middle_name: formData.middleName,
           last_name: formData.lastName,
@@ -103,6 +133,8 @@ export function RegisterForm() {
       if (addressError) throw new Error(addressError.message);
 
       setSubmitted(true);
+      await supabase.auth.signOut();
+      window.location.href = "/pending-approval";
     } catch (err: any) {
       setErrorMsg(err.message || "Registration failed. Please try again.");
     } finally {
@@ -125,14 +157,14 @@ export function RegisterForm() {
             <span>⏳ Status: Pending Barangay Verification</span>
           </p>
           <p className="text-[11px] leading-normal text-amber-700">
-            Barangay Admin officials will verify your submitted ID against census records. You can sign in now to browse announcements, emergency hotlines, and chat with the AI assistant.
+            Barangay Admin officials will verify your submitted ID against barangay records. Full resident access unlocks after approval.
           </p>
         </div>
         <button
-          onClick={() => (window.location.href = "/login")}
+          onClick={() => (window.location.href = "/pending-approval")}
           className="w-full py-3 bg-blue-600 text-white font-bold text-xs rounded-xl shadow hover:bg-blue-700 transition-colors mt-2"
         >
-          Proceed to Sign In
+          View Approval Status
         </button>
       </div>
     );

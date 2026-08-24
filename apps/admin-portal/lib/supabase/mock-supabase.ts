@@ -661,5 +661,16 @@ export function getMockSupabaseClient(cookieStore?: any) {
     from(tableName: string) {
       return new MockQueryBuilder(tableName);
     },
+    channel(_name: string) {
+      const channel = {
+        on: () => channel,
+        subscribe: () => channel,
+        unsubscribe: async () => "ok",
+      };
+      return channel;
+    },
+    async removeChannel(_channel: any) {
+      return "ok";
+    },
   };
 }

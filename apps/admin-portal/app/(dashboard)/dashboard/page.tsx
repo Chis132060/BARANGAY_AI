@@ -27,6 +27,7 @@ export default async function DashboardPage() {
       pendingRequests: 12,
       activeComplaints: 4,
       registeredBusinesses: 28,
+      pendingRegistrations: 0,
     };
   }
 

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
 
-const PUBLIC_ROUTES = ["/login", "/register", "/auth", "/chat", "/announcements"];
+const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/auth", "/chat", "/announcements", "/home"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -62,6 +62,31 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (user && !isMockSupabaseEnabled(url)) {
+    try {
+      const { data: resident } = await supabase
+        .from("residents")
+        .select("verification_status")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const status = resident?.verification_status;
+      const isApprovalRoute = pathname.startsWith("/pending-approval");
+      const isAuthCallback = pathname.startsWith("/auth");
+
+      if ((status === "Pending" || status === "Rejected") && !isApprovalRoute && !isAuthCallback) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/pending-approval";
+        return NextResponse.redirect(redirectUrl);
+      }
+    } catch (err) {
+      console.warn("[PWA Middleware] Resident verification check failed:", err);
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
   if (!user && !isPublic) {
     const redirectUrl = request.nextUrl.clone();

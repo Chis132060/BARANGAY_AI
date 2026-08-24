@@ -123,6 +123,7 @@ export interface PendingResident {
   first_name: string;
   middle_name?: string;
   last_name: string;
+  email?: string;
   birth_date: string;
   gender: string;
   contact_number?: string;
@@ -154,6 +155,7 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
       first_name,
       middle_name,
       last_name,
+      email,
       birth_date,
       gender,
       contact_number,
@@ -187,6 +189,12 @@ export async function approveResident(residentId: string): Promise<{ success: bo
   const allowed = await checkUserPermission(user.id, "residents", "canApprove");
   if (!allowed) throw new Error("Insufficient permissions: canApprove on residents required");
 
+  const { data: target } = await supabase
+    .from("residents")
+    .select("first_name, last_name, email")
+    .eq("id", residentId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("residents")
     .update({ verification_status: "Verified", updated_at: new Date().toISOString() })
@@ -199,6 +207,12 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     user_id: user.id,
     action: "VERIFY_RESIDENT",
     module: "residents",
+    details: {
+      resident_id: residentId,
+      resident_name: target ? `${target.first_name} ${target.last_name}`.trim() : undefined,
+      resident_email: target?.email ?? undefined,
+      approved_at: new Date().toISOString(),
+    },
   });
 
   return { success: true };
@@ -213,11 +227,21 @@ export async function rejectResident(residentId: string, reason?: string): Promi
   const allowed = await checkUserPermission(user.id, "residents", "canApprove");
   if (!allowed) throw new Error("Insufficient permissions: canApprove on residents required");
 
+  if (!reason || !reason.trim()) {
+    throw new Error("A rejection reason is required.");
+  }
+
+  const { data: target } = await supabase
+    .from("residents")
+    .select("first_name, last_name, email")
+    .eq("id", residentId)
+    .maybeSingle();
+
   const updateData: Record<string, any> = {
     verification_status: "Rejected",
+    rejection_reason: reason.trim(),
     updated_at: new Date().toISOString(),
   };
-  if (reason) updateData.rejection_reason = reason;
 
   const { error } = await supabase
     .from("residents")
@@ -231,6 +255,13 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     user_id: user.id,
     action: "REJECT_RESIDENT",
     module: "residents",
+    details: {
+      resident_id: residentId,
+      resident_name: target ? `${target.first_name} ${target.last_name}`.trim() : undefined,
+      resident_email: target?.email ?? undefined,
+      rejection_reason: reason.trim(),
+      rejected_at: new Date().toISOString(),
+    },
   });
 
   return { success: true };
