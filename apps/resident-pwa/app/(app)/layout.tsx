@@ -15,8 +15,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setIsLoggedIn(!!user);
+    supabase.auth.getUser().then(({ data }: { data: { user: any } }) => {
+      setIsLoggedIn(!!data.user);
     });
   }, []);
 

@@ -9,7 +9,7 @@
   "scripts": {
     "dev:admin": "npm run dev --workspace=apps/admin-portal",
     "dev:pwa": "npm run dev --workspace=apps/resident-pwa",
-    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:api": "cd apps/api && .venv\\Scripts\\python.exe main.py",
     "build:admin": "npm run build --workspace=apps/admin-portal",
     "build:pwa": "npm run build --workspace=apps/resident-pwa",
     "build:all": "npm run build:admin && npm run build:pwa",

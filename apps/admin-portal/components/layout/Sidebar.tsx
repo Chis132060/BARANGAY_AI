@@ -39,9 +39,7 @@ export function Sidebar() {
     <aside className="w-64 shrink-0 border-r bg-card/95 flex flex-col h-full z-40 transition-all select-none">
       {/* Brand Header */}
       <div className="flex items-center gap-3 px-6 h-16 border-b shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <ShieldCheck className="h-5 w-5" />
-        </div>
+        <img src="/logo.png" alt="Barangay Logo" className="h-9 w-9 object-contain shrink-0" />
         <div className="flex flex-col">
           <span className="font-extrabold text-sm tracking-tight text-foreground leading-none">Smart Barangay</span>
           <span className="text-[10px] font-bold text-primary tracking-wider uppercase mt-1">Admin Portal</span>

@@ -52,8 +52,8 @@ export default function VerificationQueuePage() {
     const target = items.find((i) => i.id === id);
     setActionMessage(
       action === "Verified"
-        ? `✅ ${target?.name} has been verified and granted full resident access!`
-        : `❌ Registration for ${target?.name} was rejected.`
+        ? `${target?.name} has been verified and granted full resident access!`
+        : `Registration for ${target?.name} was rejected.`
     );
 
     setTimeout(() => setActionMessage(null), 4000);

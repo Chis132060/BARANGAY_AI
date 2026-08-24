@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const PUROK_OPTIONS = ["Purok 1", "Purok 2", "Purok 3", "Purok 4", "Purok 5", "Purok 6", "Purok 7"];
@@ -108,7 +108,8 @@ export function RegisterForm() {
         </p>
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-left text-xs text-amber-800 space-y-1">
           <p className="font-bold flex items-center gap-1.5">
-            <span>⏳ Status: Pending Barangay Verification</span>
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <span>Status: Pending Barangay Verification</span>
           </p>
           <p className="text-[11px] leading-normal text-amber-700">
             Barangay Admin officials will verify your submitted ID against census records. You can sign in now to browse announcements, emergency hotlines, and chat with the AI assistant.
