@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let supabase: any;
-  if (isMockSupabaseEnabled(url)) {
+  if (isMockSupabaseEnabled()) {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
@@ -53,9 +53,23 @@ export async function middleware(request: NextRequest) {
   }
 
   let user = null;
+  let userRole = null;
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
+    
+    if (user && !isMockSupabaseEnabled()) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("roles!inner(name)")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      // Handle both single object or array return types just in case
+      userRole = Array.isArray(userData?.roles) 
+        ? userData?.roles[0]?.name 
+        : userData?.roles?.name;
+    }
   } catch (err) {
     console.warn("[Middleware] Supabase auth check failed, using fallback:", err);
   }
@@ -63,13 +77,22 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
+  // If a Resident attempts to access a protected admin route, log them out and redirect
+  if (user && userRole === "Resident" && !isPublic) {
+    await supabase.auth.signOut();
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.searchParams.set("error", "unauthorized");
+    return NextResponse.redirect(redirectUrl);
+  }
+
   if (!user && !isPublic) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && pathname === "/login") {
+  if (user && pathname === "/login" && userRole !== "Resident") {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
     return NextResponse.redirect(redirectUrl);

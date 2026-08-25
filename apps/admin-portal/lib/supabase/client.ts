@@ -6,7 +6,7 @@ export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (isMockSupabaseEnabled(url)) {
+  if (isMockSupabaseEnabled()) {
     return getMockSupabaseClient() as any;
   }
   if (!url || !anonKey) {

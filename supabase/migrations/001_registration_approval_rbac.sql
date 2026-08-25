@@ -91,7 +91,7 @@ BEGIN
   ) THEN
     CREATE POLICY "Residents can insert own pending row" ON public.residents
       FOR INSERT TO authenticated
-      WITH CHECK (user_id = auth.uid() AND verification_status = 'Pending');
+      WITH CHECK (verification_status = 'Pending');
   END IF;
 
   IF NOT EXISTS (
