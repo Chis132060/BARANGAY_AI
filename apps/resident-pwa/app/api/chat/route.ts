@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const body = await request.json();
-  const { message, sessionId } = body as { message: string; sessionId?: string };
+  const { message, sessionId, language } = body as { message: string; sessionId?: string; language?: "tgl" | "ceb" | "en" };
 
   if (!message?.trim()) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
         query: message,
         session_id: sessionId ?? null,
         user_id: user?.id ?? null,
+        language: language || "tgl",
       }),
     });
 
@@ -116,5 +117,8 @@ export async function POST(request: NextRequest) {
   }
 
   const fallback = getLocalFallbackResponse(message, !!user);
+  if (language === "tgl" && !fallback.answer.startsWith("Ang") && !fallback.answer.startsWith("Kumusta")) {
+    fallback.answer = "Kumusta! Ako ang Smart Barangay AI Assistant. Maaari kitang tulungan tungkol sa Barangay Clearance, Certificate of Indigency, mga ordinansa, oras ng opisina, at mga aktibidad ng barangay. Pakitiyak lamang ang mahahalagang detalye sa Barangay Hall.";
+  }
   return NextResponse.json(fallback);
 }

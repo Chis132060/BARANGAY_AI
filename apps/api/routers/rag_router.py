@@ -20,6 +20,7 @@ class ChatRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
     user_id: Optional[str] = None  # passed from Next.js proxy after JWT decode
+    language: str = "tgl"
 
 
 class ChatResponse(BaseModel):
@@ -57,6 +58,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             query=request.query,
             session_id=request.session_id,
             user_id=request.user_id,
+            language=request.language,
         )
 
         # Fire-and-forget audit log

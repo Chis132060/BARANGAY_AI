@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isMockSupabaseEnabled } from "@/lib/supabase/config";
+
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
 
 const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/auth", "/chat", "/announcements", "/home"];
@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let supabase: any;
-  if (isMockSupabaseEnabled()) {
+  if (!url || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
     
-    if (user && !isMockSupabaseEnabled()) {
+    if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE !== "true") {
       const { data: userData } = await supabase
         .from("users")
         .select("roles!inner(name)")
@@ -74,6 +74,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  // API routes perform their own authentication/rate limiting. Do not turn
+  // guest API requests into an HTML login redirect (which breaks JSON clients).
+  if (pathname.startsWith("/api/")) return response;
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
   // If a non-Resident attempts to access a protected PWA route, log them out and redirect
@@ -85,7 +88,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && !isMockSupabaseEnabled()) {
+  if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE !== "true") {
     try {
       const { data: resident } = await supabase
         .from("residents")

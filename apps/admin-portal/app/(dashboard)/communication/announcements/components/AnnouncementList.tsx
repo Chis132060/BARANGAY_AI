@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AnnouncementItem } from "../../actions";
-import { Plus, Megaphone, X, Sparkles, Loader2, Check } from "lucide-react";
+import { Plus, Megaphone, X, Sparkles, Loader2, Check, ImagePlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface AnnouncementListProps {
@@ -19,6 +19,23 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("General");
   const [description, setDescription] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  async function optimizeImage(file: File): Promise<File> {
+    if (file.size <= 900 * 1024 && file.type === "image/webp") return file;
+    const bitmap = await createImageBitmap(file);
+    const maxSize = 1600;
+    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
+    return blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webp`, { type: "image/webp" }) : file;
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -28,6 +45,21 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
+      let image_url: string | null = null;
+      if (imageFile) {
+        const optimizedImage = await optimizeImage(imageFile);
+        if (supabase.storage?.from) {
+          const safeName = optimizedImage.name.replace(/[^a-zA-Z0-9.-]/g, "-");
+          const path = `${Date.now()}-${safeName}`;
+          const upload = await supabase.storage.from("announcement-images").upload(path, optimizedImage, { upsert: false, contentType: optimizedImage.type, cacheControl: "31536000" });
+          if (upload.error) throw new Error(upload.error.message);
+          image_url = supabase.storage.from("announcement-images").getPublicUrl(path).data.publicUrl;
+        } else {
+          // Local mock mode has no object storage; keep the preview so the
+          // announcement flow remains testable without Supabase Storage.
+          image_url = imagePreview;
+        }
+      }
 
       const { data, error } = await supabase
         .from("announcements")
@@ -38,6 +70,7 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
           published_by: user?.id || null,
           status: "Published",
           published_date: new Date().toISOString(),
+          image_url,
         })
         .select()
         .single();
@@ -51,6 +84,7 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
         category: data.category,
         status: "Published",
         published_date: data.published_date,
+        image_url: data.image_url,
         author: { name: user?.email?.split("@")[0] || "Barangay Official" },
       };
 
@@ -58,6 +92,8 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
       setTitle("");
       setDescription("");
       setShowModal(false);
+      setImageFile(null);
+      setImagePreview(null);
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 4000);
     } catch (err: any) {
@@ -116,6 +152,7 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
                 </div>
                 <h3 className="text-base font-extrabold text-foreground leading-snug">{ann.title}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">{ann.description}</p>
+                {ann.image_url && <img src={ann.image_url} alt="" className="mt-3 h-40 w-full rounded-xl object-cover" />}
               </div>
               <div className="border-t pt-4 mt-5 flex items-center justify-between text-xs text-muted-foreground">
                 <span className="text-[11px]">Published by: <span className="font-bold text-foreground">{ann.author?.name || "Barangay Official"}</span></span>
@@ -160,6 +197,14 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
                   className="w-full border rounded-xl px-3.5 py-2 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Post image (optional)</label>
+                <label className="flex min-h-28 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 hover:border-primary/60">
+                  {imagePreview ? <img src={imagePreview} alt="Preview" className="h-40 w-full object-cover" /> : <span className="flex items-center gap-2 text-xs text-muted-foreground"><ImagePlus className="h-5 w-5" /> Choose photo</span>}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const file = e.target.files?.[0] || null; setImageFile(file); setImagePreview(file ? URL.createObjectURL(file) : null); }} />
+                </label>
               </div>
 
               <div>

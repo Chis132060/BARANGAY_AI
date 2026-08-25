@@ -6,6 +6,7 @@ export interface AnnouncementItem {
   id: string;
   title: string;
   description: string;
+  image_url?: string | null;
   category: string;
   status: "Draft" | "Published" | "Archived";
   published_date?: string;

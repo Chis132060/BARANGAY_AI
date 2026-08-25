@@ -13,9 +13,9 @@ class OpenRouterProvider(BaseLangchainProvider):
 
     def _get_model(self, request: AIRequest) -> ChatOpenAI:
         return ChatOpenAI(
-            model="meta-llama/llama-3.1-8b-instruct",
+            model=settings.OPENROUTER_MODEL,
             api_key=settings.OPENROUTER_API_KEY,
-            base_url="https://openrouter.ai/api/v1",
+            base_url=settings.OPENROUTER_BASE_URL,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             timeout=settings.AI_PROVIDER_TIMEOUT_MS / 1000.0,

@@ -61,11 +61,16 @@ function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: stri
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ChatInterface() {
+  const welcomeByLanguage: Record<TTSLanguage, string> = {
+    tgl: "Kumusta! Ako ang iyong Smart Barangay AI Assistant.\n\nMaaari mong itanong ang:\n• 📄 Mga kailangan sa Barangay Clearance\n• 📋 Mga ordinansa at patakaran\n• 🏥 Certificate of Indigency\n• 🕐 Oras ng opisina\n• 🎉 Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.",
+    ceb: "Maayong adlaw! Ako ang imong Smart Barangay AI Assistant.\n\nMahimo kang mangutana bahin sa:\n• 📄 Mga kinahanglanon sa Barangay Clearance\n• 📋 Mga ordinansa ug polisiya\n• 🏥 Certificate of Indigency\n• 🕐 Oras sa opisina\n• 🎉 Mga kalihokan sa barangay\n\nGigamit nako ang opisyal nga mga dokumento sa Barangay alang sa tukmang tubag.",
+    en: "Hello! I am your Smart Barangay AI Assistant.\n\nYou can ask about:\n• 📄 Barangay Clearance requirements\n• 📋 Ordinances and policies\n• 🏥 Certificate of Indigency\n• 🕐 Office hours\n• 🎉 Community events\n\nI use official Barangay documents to provide accurate answers.",
+  };
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       sender: "ai",
-      text: "Kumusta! I am your Smart Barangay AI Assistant.\n\nAsk me anything about:\n• 📄 Barangay Clearance requirements\n• 📋 Ordinances and policies\n• 🏥 Certificate of Indigency\n• 🕐 Office hours\n• 🎉 Community events\n\nI use real Barangay policy documents to give you accurate answers!",
+      text: "Kumusta! Ako ang iyong Smart Barangay AI Assistant.\n\nMaaari mong itanong ang:\n• 📄 Mga kailangan sa Barangay Clearance\n• 📋 Mga ordinansa at patakaran\n• 🏥 Certificate of Indigency\n• 🕐 Oras ng opisina\n• 🎉 Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -75,10 +80,65 @@ export function ChatInterface() {
   const [rateLimited, setRateLimited] = useState(false);
   const [sessionId] = useState<string>(() => createSessionId()); // stable per tab
   const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const lastVoiceReplyRef = useRef<string | null>(null);
+  const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
   const { speak, stop, speakingId, loadingId } = useTTS();
-  const { isListening, isSupported, toggleListening, stopListening } = useSTT();
+  const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("barangay-ai-language") as TTSLanguage | null;
+    if (saved === "tgl" || saved === "ceb" || saved === "en") setTtsLang(saved);
+    else setShowLanguagePicker(true);
+  }, []);
+
+  useEffect(() => {
+    setMessages((current) => current.map((message) =>
+      message.id === "welcome" ? { ...message, text: welcomeByLanguage[ttsLang] } : message
+    ));
+  }, [ttsLang]);
+
+  useEffect(() => {
+    if (!voiceMode || loading) return;
+    const latest = messages[messages.length - 1];
+    if (latest?.sender === "ai" && latest.id !== "welcome" && !latest.isError && lastVoiceReplyRef.current !== latest.id) {
+      lastVoiceReplyRef.current = latest.id;
+      speak(latest.id, latest.text, ttsLang);
+    }
+  }, [voiceMode, loading, messages, speak, ttsLang]);
+
+  useEffect(() => {
+    if (!voiceMode || voiceIntroLanguageRef.current === ttsLang) return;
+    voiceIntroLanguageRef.current = ttsLang;
+    const greeting: Record<TTSLanguage, string> = {
+      tgl: "Kumusta! Ako ang Barangay AI. Voice Mode na tayo. Magsalita ka lang pagkatapos ng aking pagbati at awtomatiko kitang sasagutin.",
+      ceb: "Maayong adlaw! Ako ang Barangay AI. Aktibo na ang Voice Mode. Pagsulti lang human sa akong pagtimbaya ug tubagon tika dayon.",
+      en: "Hello! I am Barangay AI. Voice Mode is now active. Speak after my greeting and I will answer you automatically.",
+    };
+    speak("voice-intro", greeting[ttsLang], ttsLang);
+  }, [voiceMode, ttsLang, speak]);
+
+  // Voice Mode is a hands-free loop: after each completed answer, listen again.
+  useEffect(() => {
+    if (!voiceMode || !isSupported || isListening || loading || speakingId) return;
+    const timer = window.setTimeout(() => {
+      startListening(ttsLang, (transcribedText) => {
+        setInput(transcribedText);
+        window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [voiceMode, isSupported, isListening, loading, speakingId, startListening, ttsLang]);
+
+  const selectLanguage = (language: TTSLanguage) => {
+    setTtsLang(language);
+    window.localStorage.setItem("barangay-ai-language", language);
+    setShowLanguagePicker(false);
+  };
 
   // ── Auth + load saved messages ─────────────────────────────────────────────
   useEffect(() => {
@@ -148,7 +208,7 @@ export function ChatInterface() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, sessionId }),
+        body: JSON.stringify({ message: userText, sessionId, language: ttsLang }),
       });
 
       if (res.status === 429) {
@@ -209,14 +269,14 @@ export function ChatInterface() {
       const errorMsg: Message = {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-        text: "⚠️ I'm having trouble connecting right now. Please try again in a moment.",
+      text: `⚠️ ${err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli."}`,
         isError: true,
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
-  }, [input, loading, isLoggedIn, sessionId, supabase]);
+  }, [input, loading, isLoggedIn, sessionId, supabase, ttsLang]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -239,6 +299,18 @@ export function ChatInterface() {
             </p>
           </div>
         </div>
+        <button type="button" onClick={() => {
+            setVoiceMode((value) => {
+              if (value) {
+                stopListening();
+                voiceIntroLanguageRef.current = null;
+              }
+              return !value;
+            });
+          }} aria-label="Voice mode"
+          className={`h-9 px-3 rounded-full hover:bg-white/30 text-xs font-bold border border-white/30 ${voiceMode ? "bg-white text-blue-700" : "bg-white/20 text-white"}`}>🎙️ {voiceMode ? "Voice On" : "Voice"}</button>
+        <button type="button" onClick={() => setShowLanguagePicker(true)} aria-label="Palitan ang wika"
+          className="h-9 w-9 rounded-full bg-white/20 hover:bg-white/30 text-sm border border-white/30">{ttsLang === "tgl" ? "🇵🇭" : ttsLang === "ceb" ? "🗣️" : "🇺🇸"}</button>
         {!isLoggedIn && (
           <Link
             href="/login"
@@ -295,6 +367,19 @@ export function ChatInterface() {
                   <p className="whitespace-pre-line">{m.text}</p>
                 </div>
 
+                {m.id === "welcome" && (
+                  <div className="flex flex-wrap gap-1.5 px-1 pt-1">
+                    {["Barangay Clearance", "Certificate of Indigency", "Certificate of Residency", "Oras ng opisina", "Mga ordinansa"].map((suggestion) => (
+                      <button key={suggestion} type="button" onClick={() => {
+                        setInput(suggestion);
+                        window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+                      }} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100">
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* TTS Audio Listen Controls */}
                 {!isUser && !m.isError && (
                   <div className="flex items-center gap-1.5 px-1 pt-0.5">
@@ -325,7 +410,7 @@ export function ChatInterface() {
 
                     <select
                       value={ttsLang}
-                      onChange={(e) => setTtsLang(e.target.value as TTSLanguage)}
+                      onChange={(e) => selectLanguage(e.target.value as TTSLanguage)}
                       className="text-[10px] bg-gray-50 border border-gray-200 text-gray-600 rounded-full px-2 py-0.5 outline-none font-medium focus:border-blue-400 cursor-pointer"
                     >
                       <option value="tgl">🇵🇭 Tagalog</option>
@@ -389,7 +474,7 @@ export function ChatInterface() {
               <span className="animate-bounce delay-0">●</span>
               <span className="animate-bounce delay-75">●</span>
               <span className="animate-bounce delay-150">●</span>
-              <span className="ml-1">Searching barangay documents…</span>
+              <span className="ml-1">Inaayos ko ang sagot…</span>
             </div>
           </div>
         )}
@@ -397,7 +482,21 @@ export function ChatInterface() {
       </div>
 
       {/* Input */}
+      {voiceMode && (
+        <div className="bg-blue-50 border-t border-blue-100 px-4 py-3 text-center shrink-0">
+          <p className="text-sm font-bold text-blue-900">Voice Mode</p>
+          <p className="text-xs text-blue-700 mt-0.5">Magsalita sa {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano (Filipino voice recognition)" : "English"}. Awtomatikong sasagot ang Barangay AI.</p>
+          {!isSupported && <p className="text-xs text-red-600 mt-1">Hindi suportado ng browser ang voice input. Subukan ang Chrome o Edge.</p>}
+        </div>
+      )}
+      {voiceMode && (
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-20 h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 text-white flex items-center justify-center shadow-xl border-4 border-white ${isListening || speakingId ? "animate-pulse ring-4 ring-blue-200" : ""}`} aria-label="Barangay AI voice assistant">
+          <Bot className="h-8 w-8" />
+          {(isListening || speakingId) && <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-400 border-2 border-white" />}
+        </div>
+      )}
       <form
+        ref={formRef}
         onSubmit={handleSend}
         className="p-3 border-t bg-white flex items-center gap-2 shrink-0 shadow-[0_-1px_6px_rgba(0,0,0,0.06)]"
       >
@@ -420,37 +519,56 @@ export function ChatInterface() {
         />
 
         {/* Speech-to-Text (STT) Microphone Button */}
-        <button
+        {!voiceMode && <button
           type="button"
-          onClick={() =>
-            toggleListening(ttsLang, (transcribedText) => {
-              setInput(transcribedText);
-            })
-          }
+          onClick={() => toggleListening(ttsLang, (transcribedText) => {
+            setInput(transcribedText);
+            if (voiceMode) setTimeout(() => formRef.current?.requestSubmit(), 0);
+          })}
           title={
             isListening
               ? "Listening... Click to stop"
               : `Voice Input (${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"})`
           }
-          className={`h-10 w-10 rounded-2xl flex items-center justify-center transition-all shadow shrink-0 ${
+          className={`${voiceMode ? "h-12 w-12 rounded-full" : "h-10 w-10 rounded-2xl"} flex items-center justify-center transition-all shadow shrink-0 ${
             isListening
               ? "bg-red-600 text-white animate-pulse"
               : "bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600 border border-gray-200"
           }`}
         >
           {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </button>
+        </button>}
 
-        <button
+        {!voiceMode && <button
           type="submit"
           disabled={!input.trim() || loading}
           className="h-10 w-10 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center transition-all shadow disabled:opacity-40 shrink-0"
         >
           <Send className="h-4 w-4" />
-        </button>
+        </button>}
       </form>
 
       <GuestAuthModal isOpen={showGuestModal} onClose={() => setShowGuestModal(false)} />
+
+      {showLanguagePicker && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-5">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between mb-4">
+              <div><h2 className="text-base font-bold text-gray-900">Piliin ang iyong wika</h2>
+                <p className="text-xs text-gray-500 mt-1">Gagamitin ito sa sagot, voice input, at pakikinig.</p></div>
+              <button type="button" onClick={() => setShowLanguagePicker(false)} className="text-gray-400 text-xl">×</button>
+            </div>
+            <div className="space-y-2">
+              {([['tgl','🇵🇭','Tagalog'], ['ceb','🗣️','Cebuano / Bisaya'], ['en','🇺🇸','English']] as const).map(([value, icon, label]) => (
+                <button key={value} type="button" onClick={() => selectLanguage(value)}
+                  className={`w-full flex items-center gap-3 rounded-2xl border p-3 text-left text-sm font-semibold ${ttsLang === value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700'}`}>
+                  <span className="text-xl">{icon}</span>{label}{ttsLang === value && <span className="ml-auto">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
