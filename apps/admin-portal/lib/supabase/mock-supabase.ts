@@ -14,6 +14,9 @@ const mockResidents: any[] = [
     senior_status: false,
     pwd_status: false,
     four_ps_status: false,
+    verification_status: "Verified",
+    id_type: "Driver's License",
+    id_photo_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
     created_at: new Date().toISOString(),
     address: { house_number: "123", street: "Rizal St", purok: "Purok 1" },
   },
@@ -30,6 +33,9 @@ const mockResidents: any[] = [
     senior_status: true,
     pwd_status: false,
     four_ps_status: false,
+    verification_status: "Verified",
+    id_type: "Philippine Identification",
+    id_photo_url: "https://images.unsplash.com/photo-1589386417686-0d34b5903d23?w=400",
     created_at: new Date().toISOString(),
     address: { house_number: "456", street: "Magsaysay Ave", purok: "Purok 2" },
   },
@@ -46,8 +52,49 @@ const mockResidents: any[] = [
     senior_status: false,
     pwd_status: false,
     four_ps_status: true,
+    verification_status: "Verified",
+    id_type: "Voter's ID",
+    id_photo_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
     created_at: new Date().toISOString(),
     address: { house_number: "789", street: "Bonifacio St", purok: "Purok 1" },
+  },
+  {
+    id: "res-pending-1",
+    first_name: "Emilio",
+    middle_name: "",
+    last_name: "Aguinaldo",
+    birth_date: "1988-03-22",
+    gender: "Male",
+    civil_status: "Single",
+    contact_number: "09179998888",
+    voter_status: false,
+    senior_status: false,
+    pwd_status: false,
+    four_ps_status: false,
+    verification_status: "Pending",
+    id_type: "Philippine Identification (PhilID / ePhilID)",
+    id_photo_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    created_at: new Date(Date.now() - 600000).toISOString(),
+    address: { house_number: "124", street: "Rizal St", purok: "Purok 1" },
+  },
+  {
+    id: "res-pending-2",
+    first_name: "Gabriela",
+    middle_name: "",
+    last_name: "Silang",
+    birth_date: "1992-07-14",
+    gender: "Female",
+    civil_status: "Married",
+    contact_number: "09224441111",
+    voter_status: false,
+    senior_status: false,
+    pwd_status: false,
+    four_ps_status: false,
+    verification_status: "Pending",
+    id_type: "Voter's ID / Voter's Certification",
+    id_photo_url: "https://images.unsplash.com/photo-1589386417686-0d34b5903d23?w=600",
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    address: { house_number: "45", street: "Magsaysay Ave", purok: "Purok 3" },
   },
   {
     id: "res-4",
@@ -62,6 +109,9 @@ const mockResidents: any[] = [
     senior_status: false,
     pwd_status: false,
     four_ps_status: true,
+    verification_status: "Verified",
+    id_type: "Driver's License",
+    id_photo_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
     created_at: new Date().toISOString(),
     address: { house_number: "104", street: "Mabini St", purok: "Purok 4" },
   },
@@ -78,6 +128,9 @@ const mockResidents: any[] = [
     senior_status: true,
     pwd_status: true,
     four_ps_status: false,
+    verification_status: "Verified",
+    id_type: "Philippine Identification",
+    id_photo_url: "https://images.unsplash.com/photo-1589386417686-0d34b5903d23?w=400",
     created_at: new Date().toISOString(),
     address: { house_number: "619", street: "Rizal St", purok: "Purok 3" },
   },
@@ -221,6 +274,64 @@ const mockAddresses: any[] = [
 
 const mockChatMessages: any[] = [];
 
+const mockRoles: any[] = [
+  { id: "role-super-admin", name: "Super Admin" },
+  { id: "role-captain", name: "Barangay Captain" },
+  { id: "role-secretary", name: "Secretary" },
+  { id: "role-treasurer", name: "Treasurer" },
+  { id: "role-staff", name: "Staff" },
+];
+
+const mockPermissions: any[] = [
+  // Super Admin — full access via wildcard
+  { id: "perm-sa-1", role_id: "role-super-admin", module: "*", can_view: true, can_create: true, can_edit: true, can_delete: true, can_approve: true },
+  // Barangay Captain
+  { id: "perm-cap-1", role_id: "role-captain", module: "dashboard", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: true },
+  { id: "perm-cap-2", role_id: "role-captain", module: "residents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-cap-3", role_id: "role-captain", module: "documents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
+  { id: "perm-cap-4", role_id: "role-captain", module: "community", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-cap-5", role_id: "role-captain", module: "cases", can_view: true, can_create: true, can_edit: true, can_delete: true, can_approve: true },
+  { id: "perm-cap-6", role_id: "role-captain", module: "business", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
+  { id: "perm-cap-7", role_id: "role-captain", module: "communication", can_view: true, can_create: true, can_edit: true, can_delete: true, can_approve: false },
+  { id: "perm-cap-8", role_id: "role-captain", module: "administration", can_view: true, can_create: false, can_edit: true, can_delete: false, can_approve: false },
+  // Secretary
+  { id: "perm-sec-1", role_id: "role-secretary", module: "dashboard", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-sec-2", role_id: "role-secretary", module: "residents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-sec-3", role_id: "role-secretary", module: "documents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
+  { id: "perm-sec-4", role_id: "role-secretary", module: "community", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-sec-5", role_id: "role-secretary", module: "cases", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-sec-6", role_id: "role-secretary", module: "business", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-sec-7", role_id: "role-secretary", module: "communication", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
+  { id: "perm-sec-8", role_id: "role-secretary", module: "administration", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  // Treasurer
+  { id: "perm-tre-1", role_id: "role-treasurer", module: "dashboard", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-tre-2", role_id: "role-treasurer", module: "residents", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-tre-3", role_id: "role-treasurer", module: "documents", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-tre-4", role_id: "role-treasurer", module: "community", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-tre-5", role_id: "role-treasurer", module: "cases", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-tre-6", role_id: "role-treasurer", module: "business", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
+  { id: "perm-tre-7", role_id: "role-treasurer", module: "communication", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-tre-8", role_id: "role-treasurer", module: "administration", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  // Staff
+  { id: "perm-stf-1", role_id: "role-staff", module: "dashboard", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-2", role_id: "role-staff", module: "residents", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-3", role_id: "role-staff", module: "documents", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-4", role_id: "role-staff", module: "community", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-5", role_id: "role-staff", module: "cases", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-6", role_id: "role-staff", module: "business", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-7", role_id: "role-staff", module: "communication", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
+  { id: "perm-stf-8", role_id: "role-staff", module: "administration", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
+];
+
+const mockSystemUsers: any[] = [
+  { id: "mock-admin-id", name: "Admin Officer", email: "admin@barangay.gov", role_id: "role-super-admin", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "user-2", name: "Capt. Reyes", email: "captain@barangay.gov", role_id: "role-captain", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "user-3", name: "Maria Santos", email: "secretary@barangay.gov", role_id: "role-secretary", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "user-4", name: "Pedro Treasurer", email: "treasurer@barangay.gov", role_id: "role-treasurer", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "user-5", name: "Staff Juan", email: "staff1@barangay.gov", role_id: "role-staff", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: "user-6", name: "Staff Pedro", email: "staff2@barangay.gov", role_id: "role-staff", created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+];
+
 const tables: Record<string, any[]> = {
   residents: mockResidents,
   households: mockHouseholds,
@@ -235,6 +346,9 @@ const tables: Record<string, any[]> = {
   audit_logs: mockAuditLogs,
   addresses: mockAddresses,
   chat_messages: mockChatMessages,
+  roles: mockRoles,
+  permissions: mockPermissions,
+  users: mockSystemUsers,
 };
 
 const mockUser = {
@@ -245,6 +359,13 @@ const mockUser = {
     name: "Admin Officer",
   },
   app_metadata: {},
+};
+
+// Map of table name -> foreign key column name for resolving joins
+const JOIN_MAP: Record<string, { foreignKey: string; targetTable: string; targetKey: string }> = {
+  users: { foreignKey: "role_id", targetTable: "roles", targetKey: "id" },
+  document_requests: { foreignKey: "resident_id", targetTable: "residents", targetKey: "id" },
+  audit_logs: { foreignKey: "user_id", targetTable: "users", targetKey: "id" },
 };
 
 const mockSession = {
@@ -276,6 +397,8 @@ class MockQueryBuilder {
   private isSingle = false;
   private isMaybeSingle = false;
   private isCount = false;
+  private selectColumns: string | null = null;
+  private joins: Array<{ alias: string; foreignKey: string; targetTable: string; targetKey: string; columns: string }> = [];
 
   constructor(tableName: string) {
     this.tableName = tableName;
@@ -284,6 +407,33 @@ class MockQueryBuilder {
   select(columns?: string, options?: { count?: string; head?: boolean }) {
     if (options?.count) {
       this.isCount = true;
+    }
+    this.selectColumns = columns || "*";
+    // Parse join patterns like: "operator:users(name,email)" or "role:roles(name)"
+    const joinPattern = /(\w+):(\w+)\(([^)]+)\)/g;
+    let match;
+    while ((match = joinPattern.exec(columns || "")) !== null) {
+      const [, alias, targetTable, targetColumns] = match;
+      const joinConfig = JOIN_MAP[this.tableName];
+      if (joinConfig && joinConfig.targetTable === targetTable) {
+        this.joins.push({
+          alias,
+          foreignKey: joinConfig.foreignKey,
+          targetTable,
+          targetKey: joinConfig.targetKey,
+          columns: targetColumns,
+        });
+      } else {
+        // Try to infer from the alias name (e.g., "resident" -> "residents")
+        const inferredTarget = targetTable;
+        this.joins.push({
+          alias,
+          foreignKey: alias + "_id",
+          targetTable: inferredTarget,
+          targetKey: "id",
+          columns: targetColumns,
+        });
+      }
     }
     return this;
   }
@@ -403,6 +553,29 @@ class MockQueryBuilder {
       filtered = filtered.slice(0, this.limitVal);
     }
 
+    // Apply joins
+    if (this.joins.length > 0) {
+      filtered = filtered.map((item) => {
+        const enriched = { ...item };
+        for (const join of this.joins) {
+          const foreignVal = item[join.foreignKey];
+          if (foreignVal) {
+            const targetList = tables[join.targetTable] || [];
+            const related = targetList.find((t) => t[join.targetKey] === foreignVal);
+            if (related) {
+              const cols = join.columns.split(",").map((c) => c.trim());
+              const picked: Record<string, any> = {};
+              for (const col of cols) {
+                if (col in related) picked[col] = related[col];
+              }
+              enriched[join.alias] = picked;
+            }
+          }
+        }
+        return enriched;
+      });
+    }
+
     if (this.isSingle || this.isMaybeSingle) {
       if (filtered.length === 0) {
         if (this.isSingle) {
@@ -487,6 +660,17 @@ export function getMockSupabaseClient(cookieStore?: any) {
     },
     from(tableName: string) {
       return new MockQueryBuilder(tableName);
+    },
+    channel(_name: string) {
+      const channel = {
+        on: () => channel,
+        subscribe: () => channel,
+        unsubscribe: async () => "ok",
+      };
+      return channel;
+    },
+    async removeChannel(_channel: any) {
+      return "ok";
     },
   };
 }

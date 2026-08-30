@@ -6,7 +6,7 @@
 
 // ─── Users & Auth ───────────────────────────────────────────────────────────
 
-export type UserRole = "resident" | "staff" | "supervisor" | "admin";
+export type UserRole = "Super Admin" | "Barangay Captain" | "Secretary" | "Treasurer" | "Staff";
 
 export interface UserProfile {
   id: string;
@@ -16,6 +16,33 @@ export interface UserProfile {
   role: UserRole;
   avatar_url?: string;
   created_at: string;
+}
+
+// ─── RBAC ───────────────────────────────────────────────────────────────────
+
+export interface Role {
+  id: string;
+  name: string;
+}
+
+export interface Permission {
+  id: string;
+  role_id: string;
+  module: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  can_approve: boolean;
+  created_at?: string;
+}
+
+export interface PermissionSet {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
 }
 
 // ─── Residents ───────────────────────────────────────────────────────────────

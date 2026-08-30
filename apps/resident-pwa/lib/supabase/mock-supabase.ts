@@ -2,13 +2,16 @@
 
 const mockResidentUser = {
   id: "mock-resident-id",
-  email: "resident@barangay.gov",
+  email: process.env.NEXT_PUBLIC_MOCK_RESIDENT_EMAIL || "resident@barangay.gov",
   user_metadata: {
     name: "Juan Dela Cruz",
     role: "Resident",
   },
   app_metadata: {},
 };
+
+const mockResidentPassword =
+  process.env.NEXT_PUBLIC_MOCK_RESIDENT_PASSWORD || "password123";
 
 const mockSession = {
   access_token: "mock-token-pwa",
@@ -71,6 +74,17 @@ const mockNotifications: any[] = [
 ];
 const mockResidents: any[] = [];
 
+const mockRoles: any[] = [
+  { id: "role-resident", name: "Resident" },
+  { id: "role-super-admin", name: "Super Admin" },
+  { id: "role-captain", name: "Barangay Captain" },
+  { id: "role-secretary", name: "Secretary" },
+  { id: "role-treasurer", name: "Treasurer" },
+  { id: "role-staff", name: "Staff" },
+];
+
+const mockUsers: any[] = [];
+
 const tables: Record<string, any[]> = {
   document_types: mockDocumentTypes,
   document_requests: mockDocumentRequests,
@@ -78,6 +92,8 @@ const tables: Record<string, any[]> = {
   chat_messages: mockChatMessages,
   notifications: mockNotifications,
   residents: mockResidents,
+  roles: mockRoles,
+  users: mockUsers,
 };
 
 function checkIsLoggedIn(cookieStore?: any): boolean {
@@ -220,7 +236,18 @@ export function getMockSupabaseClient(cookieStore?: any) {
           error: null,
         };
       },
-      async signInWithPassword({ email }: { email: string }) {
+      async signInWithPassword({ email, password }: { email: string; password: string }) {
+        const isValidMockUser =
+          email.toLowerCase() === mockResidentUser.email.toLowerCase() &&
+          password === mockResidentPassword;
+
+        if (!isValidMockUser) {
+          return {
+            data: { user: null, session: null },
+            error: { message: "Invalid resident email or password." },
+          };
+        }
+
         if (typeof document !== "undefined") {
           document.cookie = "mock-logged-in=true; path=/";
         }
@@ -236,13 +263,10 @@ export function getMockSupabaseClient(cookieStore?: any) {
         };
       },
       async signUp({ email }: { email: string }) {
-        if (typeof document !== "undefined") {
-          document.cookie = "mock-logged-in=true; path=/";
-        }
         return {
           data: {
             user: { ...mockResidentUser, email },
-            session: mockSession,
+            session: null,
           },
           error: null,
         };

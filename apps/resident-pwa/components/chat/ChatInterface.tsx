@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { v4 as uuidv4 } from "uuid";
 import {
   Bot, User, Send, Sparkles, Lock, ArrowRight,
   FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff,
@@ -32,6 +31,14 @@ interface Message {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 /** Detect form trigger keywords in AI response to keep backward-compat */
 function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
@@ -71,7 +78,7 @@ export function ChatInterface() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
-  const [sessionId] = useState<string>(() => uuidv4()); // stable per tab
+  const [sessionId] = useState<string>(() => createSessionId()); // stable per tab
   const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
