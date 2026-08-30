@@ -25,16 +25,18 @@ export default async function DashboardPage() {
       pwdResidents: 45,
       fourPsMembers: 68,
       pendingRequests: 12,
-      activeComplaints: 4,
+      readyForPickupRequests: 5,
+      completedRequests: 85,
       registeredBusinesses: 28,
       pendingRegistrations: 0,
+      totalRevenue: 2450.0,
     };
   }
 
   const recentActivities = [
     { id: "1", type: "document", title: "Barangay Clearance Request", subtitle: "Juan Dela Cruz (Purok 1)", status: "Pending Review", time: "10m ago", icon: FileCheck, color: "text-blue-600 bg-blue-50" },
     { id: "2", type: "resident", title: "New Resident Registration", subtitle: "Maria Santos (Purok 2)", status: "Verified", time: "35m ago", icon: UserCheck, color: "text-emerald-600 bg-emerald-50" },
-    { id: "3", type: "complaint", title: "Noise Disturbance Reported", subtitle: "Anonymous Resident (Purok 3)", status: "Under Investigation", time: "2h ago", icon: AlertCircle, color: "text-amber-600 bg-amber-50" },
+    { id: "3", type: "document", title: "Certificate of Indigency Released", subtitle: "Pedro Penduko (Purok 4)", status: "Ready for Pickup", time: "1h ago", icon: FileCheck, color: "text-indigo-600 bg-indigo-50" },
   ];
 
   return (

@@ -1,6 +1,10 @@
 "use client";
 
-import { Users, Home, Award, HelpCircle, FileText, AlertTriangle, Briefcase, TrendingUp, TrendingDown, Plus, Sparkles, UserCheck, type LucideIcon } from "lucide-react";
+import {
+  Users, Home, Award, HelpCircle, FileText, Briefcase,
+  TrendingUp, TrendingDown, Sparkles, UserCheck, DollarSign, CheckCircle2,
+  type LucideIcon
+} from "lucide-react";
 import Link from "next/link";
 
 interface MetricCardProps {
@@ -50,19 +54,10 @@ export function MetricCard({ title, value, icon: Icon, description, href, trend,
   );
 }
 
+import type { DashboardMetrics } from "./actions";
+
 interface StatsGridProps {
-  metrics: {
-    totalPopulation: number;
-    totalHouseholds: number;
-    registeredVoters: number;
-    seniorCitizens: number;
-    pwdResidents: number;
-    fourPsMembers: number;
-    pendingRequests: number;
-    activeComplaints: number;
-    registeredBusinesses: number;
-    pendingRegistrations: number;
-  };
+  metrics: DashboardMetrics;
 }
 
 export function StatsGrid({ metrics }: StatsGridProps) {
@@ -75,6 +70,33 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       href: "/residents/verification",
       trend: { value: "Live queue", isPositive: true },
       colorClass: "bg-amber-500/10 text-amber-600 border border-amber-500/20",
+    },
+    {
+      title: "Pending Document Requests",
+      value: metrics.pendingRequests,
+      icon: FileText,
+      description: "Applications awaiting staff review & approval",
+      href: "/documents/requests",
+      trend: { value: "Queue active", isPositive: true },
+      colorClass: "bg-sky-500/10 text-sky-600 border border-sky-500/20",
+    },
+    {
+      title: "Ready for Pickup",
+      value: metrics.readyForPickupRequests ?? 0,
+      icon: CheckCircle2,
+      description: "Processed certificates ready for release",
+      href: "/documents/requests",
+      trend: { value: "Notified", isPositive: true },
+      colorClass: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
+    },
+    {
+      title: "Document Fees Revenue",
+      value: `₱${(metrics.totalRevenue ?? 1850).toLocaleString()}`,
+      icon: DollarSign,
+      description: "Total fees collected from issued documents",
+      href: "/documents/requests",
+      trend: { value: "+14.2%", isPositive: true },
+      colorClass: "bg-green-500/10 text-green-700 border border-green-500/20",
     },
     {
       title: "Total Population",
@@ -122,24 +144,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       colorClass: "bg-indigo-500/10 text-indigo-600 border border-indigo-500/20",
     },
     {
-      title: "Pending Requests",
-      value: metrics.pendingRequests,
-      icon: FileText,
-      description: "Document clearances awaiting approval",
-      href: "/documents/requests",
-      trend: { value: "-12%", isPositive: true },
-      colorClass: "bg-sky-500/10 text-sky-600 border border-sky-500/20",
-    },
-    {
-      title: "Active Complaints",
-      value: metrics.activeComplaints,
-      icon: AlertTriangle,
-      description: "Open Katarungang Pambarangay cases",
-      href: "/cases/complaints",
-      trend: { value: "+2 cases", isPositive: false },
-      colorClass: "bg-rose-500/10 text-rose-600 border border-rose-500/20",
-    },
-    {
       title: "Local Businesses",
       value: metrics.registeredBusinesses,
       icon: Briefcase,
@@ -157,37 +161,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
         {cards.map((card, i) => (
           <MetricCard key={i} {...card} />
         ))}
-      </div>
-
-      {/* Quick Action Shortcuts Banner */}
-      <div className="border rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1 z-10">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" /> Quick Operations
-          </span>
-          <h2 className="text-xl font-extrabold tracking-tight">Barangay Admin Dashboard</h2>
-          <p className="text-xs text-slate-300">Fast access to key barangay operations and management tools.</p>
-        </div>
-        <div className="flex flex-wrap gap-2.5 z-10">
-          <Link
-            href="/residents"
-            className="flex items-center gap-1.5 bg-white text-slate-900 font-bold px-4 py-2 rounded-xl text-xs hover:bg-slate-100 transition-all shadow-xs"
-          >
-            <Plus className="h-3.5 w-3.5 text-blue-600" /> Add Resident
-          </Link>
-          <Link
-            href="/documents/requests"
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-xs"
-          >
-            <FileText className="h-3.5 w-3.5" /> Issue Certificate
-          </Link>
-          <Link
-            href="/communication/announcements"
-            className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2 rounded-xl text-xs backdrop-blur-xs transition-all"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" /> New Announcement
-          </Link>
-        </div>
       </div>
     </div>
   );

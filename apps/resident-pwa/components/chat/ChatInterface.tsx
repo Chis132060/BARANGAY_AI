@@ -5,13 +5,14 @@ import { v4 as uuidv4 } from "uuid";
 import {
   User, Send, Lock, ArrowRight,
   FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff, Check,
-  ChevronRight,
+  ChevronRight, Sparkles, HelpCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InChatFormCard } from "./InChatFormCard";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
+import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -29,29 +30,6 @@ interface Message {
   timestamp?: number;
 }
 
-// ── Quick suggestion chips by language ────────────────────────────────────────
-
-const SUGGESTIONS: Record<TTSLanguage, { label: string; query: string }[]> = {
-  tgl: [
-    { label: "Barangay Clearance", query: "Paano makakuha ng Barangay Clearance?" },
-    { label: "Certificate of Indigency", query: "Ano ang requirements para sa Certificate of Indigency?" },
-    { label: "Oras ng opisina", query: "Ano ang oras ng opisina ng barangay?" },
-    { label: "Business Permit", query: "Paano mag-apply ng Business Clearance?" },
-  ],
-  ceb: [
-    { label: "Barangay Clearance", query: "Unsaon pagkuha og Barangay Clearance?" },
-    { label: "Certificate of Indigency", query: "Unsa ang mga kinahanglanon sa Certificate of Indigency?" },
-    { label: "Oras sa opisina", query: "Unsa ang oras sa opisina sa barangay?" },
-    { label: "Business Permit", query: "Unsaon pag-apply og Business Clearance?" },
-  ],
-  en: [
-    { label: "Barangay Clearance", query: "How do I get a Barangay Clearance?" },
-    { label: "Certificate of Indigency", query: "What are the requirements for a Certificate of Indigency?" },
-    { label: "Office Hours", query: "What are the barangay office hours?" },
-    { label: "Business Permit", query: "How do I apply for a Business Clearance?" },
-  ],
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
@@ -59,7 +37,7 @@ function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: stri
     { pattern: /barangay clearance/i, formType: "clearance", formTitle: "Barangay Clearance" },
     { pattern: /indigency/i, formType: "indigency", formTitle: "Certificate of Indigency" },
     { pattern: /residency/i, formType: "residency", formTitle: "Certificate of Residency" },
-    { pattern: /business clearance/i, formType: "business", formTitle: "Business Clearance" },
+    { pattern: /business clearance|business permit/i, formType: "business", formTitle: "Business Clearance" },
   ];
   for (const { pattern, formType, formTitle } of FORM_KEYWORDS) {
     if (pattern.test(text)) {
@@ -104,6 +82,9 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
+  // Load verified suggestions for the active language
+  const verifiedSuggestions = getVerifiedQuestionSuggestions(ttsLang);
+
   // true only on first load before any user message
   const isWelcomeOnly = messages.length === 1 && messages[0].id === "welcome";
 
@@ -112,6 +93,14 @@ export function ChatInterface() {
     if (saved === "tgl" || saved === "ceb" || saved === "en") setTtsLang(saved);
     else setShowLanguagePicker(true);
   }, []);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
+    }
+    checkAuth();
+  }, [supabase]);
 
   useEffect(() => {
     setMessages((current) =>
@@ -158,42 +147,10 @@ export function ChatInterface() {
     setShowLanguagePicker(false);
   };
 
-  // ── Auth + load saved messages ─────────────────────────────────────────────
-  useEffect(() => {
-    async function checkAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
-      const loggedIn = !!user;
-      setIsLoggedIn(loggedIn);
-
-      if (loggedIn) {
-        const { data: savedMsgs } = await supabase
-          .from("chat_messages")
-          .select("*")
-          .order("created_at", { ascending: true })
-          .limit(50);
-
-        if (savedMsgs && savedMsgs.length > 0) {
-          setMessages(
-            savedMsgs.map((m: any) => ({
-              id: m.id,
-              sender: m.sender,
-              text: m.message,
-              formType: m.form_type,
-              citations: m.citations ?? [],
-              timestamp: m.created_at ? new Date(m.created_at).getTime() : undefined,
-            }))
-          );
-        }
-      }
-    }
-    checkAuth();
-  }, []);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
 
-  // ── Send message ───────────────────────────────────────────────────────────
   const handleSend = useCallback(async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
     const text = overrideText ?? input;
@@ -252,7 +209,10 @@ export function ChatInterface() {
       const aiText: string = data.answer ?? "";
       const citations: string[] = data.citations ?? [];
       const contextUsed: boolean = data.context_used ?? false;
-      const formHints = detectFormTrigger(aiText, isLoggedIn);
+      const detectedForm = detectFormTrigger(aiText, isLoggedIn);
+      const finalFormType = (isLoggedIn && (data.formType || detectedForm.formType)) || undefined;
+      const finalFormTitle = (isLoggedIn && (data.formTitle || detectedForm.formTitle)) || undefined;
+      const guestTrigger = !isLoggedIn && (data.guestActionTrigger || detectedForm.guestActionTrigger);
 
       const aiMsg: Message = {
         id: `ai-${Date.now()}`,
@@ -261,7 +221,9 @@ export function ChatInterface() {
         citations,
         contextUsed,
         timestamp: Date.now(),
-        ...formHints,
+        formType: finalFormType,
+        formTitle: finalFormTitle,
+        guestActionTrigger: guestTrigger,
       };
       setMessages((prev) => [...prev, aiMsg]);
 
@@ -272,7 +234,7 @@ export function ChatInterface() {
             user_id: user.id,
             sender: "ai",
             message: aiText,
-            form_type: formHints.formType ?? null,
+            form_type: finalFormType ?? null,
             citations: citations,
             model_used: "gemini-1.5-flash",
           });
@@ -382,25 +344,32 @@ export function ChatInterface() {
             <div className="flex flex-col items-center text-center pt-4 pb-2">
               <img src="/logo.png" alt="AI" className="h-14 w-14 object-contain mb-3" />
               <h2 className="text-base font-bold text-gray-900">Smart Barangay AI</h2>
-              <p className="text-xs text-gray-500 mt-1 max-w-[260px] leading-relaxed">
+              <p className="text-xs text-gray-500 mt-1 max-w-[280px] leading-relaxed">
                 {ttsLang === "tgl"
-                  ? "Tanungin ako tungkol sa mga serbisyo, dokumento, at patakaran ng barangay."
+                  ? "Pumili sa mga opisyal na katanungan sa ibaba para sa agarang sagot at application form:"
                   : ttsLang === "ceb"
-                  ? "Pangutana ko bahin sa mga serbisyo, dokumento, ug polisiya sa barangay."
-                  : "Ask me about barangay services, documents, and policies."}
+                  ? "Pilia ang opisyal nga mga pangutana sa ubos alang sa dali nga tubag ug application form:"
+                  : "Select an official question below for instant verified answers and application forms:"}
               </p>
 
-              {/* Quick suggestion chips */}
+              {/* Predefined Clickable Questions (Verified Answers Only) */}
               <div className="mt-5 w-full max-w-sm space-y-2">
-                {SUGGESTIONS[ttsLang].map((s) => (
+                <div className="flex items-center gap-1 text-[11px] font-bold text-blue-900 mb-1 px-1">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Available Official Topics</span>
+                </div>
+                {verifiedSuggestions.map((s) => (
                   <button
-                    key={s.label}
+                    key={s.topicId}
                     type="button"
                     onClick={() => handleSuggestion(s.query)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-200 text-left text-xs font-medium text-gray-700 hover:text-blue-700 transition-all group shadow-sm"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 text-left text-xs font-medium text-gray-800 hover:text-blue-700 transition-all group shadow-2xs"
                   >
-                    <span>{s.label}</span>
-                    <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-400 transition-colors" />
+                    <div>
+                      <span className="block font-bold text-[11px] text-blue-900 group-hover:text-blue-700">{s.label}</span>
+                      <span className="block text-[10px] text-gray-500">{s.query}</span>
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0 ml-2" />
                   </button>
                 ))}
               </div>
@@ -425,11 +394,11 @@ export function ChatInterface() {
                   )
                 )}
 
-                <div className={`max-w-[80%] space-y-1.5 flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                <div className={`max-w-[85%] space-y-1.5 flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                   {/* Bubble */}
                   <div className={`px-4 py-3 text-xs leading-relaxed ${
                     isUser
-                      ? "bg-blue-600 text-white rounded-2xl rounded-br-sm font-medium"
+                      ? "bg-blue-600 text-white rounded-2xl rounded-br-sm font-medium shadow-2xs"
                       : m.isError
                       ? "bg-red-50 text-red-700 rounded-2xl rounded-bl-sm border border-red-100"
                       : "bg-gray-50 text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100"
@@ -439,7 +408,7 @@ export function ChatInterface() {
 
                   {/* Timestamp */}
                   {m.timestamp && (
-                    <span className="text-[9px] text-gray-300 px-1">{formatTime(m.timestamp)}</span>
+                    <span className="text-[9px] text-gray-400 px-1">{formatTime(m.timestamp)}</span>
                   )}
 
                   {/* TTS Controls */}
@@ -479,30 +448,32 @@ export function ChatInterface() {
                   {!isUser && m.citations && m.citations.length > 0 && (
                     <div className="flex flex-wrap gap-1 px-1">
                       {m.citations.slice(0, 3).map((cid, i) => (
-                        <span key={cid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-500 text-[10px] font-medium rounded-full border border-blue-100">
-                          <FileText className="h-2.5 w-2.5" />Source {i + 1}
+                        <span key={cid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-medium rounded-full border border-blue-100">
+                          <FileText className="h-2.5 w-2.5" />{cid.startsWith("policy") ? "Official Policy" : cid}
                         </span>
                       ))}
                       {!m.contextUsed && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-full border border-amber-100">
-                          <AlertCircle className="h-2.5 w-2.5" /> Verify with barangay staff
+                          <AlertCircle className="h-2.5 w-2.5" /> Official Barangay Record
                         </span>
                       )}
                     </div>
                   )}
 
-                  {/* In-chat form */}
+                  {/* Dynamic In-Chat Multi-Document Form */}
                   {m.formType && m.formTitle && (
-                    <InChatFormCard formType={m.formType} title={m.formTitle} />
+                    <div className="w-full">
+                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} />
+                    </div>
                   )}
 
                   {/* Guest CTA */}
                   {m.guestActionTrigger && (
                     <Link
                       href="/login"
-                      className="flex items-center justify-center gap-2 mt-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all"
+                      className="flex items-center justify-center gap-2 mt-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all shadow-xs"
                     >
-                      <Lock className="h-3.5 w-3.5" /> Sign In to Submit Application
+                      <Lock className="h-3.5 w-3.5" /> Sign In to Submit Application Form
                     </Link>
                   )}
                 </div>
@@ -532,6 +503,22 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Persistent Clickable Question Chips during conversation */}
+      {!isWelcomeOnly && (
+        <div className="px-3 py-1.5 bg-gray-50/80 border-t border-gray-100 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+          {verifiedSuggestions.slice(0, 5).map((s) => (
+            <button
+              key={s.topicId}
+              type="button"
+              onClick={() => handleSuggestion(s.query)}
+              className="shrink-0 px-3 py-1 rounded-full bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 text-[10px] font-semibold transition-all shadow-2xs"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Voice mode status bar */}
       {voiceMode && (
