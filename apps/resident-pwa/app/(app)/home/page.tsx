@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2 } from "lucide-react";
+import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2, FileText, Building2, Bot } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const quickActions = [
-  { href: "/requests/new", label: "Barangay Clearance", emoji: "📄" },
-  { href: "/requests/new", label: "Indigency Certificate", emoji: "📋" },
-  { href: "/requests/new", label: "Business Permit", emoji: "🏪" },
-  { href: "/chat", label: "AI Resident Assistant", emoji: "🤖" },
+  { href: "/requests/new", label: "Barangay Clearance", icon: FileText },
+  { href: "/requests/new", label: "Indigency Certificate", icon: ClipboardList },
+  { href: "/requests/new", label: "Business Permit", icon: Building2 },
+  { href: "/chat", label: "AI Resident Assistant", icon: Bot },
 ];
 
 export default function HomePage() {
@@ -68,7 +68,7 @@ export default function HomePage() {
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-200 flex items-center gap-1">
           <Sparkles className="h-3 w-3 text-amber-300" /> Smart Barangay Resident Portal
         </span>
-        <h1 className="text-xl font-extrabold mt-1">Hello, {residentName} 👋</h1>
+        <h1 className="text-xl font-extrabold mt-1">Hello, {residentName}</h1>
         <p className="text-xs text-blue-100 mt-0.5">Welcome to your online barangay services portal.</p>
       </section>
 
@@ -78,14 +78,16 @@ export default function HomePage() {
           Quick Barangay Services
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          {quickActions.map(({ href, label, emoji }) => (
+          {quickActions.map(({ href, label, icon: Icon }) => (
             <Link
               key={label}
               href={href}
               className="flex flex-col items-start gap-2 p-3.5 bg-blue-50/60 hover:bg-blue-100/70
-                         rounded-2xl border border-blue-100 transition-all shadow-2xs"
+                         rounded-2xl border border-blue-100 transition-all shadow-2xs group"
             >
-              <span className="text-2xl">{emoji}</span>
+              <div className="p-2 rounded-xl bg-white text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
+                <Icon className="h-5 w-5" />
+              </div>
               <span className="text-xs font-bold text-gray-800 leading-tight">{label}</span>
             </Link>
           ))}

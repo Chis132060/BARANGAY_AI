@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Sparkles, FileText, Home, ClipboardList, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const REQUEST_TYPES = [
-  { value: "Barangay Clearance", label: "Barangay Clearance", emoji: "📄", desc: "Official clearance for employment, ID, or travel." },
-  { value: "Certificate of Residency", label: "Certificate of Residency", emoji: "🏠", desc: "Proof of residency for official transactions." },
-  { value: "Certificate of Indigency", label: "Certificate of Indigency", emoji: "📋", desc: "Assistance certificate for medical/financial aid." },
-  { value: "Business Clearance", label: "Business Clearance", emoji: "🏪", desc: "Barangay permit for commercial operation." },
+  { value: "Barangay Clearance", label: "Barangay Clearance", icon: FileText, desc: "Official clearance for employment, ID, or travel." },
+  { value: "Certificate of Residency", label: "Certificate of Residency", icon: Home, desc: "Proof of residency for official transactions." },
+  { value: "Certificate of Indigency", label: "Certificate of Indigency", icon: ClipboardList, desc: "Assistance certificate for medical/financial aid." },
+  { value: "Business Clearance", label: "Business Clearance", icon: Building2, desc: "Barangay permit for commercial operation." },
 ];
 
 export default function NewRequestPage() {
@@ -116,20 +116,22 @@ export default function NewRequestPage() {
             1. Select Document Type
           </p>
           <div className="space-y-2">
-            {REQUEST_TYPES.map(({ value, label, emoji, desc }) => {
+            {REQUEST_TYPES.map(({ value, label, icon: Icon, desc }) => {
               const isSelected = selectedType === value;
               return (
                 <button
                   type="button"
                   key={value}
                   onClick={() => setSelectedType(value)}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all text-left ${
+                  className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all text-left ${
                     isSelected
                       ? "border-blue-600 bg-blue-50/80 ring-2 ring-blue-600/20 shadow-2xs"
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
-                  <span className="text-2xl">{emoji}</span>
+                  <div className={`p-2.5 rounded-xl ${isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
                   <div>
                     <p className="text-xs font-bold text-gray-900">{label}</p>
                     <p className="text-[11px] text-gray-500">{desc}</p>

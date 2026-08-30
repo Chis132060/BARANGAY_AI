@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
 import {
-  Bot, User, Send, Sparkles, Lock, ArrowRight,
-  FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff,
+  User, Send, Lock, ArrowRight,
+  FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff, Check,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InChatFormCard } from "./InChatFormCard";
@@ -13,10 +15,6 @@ import { useSTT } from "@/hooks/useSTT";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Citation {
-  id: string;
-}
 
 interface Message {
   id: string;
@@ -28,19 +26,34 @@ interface Message {
   citations?: string[];
   contextUsed?: boolean;
   isError?: boolean;
+  timestamp?: number;
 }
+
+// ── Quick suggestion chips by language ────────────────────────────────────────
+
+const SUGGESTIONS: Record<TTSLanguage, { label: string; query: string }[]> = {
+  tgl: [
+    { label: "Barangay Clearance", query: "Paano makakuha ng Barangay Clearance?" },
+    { label: "Certificate of Indigency", query: "Ano ang requirements para sa Certificate of Indigency?" },
+    { label: "Oras ng opisina", query: "Ano ang oras ng opisina ng barangay?" },
+    { label: "Business Permit", query: "Paano mag-apply ng Business Clearance?" },
+  ],
+  ceb: [
+    { label: "Barangay Clearance", query: "Unsaon pagkuha og Barangay Clearance?" },
+    { label: "Certificate of Indigency", query: "Unsa ang mga kinahanglanon sa Certificate of Indigency?" },
+    { label: "Oras sa opisina", query: "Unsa ang oras sa opisina sa barangay?" },
+    { label: "Business Permit", query: "Unsaon pag-apply og Business Clearance?" },
+  ],
+  en: [
+    { label: "Barangay Clearance", query: "How do I get a Barangay Clearance?" },
+    { label: "Certificate of Indigency", query: "What are the requirements for a Certificate of Indigency?" },
+    { label: "Office Hours", query: "What are the barangay office hours?" },
+    { label: "Business Permit", query: "How do I apply for a Business Clearance?" },
+  ],
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function createSessionId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-/** Detect form trigger keywords in AI response to keep backward-compat */
 function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
   const FORM_KEYWORDS: { pattern: RegExp; formType: string; formTitle: string }[] = [
     { pattern: /barangay clearance/i, formType: "clearance", formTitle: "Barangay Clearance" },
@@ -48,7 +61,6 @@ function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: stri
     { pattern: /residency/i, formType: "residency", formTitle: "Certificate of Residency" },
     { pattern: /business clearance/i, formType: "business", formTitle: "Business Clearance" },
   ];
-
   for (const { pattern, formType, formTitle } of FORM_KEYWORDS) {
     if (pattern.test(text)) {
       if (isLoggedIn) return { formType, formTitle };
@@ -58,27 +70,29 @@ function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: stri
   return {};
 }
 
+function formatTime(ts?: number): string {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ChatInterface() {
   const welcomeByLanguage: Record<TTSLanguage, string> = {
-    tgl: "Kumusta! Ako ang iyong Smart Barangay AI Assistant.\n\nMaaari mong itanong ang:\n• 📄 Mga kailangan sa Barangay Clearance\n• 📋 Mga ordinansa at patakaran\n• 🏥 Certificate of Indigency\n• 🕐 Oras ng opisina\n• 🎉 Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.",
-    ceb: "Maayong adlaw! Ako ang imong Smart Barangay AI Assistant.\n\nMahimo kang mangutana bahin sa:\n• 📄 Mga kinahanglanon sa Barangay Clearance\n• 📋 Mga ordinansa ug polisiya\n• 🏥 Certificate of Indigency\n• 🕐 Oras sa opisina\n• 🎉 Mga kalihokan sa barangay\n\nGigamit nako ang opisyal nga mga dokumento sa Barangay alang sa tukmang tubag.",
-    en: "Hello! I am your Smart Barangay AI Assistant.\n\nYou can ask about:\n• 📄 Barangay Clearance requirements\n• 📋 Ordinances and policies\n• 🏥 Certificate of Indigency\n• 🕐 Office hours\n• 🎉 Community events\n\nI use official Barangay documents to provide accurate answers.",
+    tgl: "Kumusta! Ako ang iyong Smart Barangay AI Assistant.\n\nMaaari mong itanong ang:\n\u2022 Mga kailangan sa Barangay Clearance\n\u2022 Mga ordinansa at patakaran\n\u2022 Certificate of Indigency\n\u2022 Oras ng opisina\n\u2022 Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.",
+    ceb: "Maayong adlaw! Ako ang imong Smart Barangay AI Assistant.\n\nMahimo kang mangutana bahin sa:\n\u2022 Mga kinahanglanon sa Barangay Clearance\n\u2022 Mga ordinansa ug polisiya\n\u2022 Certificate of Indigency\n\u2022 Oras sa opisina\n\u2022 Mga kalihokan sa barangay\n\nGigamit nako ang opisyal nga mga dokumento sa Barangay alang sa tukmang tubag.",
+    en: "Hello! I am your Smart Barangay AI Assistant.\n\nYou can ask about:\n\u2022 Barangay Clearance requirements\n\u2022 Ordinances and policies\n\u2022 Certificate of Indigency\n\u2022 Office hours\n\u2022 Community events\n\nI use official Barangay documents to provide accurate answers.",
   };
+
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      sender: "ai",
-      text: "Kumusta! Ako ang iyong Smart Barangay AI Assistant.\n\nMaaari mong itanong ang:\n• 📄 Mga kailangan sa Barangay Clearance\n• 📋 Mga ordinansa at patakaran\n• 🏥 Certificate of Indigency\n• 🕐 Oras ng opisina\n• 🎉 Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.",
-    },
+    { id: "welcome", sender: "ai", text: welcomeByLanguage["tgl"], timestamp: Date.now() },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
-  const [sessionId] = useState<string>(() => createSessionId()); // stable per tab
+  const [sessionId] = useState<string>(() => uuidv4());
   const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
@@ -90,6 +104,9 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
+  // true only on first load before any user message
+  const isWelcomeOnly = messages.length === 1 && messages[0].id === "welcome";
+
   useEffect(() => {
     const saved = window.localStorage.getItem("barangay-ai-language") as TTSLanguage | null;
     if (saved === "tgl" || saved === "ceb" || saved === "en") setTtsLang(saved);
@@ -97,9 +114,11 @@ export function ChatInterface() {
   }, []);
 
   useEffect(() => {
-    setMessages((current) => current.map((message) =>
-      message.id === "welcome" ? { ...message, text: welcomeByLanguage[ttsLang] } : message
-    ));
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === "welcome" ? { ...message, text: welcomeByLanguage[ttsLang] } : message
+      )
+    );
   }, [ttsLang]);
 
   useEffect(() => {
@@ -122,7 +141,6 @@ export function ChatInterface() {
     speak("voice-intro", greeting[ttsLang], ttsLang);
   }, [voiceMode, ttsLang, speak]);
 
-  // Voice Mode is a hands-free loop: after each completed answer, listen again.
   useEffect(() => {
     if (!voiceMode || !isSupported || isListening || loading || speakingId) return;
     const timer = window.setTimeout(() => {
@@ -162,6 +180,7 @@ export function ChatInterface() {
               text: m.message,
               formType: m.form_type,
               citations: m.citations ?? [],
+              timestamp: m.created_at ? new Date(m.created_at).getTime() : undefined,
             }))
           );
         }
@@ -175,11 +194,12 @@ export function ChatInterface() {
   }, [messages]);
 
   // ── Send message ───────────────────────────────────────────────────────────
-  const handleSend = useCallback(async (e: React.FormEvent) => {
+  const handleSend = useCallback(async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
+    const text = overrideText ?? input;
+    if (!text.trim() || loading) return;
 
-    const userText = input.trim();
+    const userText = text.trim();
     setInput("");
     setRateLimited(false);
 
@@ -187,11 +207,11 @@ export function ChatInterface() {
       id: `user-${Date.now()}`,
       sender: "user",
       text: userText,
+      timestamp: Date.now(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    // Persist user message (RLS ensures only logged-in users can write)
     if (isLoggedIn) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -199,7 +219,7 @@ export function ChatInterface() {
           user_id: user.id,
           sender: "user",
           message: userText,
-          session_id: null, // session_id FK expects UUID from chat_sessions
+          session_id: null,
         });
       }
     }
@@ -213,32 +233,25 @@ export function ChatInterface() {
 
       if (res.status === 429) {
         setRateLimited(true);
-        const errorMsg: Message = {
+        setMessages((prev) => [...prev, {
           id: `ai-err-${Date.now()}`,
           sender: "ai",
-          text: "⏳ You're sending messages too quickly. Please wait a moment before asking again.",
+          text: "You're sending messages too quickly. Please wait a moment before asking again.",
           isError: true,
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+          timestamp: Date.now(),
+        }]);
         setLoading(false);
         return;
       }
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      if (data.error) throw new Error(data.error);
 
       const aiText: string = data.answer ?? "";
       const citations: string[] = data.citations ?? [];
       const contextUsed: boolean = data.context_used ?? false;
-
-      // Auto-detect form triggers from AI response
       const formHints = detectFormTrigger(aiText, isLoggedIn);
 
       const aiMsg: Message = {
@@ -247,11 +260,11 @@ export function ChatInterface() {
         text: aiText,
         citations,
         contextUsed,
+        timestamp: Date.now(),
         ...formHints,
       };
       setMessages((prev) => [...prev, aiMsg]);
 
-      // Persist AI response
       if (isLoggedIn) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -266,303 +279,363 @@ export function ChatInterface() {
         }
       }
     } catch (err: any) {
-      const errorMsg: Message = {
+      setMessages((prev) => [...prev, {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-      text: `⚠️ ${err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli."}`,
+        text: err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli.",
         isError: true,
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+        timestamp: Date.now(),
+      }]);
     } finally {
       setLoading(false);
     }
   }, [input, loading, isLoggedIn, sessionId, supabase, ttsLang]);
+
+  const handleSuggestion = (query: string) => {
+    const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSend(syntheticEvent, query);
+  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen max-w-lg mx-auto bg-white overflow-hidden">
 
       {/* Header */}
-      <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-between shadow-md shrink-0">
+      <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow">
-            <Bot className="h-5 w-5 text-white" />
-          </div>
+          <img src="/logo.png" alt="Barangay Logo" className="h-9 w-auto object-contain shrink-0" />
           <div>
-            <h1 className="text-sm font-bold tracking-tight">Smart Barangay AI</h1>
-            <p className="text-[10px] text-blue-100 font-medium flex items-center gap-1">
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">Smart Barangay AI</h1>
+            <p className="text-[10px] text-gray-400 font-medium flex items-center gap-1 mt-0.5">
               {isLoggedIn ? (
-                <>🔒 Resident Mode · RAG Active</>
+                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" />Resident Mode</>
               ) : (
-                <><Globe className="h-2.5 w-2.5" /> Guest Mode · RAG Active</>
+                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-300 mr-0.5" />Guest Mode</>
               )}
             </p>
           </div>
         </div>
-        <button type="button" onClick={() => {
-            setVoiceMode((value) => {
-              if (value) {
-                stopListening();
-                voiceIntroLanguageRef.current = null;
-              }
-              return !value;
-            });
-          }} aria-label="Voice mode"
-          className={`h-9 px-3 rounded-full hover:bg-white/30 text-xs font-bold border border-white/30 ${voiceMode ? "bg-white text-blue-700" : "bg-white/20 text-white"}`}>🎙️ {voiceMode ? "Voice On" : "Voice"}</button>
-        <button type="button" onClick={() => setShowLanguagePicker(true)} aria-label="Palitan ang wika"
-          className="h-9 w-9 rounded-full bg-white/20 hover:bg-white/30 text-sm border border-white/30">{ttsLang === "tgl" ? "🇵🇭" : ttsLang === "ceb" ? "🗣️" : "🇺🇸"}</button>
-        {!isLoggedIn && (
-          <Link
-            href="/login"
-            className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 border border-white/30"
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowLanguagePicker(true)}
+            aria-label="Change language"
+            className="h-8 px-2.5 rounded-full bg-gray-50 text-gray-600 hover:bg-gray-100 text-[11px] font-bold border border-gray-200 uppercase tracking-wide transition-colors"
           >
-            Sign In <ArrowRight className="h-3 w-3" />
-          </Link>
-        )}
+            {ttsLang}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setVoiceMode((v) => {
+                if (v) { stopListening(); voiceIntroLanguageRef.current = null; }
+                return !v;
+              });
+            }}
+            aria-label="Voice mode"
+            className={`h-8 w-8 rounded-full flex items-center justify-center border transition-all ${
+              voiceMode
+                ? "bg-blue-600 text-white border-blue-600 shadow"
+                : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            <Mic className="h-3.5 w-3.5" />
+          </button>
+          {!isLoggedIn && (
+            <Link
+              href="/login"
+              className="h-8 px-3 bg-blue-600 text-white hover:bg-blue-700 rounded-full text-[11px] font-bold transition-all flex items-center gap-1"
+            >
+              Sign in <ArrowRight className="h-3 w-3" />
+            </Link>
+          )}
+        </div>
       </div>
 
-      {/* Guest banner */}
+      {/* Guest info strip */}
       {!isLoggedIn && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-2 text-xs text-amber-800 shrink-0">
-          <Globe className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2 text-[11px] text-gray-500 shrink-0">
+          <Globe className="h-3 w-3 text-gray-400 shrink-0" />
           <span>
-            <strong>Guest Mode</strong> — You can ask about policies.{" "}
-            <Link href="/login" className="text-blue-700 font-semibold underline">
-              Sign in
-            </Link>{" "}
-            to request documents &amp; track applications.
+            Browsing as guest.{" "}
+            <Link href="/login" className="text-blue-600 font-semibold">Sign in</Link>
+            {" "}to track requests &amp; submit applications.
           </span>
         </div>
       )}
 
       {/* Rate-limit warning */}
       {rateLimited && (
-        <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-2 text-xs text-red-700 shrink-0">
+        <div className="px-4 py-2 bg-orange-50 border-b border-orange-100 flex items-center gap-2 text-[11px] text-orange-700 shrink-0">
           <Clock className="h-3.5 w-3.5 shrink-0" />
           <span>Too many messages. Please slow down a bit.</span>
         </div>
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-gray-50/40">
-        {messages.map((m) => {
-          const isUser = m.sender === "user";
-          return (
-            <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
-              {!isUser && (
-                <div className="h-7 w-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                  {m.isError ? <AlertCircle className="h-3.5 w-3.5 text-red-500" /> : <Sparkles className="h-3.5 w-3.5" />}
-                </div>
-              )}
-              <div className="max-w-[85%] space-y-1.5">
-                <div
-                  className={`p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm ${
-                    isUser
-                      ? "bg-blue-600 text-white rounded-br-none font-medium"
-                      : m.isError
-                      ? "bg-red-50 text-red-700 rounded-bl-none border border-red-200"
-                      : "bg-white text-gray-800 rounded-bl-none border border-gray-200"
-                  }`}
-                >
-                  <p className="whitespace-pre-line">{m.text}</p>
-                </div>
+      <div className="flex-1 overflow-y-auto bg-white">
+        <div className="p-4 space-y-4">
 
-                {m.id === "welcome" && (
-                  <div className="flex flex-wrap gap-1.5 px-1 pt-1">
-                    {["Barangay Clearance", "Certificate of Indigency", "Certificate of Residency", "Oras ng opisina", "Mga ordinansa"].map((suggestion) => (
-                      <button key={suggestion} type="button" onClick={() => {
-                        setInput(suggestion);
-                        window.setTimeout(() => formRef.current?.requestSubmit(), 0);
-                      }} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100">
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
+          {/* Welcome hero card - shown only before first user message */}
+          {isWelcomeOnly && (
+            <div className="flex flex-col items-center text-center pt-4 pb-2">
+              <img src="/logo.png" alt="AI" className="h-14 w-14 object-contain mb-3" />
+              <h2 className="text-base font-bold text-gray-900">Smart Barangay AI</h2>
+              <p className="text-xs text-gray-500 mt-1 max-w-[260px] leading-relaxed">
+                {ttsLang === "tgl"
+                  ? "Tanungin ako tungkol sa mga serbisyo, dokumento, at patakaran ng barangay."
+                  : ttsLang === "ceb"
+                  ? "Pangutana ko bahin sa mga serbisyo, dokumento, ug polisiya sa barangay."
+                  : "Ask me about barangay services, documents, and policies."}
+              </p>
 
-                {/* TTS Audio Listen Controls */}
-                {!isUser && !m.isError && (
-                  <div className="flex items-center gap-1.5 px-1 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => speak(m.id, m.text, ttsLang)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-all ${
-                        speakingId === m.id
-                          ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
-                          : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
-                      }`}
-                    >
-                      {loadingId === m.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
-                      ) : speakingId === m.id ? (
-                        <VolumeX className="h-3 w-3 text-red-500" />
-                      ) : (
-                        <Volume2 className="h-3 w-3 text-blue-600" />
-                      )}
-                      <span>
-                        {loadingId === m.id
-                          ? "Loading..."
-                          : speakingId === m.id
-                          ? "Stop"
-                          : "Listen"}
-                      </span>
-                    </button>
-
-                    <select
-                      value={ttsLang}
-                      onChange={(e) => selectLanguage(e.target.value as TTSLanguage)}
-                      className="text-[10px] bg-gray-50 border border-gray-200 text-gray-600 rounded-full px-2 py-0.5 outline-none font-medium focus:border-blue-400 cursor-pointer"
-                    >
-                      <option value="tgl">🇵🇭 Tagalog</option>
-                      <option value="ceb">🇵🇭 Cebuano (Bisaya)</option>
-                      <option value="en">🇺🇸 English</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Citation badges */}
-                {!isUser && m.citations && m.citations.length > 0 && (
-                  <div className="flex flex-wrap gap-1 px-1">
-                    {m.citations.slice(0, 3).map((cid, i) => (
-                      <span
-                        key={cid}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-medium rounded-full border border-blue-200"
-                      >
-                        <FileText className="h-2.5 w-2.5" />
-                        Source {i + 1}
-                      </span>
-                    ))}
-                    {!m.contextUsed && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-full border border-amber-200">
-                        ⚠️ Verify with barangay staff
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* In-chat form for residents */}
-                {m.formType && m.formTitle && (
-                  <InChatFormCard formType={m.formType} title={m.formTitle} />
-                )}
-
-                {/* Guest CTA */}
-                {m.guestActionTrigger && (
-                  <Link
-                    href="/login"
-                    className="w-full mt-1.5 p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl text-xs font-bold shadow-md hover:brightness-105 transition-all flex items-center justify-center gap-2"
+              {/* Quick suggestion chips */}
+              <div className="mt-5 w-full max-w-sm space-y-2">
+                {SUGGESTIONS[ttsLang].map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => handleSuggestion(s.query)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-200 text-left text-xs font-medium text-gray-700 hover:text-blue-700 transition-all group shadow-sm"
                   >
-                    <Lock className="h-3.5 w-3.5" /> Sign In / Register to Submit Application
-                  </Link>
+                    <span>{s.label}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-400 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Message bubbles */}
+          {messages.map((m) => {
+            const isUser = m.sender === "user";
+            // Hide the welcome text bubble when hero is shown
+            if (m.id === "welcome" && isWelcomeOnly) return null;
+            return (
+              <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
+                {/* AI avatar */}
+                {!isUser && (
+                  m.isError ? (
+                    <div className="h-7 w-7 bg-red-50 rounded-full flex items-center justify-center shrink-0 mt-0.5 border border-red-100">
+                      <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+                    </div>
+                  ) : (
+                    <img src="/logo.png" alt="AI" className="h-7 w-7 object-contain shrink-0 mt-0.5" />
+                  )
+                )}
+
+                <div className={`max-w-[80%] space-y-1.5 flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                  {/* Bubble */}
+                  <div className={`px-4 py-3 text-xs leading-relaxed ${
+                    isUser
+                      ? "bg-blue-600 text-white rounded-2xl rounded-br-sm font-medium"
+                      : m.isError
+                      ? "bg-red-50 text-red-700 rounded-2xl rounded-bl-sm border border-red-100"
+                      : "bg-gray-50 text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100"
+                  }`}>
+                    <p className="whitespace-pre-line">{m.text}</p>
+                  </div>
+
+                  {/* Timestamp */}
+                  {m.timestamp && (
+                    <span className="text-[9px] text-gray-300 px-1">{formatTime(m.timestamp)}</span>
+                  )}
+
+                  {/* TTS Controls */}
+                  {!isUser && !m.isError && (
+                    <div className="flex items-center gap-1.5 px-1">
+                      <button
+                        type="button"
+                        onClick={() => speak(m.id, m.text, ttsLang)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-all ${
+                          speakingId === m.id
+                            ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
+                            : "bg-white text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
+                        }`}
+                      >
+                        {loadingId === m.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : speakingId === m.id ? (
+                          <VolumeX className="h-3 w-3" />
+                        ) : (
+                          <Volume2 className="h-3 w-3" />
+                        )}
+                        <span>{loadingId === m.id ? "Loading..." : speakingId === m.id ? "Stop" : "Listen"}</span>
+                      </button>
+                      <select
+                        value={ttsLang}
+                        onChange={(e) => selectLanguage(e.target.value as TTSLanguage)}
+                        className="text-[10px] bg-white border border-gray-200 text-gray-500 rounded-full px-2 py-0.5 outline-none font-medium cursor-pointer hover:border-gray-300 transition-colors"
+                      >
+                        <option value="tgl">Tagalog</option>
+                        <option value="ceb">Cebuano</option>
+                        <option value="en">English</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Citation badges */}
+                  {!isUser && m.citations && m.citations.length > 0 && (
+                    <div className="flex flex-wrap gap-1 px-1">
+                      {m.citations.slice(0, 3).map((cid, i) => (
+                        <span key={cid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-500 text-[10px] font-medium rounded-full border border-blue-100">
+                          <FileText className="h-2.5 w-2.5" />Source {i + 1}
+                        </span>
+                      ))}
+                      {!m.contextUsed && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-full border border-amber-100">
+                          <AlertCircle className="h-2.5 w-2.5" /> Verify with barangay staff
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* In-chat form */}
+                  {m.formType && m.formTitle && (
+                    <InChatFormCard formType={m.formType} title={m.formTitle} />
+                  )}
+
+                  {/* Guest CTA */}
+                  {m.guestActionTrigger && (
+                    <Link
+                      href="/login"
+                      className="flex items-center justify-center gap-2 mt-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition-all"
+                    >
+                      <Lock className="h-3.5 w-3.5" /> Sign In to Submit Application
+                    </Link>
+                  )}
+                </div>
+
+                {/* User avatar */}
+                {isUser && (
+                  <div className="h-7 w-7 bg-gray-100 rounded-full flex items-center justify-center shrink-0 mt-0.5 border border-gray-200">
+                    <User className="h-3.5 w-3.5 text-gray-500" />
+                  </div>
                 )}
               </div>
-              {isUser && (
-                <div className="h-7 w-7 bg-blue-600 rounded-full flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                  <User className="h-3.5 w-3.5 text-white" />
-                </div>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* Thinking indicator */}
-        {loading && (
-          <div className="flex gap-2.5 items-center text-xs text-gray-400 font-medium">
-            <div className="h-7 w-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center animate-pulse">
-              <Bot className="h-3.5 w-3.5" />
+          {/* Typing indicator */}
+          {loading && (
+            <div className="flex gap-2.5 items-end">
+              <img src="/logo.png" alt="AI" className="h-7 w-7 object-contain shrink-0" />
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:300ms]" />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-2xl border border-gray-200 shadow-sm">
-              <span className="animate-bounce delay-0">●</span>
-              <span className="animate-bounce delay-75">●</span>
-              <span className="animate-bounce delay-150">●</span>
-              <span className="ml-1">Inaayos ko ang sagot…</span>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Input */}
+      {/* Voice mode status bar */}
       {voiceMode && (
-        <div className="bg-blue-50 border-t border-blue-100 px-4 py-3 text-center shrink-0">
-          <p className="text-sm font-bold text-blue-900">Voice Mode</p>
-          <p className="text-xs text-blue-700 mt-0.5">Magsalita sa {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano (Filipino voice recognition)" : "English"}. Awtomatikong sasagot ang Barangay AI.</p>
-          {!isSupported && <p className="text-xs text-red-600 mt-1">Hindi suportado ng browser ang voice input. Subukan ang Chrome o Edge.</p>}
+        <div className="px-4 py-2.5 bg-blue-50 border-t border-blue-100 flex items-center justify-between shrink-0">
+          <div>
+            <p className="text-xs font-bold text-blue-800">Voice Mode Active</p>
+            <p className="text-[10px] text-blue-600 mt-0.5">
+              Speak in {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano" : "English"} — AI will respond automatically.
+            </p>
+          </div>
+          {isListening && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Listening
+            </span>
+          )}
+          {!isSupported && (
+            <span className="text-[10px] text-red-500 font-medium">Browser not supported. Use Chrome.</span>
+          )}
         </div>
       )}
-      {voiceMode && (
-        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-20 h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 text-white flex items-center justify-center shadow-xl border-4 border-white ${isListening || speakingId ? "animate-pulse ring-4 ring-blue-200" : ""}`} aria-label="Barangay AI voice assistant">
-          <Bot className="h-8 w-8" />
-          {(isListening || speakingId) && <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-400 border-2 border-white" />}
-        </div>
-      )}
+
+      {/* Input bar */}
       <form
         ref={formRef}
         onSubmit={handleSend}
-        className="p-3 border-t bg-white flex items-center gap-2 shrink-0 shadow-[0_-1px_6px_rgba(0,0,0,0.06)]"
+        className="px-3 py-3 border-t border-gray-100 bg-white flex items-center gap-2 shrink-0"
       >
-        <input
-          type="text"
-          placeholder={
-            isListening
-              ? `Listening in ${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"}...`
-              : isLoggedIn
-              ? "Ask AI or request a document..."
-              : "Ask about policies, clearance, ordinances..."
-          }
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className={`flex-1 border rounded-2xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-            isListening
-              ? "border-red-400 bg-red-50/50 text-red-900 font-medium placeholder-red-400 animate-pulse"
-              : "border-gray-300 bg-gray-50 text-gray-800"
-          }`}
-        />
-
-        {/* Speech-to-Text (STT) Microphone Button */}
-        {!voiceMode && <button
-          type="button"
-          onClick={() => toggleListening(ttsLang, (transcribedText) => {
-            setInput(transcribedText);
-            if (voiceMode) setTimeout(() => formRef.current?.requestSubmit(), 0);
-          })}
-          title={
-            isListening
-              ? "Listening... Click to stop"
-              : `Voice Input (${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"})`
-          }
-          className={`${voiceMode ? "h-12 w-12 rounded-full" : "h-10 w-10 rounded-2xl"} flex items-center justify-center transition-all shadow shrink-0 ${
-            isListening
-              ? "bg-red-600 text-white animate-pulse"
-              : "bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600 border border-gray-200"
-          }`}
-        >
-          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </button>}
-
-        {!voiceMode && <button
-          type="submit"
-          disabled={!input.trim() || loading}
-          className="h-10 w-10 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center transition-all shadow disabled:opacity-40 shrink-0"
-        >
-          <Send className="h-4 w-4" />
-        </button>}
+        <div className={`flex-1 flex items-center rounded-2xl border px-3.5 py-2 gap-2 transition-all ${
+          isListening
+            ? "border-red-300 bg-red-50/40"
+            : "border-gray-200 bg-gray-50 focus-within:border-blue-300 focus-within:bg-white"
+        }`}>
+          <input
+            type="text"
+            placeholder={
+              isListening
+                ? `Listening in ${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"}...`
+                : isLoggedIn
+                ? "Ask me anything about barangay services..."
+                : "Ask about clearance, policies, office hours..."
+            }
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className={`flex-1 bg-transparent text-xs outline-none text-gray-800 placeholder-gray-400 ${
+              isListening ? "text-red-700 placeholder-red-400 animate-pulse font-medium" : ""
+            }`}
+          />
+          {!voiceMode && (
+            <button
+              type="button"
+              onClick={() => toggleListening(ttsLang, (transcribedText) => {
+                setInput(transcribedText);
+                if (voiceMode) setTimeout(() => formRef.current?.requestSubmit(), 0);
+              })}
+              title={isListening ? "Listening - click to stop" : "Voice input"}
+              className={`h-7 w-7 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                isListening
+                  ? "bg-red-500 text-white animate-pulse"
+                  : "bg-transparent text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+            </button>
+          )}
+        </div>
+        {!voiceMode && (
+          <button
+            type="submit"
+            disabled={!input.trim() || loading}
+            className="h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-2xl flex items-center justify-center transition-all shrink-0"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </button>
+        )}
       </form>
 
       <GuestAuthModal isOpen={showGuestModal} onClose={() => setShowGuestModal(false)} />
 
+      {/* Language picker modal */}
       {showLanguagePicker && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-5">
-          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
-            <div className="flex items-start justify-between mb-4">
-              <div><h2 className="text-base font-bold text-gray-900">Piliin ang iyong wika</h2>
-                <p className="text-xs text-gray-500 mt-1">Gagamitin ito sa sagot, voice input, at pakikinig.</p></div>
-              <button type="button" onClick={() => setShowLanguagePicker(false)} className="text-gray-400 text-xl">×</button>
+        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl">
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Choose your language</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Used for AI responses, voice input &amp; playback.</p>
+              </div>
+              <button type="button" onClick={() => setShowLanguagePicker(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none ml-2">&#215;</button>
             </div>
-            <div className="space-y-2">
-              {([['tgl','🇵🇭','Tagalog'], ['ceb','🗣️','Cebuano / Bisaya'], ['en','🇺🇸','English']] as const).map(([value, icon, label]) => (
-                <button key={value} type="button" onClick={() => selectLanguage(value)}
-                  className={`w-full flex items-center gap-3 rounded-2xl border p-3 text-left text-sm font-semibold ${ttsLang === value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700'}`}>
-                  <span className="text-xl">{icon}</span>{label}{ttsLang === value && <span className="ml-auto">✓</span>}
+            <div className="space-y-2 mt-4">
+              {([["tgl", "Tagalog", "Filipino"], ["ceb", "Cebuano / Bisaya", "Visayan"], ["en", "English", "International"]] as const).map(([value, label, sub]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => selectLanguage(value)}
+                  className={`w-full flex items-center justify-between rounded-2xl border p-3.5 text-left transition-all ${
+                    ttsLang === value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <div>
+                    <p className={`text-sm font-semibold ${ttsLang === value ? "text-blue-700" : "text-gray-800"}`}>{label}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
+                  </div>
+                  {ttsLang === value && <Check className="h-4 w-4 text-blue-600 shrink-0" />}
                 </button>
               ))}
             </div>

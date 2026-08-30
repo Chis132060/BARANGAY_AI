@@ -9,11 +9,11 @@ export const metadata: Metadata = {
 
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-600 to-blue-800 px-4 py-8">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-100">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-12">
+      <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
-          <span className="text-3xl mb-1">🏛️</span>
-          <h1 className="text-xl font-bold text-gray-900">Resident Registration</h1>
+          <img src="/logo.png" alt="Smart Barangay Logo" className="h-16 w-auto mb-3 object-contain" />
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Resident Registration</h1>
           <p className="text-xs text-gray-500 mt-1">Smart Barangay Online Services</p>
         </div>
 

@@ -145,7 +145,7 @@ export default function KnowledgePage() {
       }
 
       const result = await res.json();
-      setUploadSuccess(`✅ Document ingested — ${result.chunks_created} chunks embedded.`);
+      setUploadSuccess(`Document ingested — ${result.chunks_created} chunks embedded.`);
       setTitle("");
       setTextContent("");
       if (fileRef.current) fileRef.current.value = "";
@@ -232,7 +232,7 @@ export default function KnowledgePage() {
                 : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
             }`}
           >
-            {tab === "docs" ? "📄 Documents" : "🔍 AI Audit Logs"}
+            {tab === "docs" ? "Documents" : "AI Audit Logs"}
           </button>
         ))}
       </div>
@@ -443,8 +443,9 @@ export default function KnowledgePage() {
                   A: {log.response_text}
                 </p>
                 {log.flagged && log.flag_reason && (
-                  <p className="text-[10px] text-red-600 font-medium bg-red-100 px-2 py-1 rounded-lg">
-                    ⚠️ {log.flag_reason}
+                  <p className="text-[10px] text-red-600 font-medium bg-red-100 px-2 py-1 rounded-lg flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    <span>{log.flag_reason}</span>
                   </p>
                 )}
               </div>
