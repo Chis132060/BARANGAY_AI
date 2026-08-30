@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Home, Award, HelpCircle, FileText, AlertTriangle, Briefcase, TrendingUp, TrendingDown, Plus, Sparkles, type LucideIcon } from "lucide-react";
+import { Users, Home, Award, HelpCircle, FileText, AlertTriangle, Briefcase, TrendingUp, TrendingDown, Plus, Sparkles, UserCheck, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 interface MetricCardProps {
@@ -61,11 +61,21 @@ interface StatsGridProps {
     pendingRequests: number;
     activeComplaints: number;
     registeredBusinesses: number;
+    pendingRegistrations: number;
   };
 }
 
 export function StatsGrid({ metrics }: StatsGridProps) {
   const cards = [
+    {
+      title: "Pending Registrations",
+      value: metrics.pendingRegistrations,
+      icon: UserCheck,
+      description: "Self-registered residents awaiting verification",
+      href: "/residents/verification",
+      trend: { value: "Live queue", isPositive: true },
+      colorClass: "bg-amber-500/10 text-amber-600 border border-amber-500/20",
+    },
     {
       title: "Total Population",
       value: metrics.totalPopulation.toLocaleString(),

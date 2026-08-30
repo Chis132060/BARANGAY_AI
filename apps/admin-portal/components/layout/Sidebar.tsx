@@ -3,21 +3,20 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, ShieldCheck, Sparkles, Activity } from "lucide-react";
+import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../auth-provider";
 import { navigationConfig, NavigationModule } from "../../lib/navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { role } = useAuth();
+  const { permissions, hasPermission } = useAuth();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
+  // Filter modules based on dynamic permissions from DB
   const filteredModules = navigationConfig.filter((module) => {
-    if (module.allowedRoles && (!role || !module.allowedRoles.includes(role))) {
-      return false;
-    }
-    return true;
+    if (!module.module) return true;
+    return hasPermission(module.module, module.requiredAction || "canView");
   });
 
   useEffect(() => {
@@ -52,11 +51,10 @@ export function Sidebar() {
           const hasChildren = !!module.children && module.children.length > 0;
           const isOpen = !!openMenus[module.title];
 
+          // Filter children based on their own module permissions
           const allowedChildren = module.children?.filter((child) => {
-            if (child.allowedRoles && (!role || !child.allowedRoles.includes(role))) {
-              return false;
-            }
-            return true;
+            if (!child.module) return true;
+            return hasPermission(child.module, child.requiredAction || "canView");
           }) || [];
 
           if (hasChildren && allowedChildren.length === 0) {

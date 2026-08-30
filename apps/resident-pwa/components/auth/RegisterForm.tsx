@@ -71,24 +71,70 @@ export function RegisterForm() {
       });
 
       if (authError) throw new Error(authError.message);
+      const authUserId = authData.user?.id;
 
-      // 2. Insert resident profile with Pending verification status
-      const { error: resError } = await supabase.from("residents").insert({
-        first_name: formData.firstName,
-        middle_name: formData.middleName,
-        last_name: formData.lastName,
-        birth_date: formData.birthDate,
-        gender: formData.gender,
-        contact_number: formData.contactNumber,
-        civil_status: "Single",
-        verification_status: "Pending",
-        id_type: formData.idType,
-        id_photo_url: formData.idPhotoUrl || previewImage || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
+      if (!authUserId) {
+        setErrorMsg("Registration started. Please check your email to confirm your account, then sign in.");
+        return;
+      }
+
+      const { data: residentRole, error: roleError } = await supabase
+        .from("roles")
+        .select("id")
+        .eq("name", "Resident")
+        .single();
+
+      if (roleError) throw new Error(roleError.message);
+      if (!residentRole?.id) throw new Error("Resident role is not configured. Please contact the barangay office.");
+
+      const fullName = [formData.firstName, formData.middleName, formData.lastName]
+        .filter(Boolean)
+        .join(" ");
+
+      const { error: userError } = await supabase.from("users").insert({
+        id: authUserId,
+        name: fullName,
+        email: formData.email,
+        role_id: residentRole.id,
       });
 
+      if (userError) throw new Error(userError.message);
+
+      // 2. Insert resident profile with Pending verification status
+      const { data: resident, error: resError } = await supabase
+        .from("residents")
+        .insert({
+          user_id: authUserId,
+          email: formData.email,
+          first_name: formData.firstName,
+          middle_name: formData.middleName,
+          last_name: formData.lastName,
+          birth_date: formData.birthDate,
+          gender: formData.gender,
+          contact_number: formData.contactNumber,
+          civil_status: "Single",
+          verification_status: "Pending",
+          id_type: formData.idType,
+          id_photo_url: formData.idPhotoUrl || previewImage || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
+        })
+        .select("id")
+        .single();
+
       if (resError) throw new Error(resError.message);
+      if (!resident?.id) throw new Error("Resident profile was not created.");
+
+      const { error: addressError } = await supabase.from("addresses").insert({
+        resident_id: resident.id,
+        house_number: formData.houseNumber,
+        street: formData.street,
+        purok: formData.purok,
+      });
+
+      if (addressError) throw new Error(addressError.message);
 
       setSubmitted(true);
+      await supabase.auth.signOut();
+      window.location.href = "/pending-approval";
     } catch (err: any) {
       setErrorMsg(err.message || "Registration failed. Please try again.");
     } finally {
@@ -112,14 +158,14 @@ export function RegisterForm() {
             <span>Status: Pending Barangay Verification</span>
           </p>
           <p className="text-[11px] leading-normal text-amber-700">
-            Barangay Admin officials will verify your submitted ID against census records. You can sign in now to browse announcements, emergency hotlines, and chat with the AI assistant.
+            Barangay Admin officials will verify your submitted ID against barangay records. Full resident access unlocks after approval.
           </p>
         </div>
         <button
-          onClick={() => (window.location.href = "/login")}
+          onClick={() => (window.location.href = "/pending-approval")}
           className="w-full py-3 bg-blue-600 text-white font-bold text-xs rounded-xl shadow hover:bg-blue-700 transition-colors mt-2"
         >
-          Proceed to Sign In
+          View Approval Status
         </button>
       </div>
     );

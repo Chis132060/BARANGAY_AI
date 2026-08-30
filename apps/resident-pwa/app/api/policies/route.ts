@@ -29,14 +29,18 @@ async function extractText(filePath: string, ext: string): Promise<string> {
 
   if (ext === ".pdf") {
     try {
-      // pdf-parse is optional — install with: npm install pdf-parse
-      const pdfModule: any = await import("pdf-parse");
-      const pdfParse = pdfModule.default || pdfModule;
+      // pdf-parse v2 exposes the PDFParse class
+      const { PDFParse } = await import("pdf-parse");
       const fileBuffer = await readFile(filePath);
-      const result = await pdfParse(fileBuffer);
-      return result.text;
+      const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
+      try {
+        const result = await parser.getText();
+        return result.text;
+      } finally {
+        await parser.destroy();
+      }
     } catch {
-      return ""; // pdf-parse not installed, skip
+      return ""; // pdf-parse not installed or parse failed, skip
     }
   }
 
