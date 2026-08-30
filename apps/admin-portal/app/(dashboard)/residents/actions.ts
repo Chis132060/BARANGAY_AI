@@ -191,7 +191,7 @@ export async function approveResident(residentId: string): Promise<{ success: bo
 
   const { data: target } = await supabase
     .from("residents")
-    .select("first_name, last_name, email")
+    .select("user_id, first_name, last_name, email")
     .eq("id", residentId)
     .maybeSingle();
 
@@ -201,6 +201,16 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .eq("id", residentId);
 
   if (error) throw new Error(error.message);
+
+  // Send resident notification
+  if (target?.user_id) {
+    await supabase.from("notifications").insert({
+      user_id: target.user_id,
+      title: "Resident Account Verified",
+      message: "Your Barangay resident registration has been approved by the Barangay Office. You can now submit online requests for Clearances and Certificates.",
+      read_status: false,
+    });
+  }
 
   // Audit log
   await supabase.from("audit_logs").insert({
@@ -233,7 +243,7 @@ export async function rejectResident(residentId: string, reason?: string): Promi
 
   const { data: target } = await supabase
     .from("residents")
-    .select("first_name, last_name, email")
+    .select("user_id, first_name, last_name, email")
     .eq("id", residentId)
     .maybeSingle();
 
@@ -249,6 +259,16 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     .eq("id", residentId);
 
   if (error) throw new Error(error.message);
+
+  // Send resident notification
+  if (target?.user_id) {
+    await supabase.from("notifications").insert({
+      user_id: target.user_id,
+      title: "Registration Verification Update",
+      message: `Your resident account verification could not be approved: ${reason.trim()}. Please visit the Barangay Hall or re-upload clear ID documents.`,
+      read_status: false,
+    });
+  }
 
   // Audit log
   await supabase.from("audit_logs").insert({

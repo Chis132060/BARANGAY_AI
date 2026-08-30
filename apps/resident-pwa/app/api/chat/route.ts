@@ -4,8 +4,8 @@ import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
 
 // Simple in-memory rate limiter: { key → { count, resetAt } }
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_AUTH = 20;   // requests per minute for logged-in users
-const RATE_LIMIT_GUEST = 5;   // requests per minute for guests
+const RATE_LIMIT_AUTH = 30;   // requests per minute for logged-in users
+const RATE_LIMIT_GUEST = 10;  // requests per minute for guests
 const WINDOW_MS = 60_000;
 
 function checkRateLimit(key: string, limit: number): boolean {
@@ -21,62 +21,16 @@ function checkRateLimit(key: string, limit: number): boolean {
   return true;
 }
 
-function getLocalFallbackResponse(query: string, isLoggedIn: boolean) {
-  const q = query.toLowerCase();
-
-  // Check Cebuano/Bisaya queries
-  if (q.includes("unsaon") || q.includes("unsa") || q.includes("maayong") || q.includes("pila") || q.includes("kuha")) {
-    if (q.includes("clearance")) {
-      return {
-        answer: "Ang Barangay Clearance kay nanginahanglan og 1 Valid ID ug Proof of Residency. Ang bayad kay ₱50.00 ug maproseso kini sulod sa 15 hangtod 30 ka minuto. Palihog og Sign In para makasumite og aplikasyon online.",
-        citations: ["policy-doc-1"],
-        context_used: true,
-      };
-    } else if (q.includes("indigency")) {
-      return {
-        answer: "Ang Certificate of Indigency kay libre alang sa mga residente nga nanginahanglan og tulong pinansyal o medikal. Kinahanglan lang og pamatuod sa kita o endorsement.",
-        citations: ["policy-doc-2"],
-        context_used: true,
-      };
-    } else if (q.includes("residency")) {
-      return {
-        answer: "Ang Certificate of Residency kay pamatuod nga ikaw lumulupyo sa barangay. Ang bayad kay ₱30.00 ug kinahanglan og proof of address.",
-        citations: ["policy-doc-3"],
-        context_used: true,
-      };
-    } else {
-      return {
-        answer: "Maayong adlaw! Ako ang imong Smart Barangay AI Assistant. Makatabang ako kanimo bahin sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, ug mga ordinansa sa barangay. Unsa man ang imong kinahanglan?",
-        citations: ["policy-doc-general"],
-        context_used: true,
-      };
-    }
-  }
-
-  // Check matching knowledge base
-  const match = findMatchingKnowledge(query, isLoggedIn);
-  if (match) {
-    return {
-      answer: match.reply,
-      citations: ["policy-knowledge-doc"],
-      context_used: true,
-    };
-  }
-
-  // General fallback
-  return {
-    answer: "Welcome to Smart Barangay AI! You can ask about Barangay Clearance requirements, Certificate of Indigency, office hours, or local community events. Sign in to submit requests online.",
-    citations: ["policy-general"],
-    context_used: false,
-  };
-}
-
 export async function POST(request: NextRequest) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   const body = await request.json();
-  const { message, sessionId, language } = body as { message: string; sessionId?: string; language?: "tgl" | "ceb" | "en" };
+  const { message, sessionId, language = "tgl" } = body as {
+    message: string;
+    sessionId?: string;
+    language?: "tgl" | "ceb" | "en";
+  };
 
   if (!message?.trim()) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
@@ -93,6 +47,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const match = findMatchingKnowledge(message, !!user, language);
+
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
   try {
@@ -103,22 +59,46 @@ export async function POST(request: NextRequest) {
         query: message,
         session_id: sessionId ?? null,
         user_id: user?.id ?? null,
-        language: language || "tgl",
+        language: language,
       }),
     });
 
     if (fastApiRes.ok) {
       const data = await fastApiRes.json();
-      return NextResponse.json(data);
+      return NextResponse.json({
+        ...data,
+        formType: match?.formType,
+        formTitle: match?.formTitle,
+        estimatedFee: match?.estimatedFee,
+        guestActionTrigger: match?.guestActionTrigger,
+      });
     }
   } catch (err) {
-    // API backend is offline — use local knowledge base fallback
     console.warn("[/api/chat] API backend offline, using local policy fallback.");
   }
 
-  const fallback = getLocalFallbackResponse(message, !!user);
-  if (language === "tgl" && !fallback.answer.startsWith("Ang") && !fallback.answer.startsWith("Kumusta")) {
-    fallback.answer = "Kumusta! Ako ang Smart Barangay AI Assistant. Maaari kitang tulungan tungkol sa Barangay Clearance, Certificate of Indigency, mga ordinansa, oras ng opisina, at mga aktibidad ng barangay. Pakitiyak lamang ang mahahalagang detalye sa Barangay Hall.";
+  // Local knowledge response fallback
+  if (match) {
+    return NextResponse.json({
+      answer: match.reply,
+      citations: [match.topic.title],
+      context_used: true,
+      formType: match.formType,
+      formTitle: match.formTitle,
+      estimatedFee: match.estimatedFee,
+      guestActionTrigger: match.guestActionTrigger,
+    });
   }
-  return NextResponse.json(fallback);
+
+  const defaultGreeting: Record<"tgl" | "ceb" | "en", string> = {
+    tgl: "Kumusta! Ako ang Smart Barangay AI Assistant. Maaari kitang tulungan tungkol sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, mga ordinansa, at mga aktibidad ng barangay.",
+    ceb: "Maayong adlaw! Ako ang Smart Barangay AI Assistant. Makatabang ko bahin sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, mga ordinansa, ug mga kalihokan sa barangay.",
+    en: "Hello! I am your Smart Barangay AI Assistant. I can help you with Barangay Clearance, Certificate of Indigency, Certificate of Residency, ordinances, office hours, and community programs.",
+  };
+
+  return NextResponse.json({
+    answer: defaultGreeting[language] || defaultGreeting.en,
+    citations: ["Barangay Official Knowledge"],
+    context_used: false,
+  });
 }
