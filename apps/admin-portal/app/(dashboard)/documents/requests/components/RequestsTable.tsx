@@ -140,9 +140,23 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
                         </span>
                       </td>
 
-                      {/* Remarks */}
+                      {/* Remarks / Form Data */}
                       <td className="px-6 py-4 text-xs text-muted-foreground max-w-xs truncate">
-                        {req.form_data?.purpose || req.remarks || "—"}
+                        {req.form_data && Object.keys(req.form_data).length > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-foreground truncate">{req.form_data.purpose || req.remarks || "—"}</span>
+                            {Object.entries(req.form_data)
+                              .filter(([k]) => k !== "purpose" && k !== "contactNumber" && k !== "requestedVia")
+                              .slice(0, 2)
+                              .map(([k, v]) => (
+                                <span key={k} className="text-[10px] truncate text-gray-500">
+                                  {k}: {String(v)}
+                                </span>
+                              ))}
+                          </div>
+                        ) : (
+                          req.remarks || "—"
+                        )}
                       </td>
 
                       {/* Actions */}

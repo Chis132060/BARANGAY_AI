@@ -23,6 +23,7 @@ interface Message {
   text: string;
   formType?: string;
   formTitle?: string;
+  formSchema?: any;
   guestActionTrigger?: boolean;
   citations?: string[];
   contextUsed?: boolean;
@@ -212,6 +213,7 @@ export function ChatInterface() {
       const detectedForm = detectFormTrigger(aiText, isLoggedIn);
       const finalFormType = (isLoggedIn && (data.formType || detectedForm.formType)) || undefined;
       const finalFormTitle = (isLoggedIn && (data.formTitle || detectedForm.formTitle)) || undefined;
+      const finalFormSchema = isLoggedIn ? data.formSchema : undefined;
       const guestTrigger = !isLoggedIn && (data.guestActionTrigger || detectedForm.guestActionTrigger);
 
       const aiMsg: Message = {
@@ -223,6 +225,7 @@ export function ChatInterface() {
         timestamp: Date.now(),
         formType: finalFormType,
         formTitle: finalFormTitle,
+        formSchema: finalFormSchema,
         guestActionTrigger: guestTrigger,
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -336,7 +339,7 @@ export function ChatInterface() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto bg-white no-scrollbar">
         <div className="p-4 space-y-4">
 
           {/* Welcome hero card - shown only before first user message */}
@@ -463,7 +466,7 @@ export function ChatInterface() {
                   {/* Dynamic In-Chat Multi-Document Form */}
                   {m.formType && m.formTitle && (
                     <div className="w-full">
-                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} />
+                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} formSchema={m.formSchema} />
                     </div>
                   )}
 
