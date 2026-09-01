@@ -13,6 +13,7 @@ interface InChatFormCardProps {
   formType: string;
   title: string;
   sessionId?: string;
+  formSchema?: any;
   onSubmitted?: (summary: { titles: string[]; totalFee: number; sessionId: string }) => void;
 }
 

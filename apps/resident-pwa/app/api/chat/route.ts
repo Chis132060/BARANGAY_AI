@@ -52,9 +52,13 @@ export async function POST(request: NextRequest) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
     const fastApiRes = await fetch(`${apiBaseUrl}/api/v1/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         query: message,
         session_id: sessionId ?? null,
@@ -62,6 +66,8 @@ export async function POST(request: NextRequest) {
         language: language,
       }),
     });
+
+    clearTimeout(timeoutId);
 
     if (fastApiRes.ok) {
       const data = await fastApiRes.json();
@@ -74,7 +80,7 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (err) {
-    console.warn("[/api/chat] API backend offline, using local policy fallback.");
+    console.warn("[/api/chat] API backend offline or timed out, using local policy fallback.");
   }
 
   // Local knowledge response fallback
