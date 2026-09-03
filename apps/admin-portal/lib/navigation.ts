@@ -3,7 +3,6 @@ import {
   Users,
   FileText,
   Building2,
-  Scale,
   Briefcase,
   Megaphone,
   Settings,
@@ -69,16 +68,6 @@ export const navigationConfig: NavigationModule[] = [
       { title: "Barangay Officials", href: "/community/officials", module: "community" },
       { title: "Purok Management", href: "/community/purok", module: "community" },
       { title: "Precinct Management", href: "/community/precinct", module: "community" },
-    ],
-  },
-  {
-    title: "Cases & Reports",
-    icon: Scale,
-    module: "cases",
-    children: [
-      { title: "Complaints", href: "/cases/complaints", module: "cases" },
-      { title: "Katarungang Pambarangay", href: "/cases/katarungang-pambarangay", module: "cases" },
-      { title: "Incident Reports", href: "/cases/incident-reports", module: "cases" },
     ],
   },
   {

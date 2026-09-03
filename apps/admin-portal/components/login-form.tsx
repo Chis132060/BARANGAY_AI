@@ -65,7 +65,7 @@ export function LoginForm() {
       )}
 
       <div>
-        <label htmlFor="username" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+        <label htmlFor="username" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
           Username or Email
         </label>
         <input
@@ -73,16 +73,16 @@ export function LoginForm() {
           type="text"
           disabled={loading}
           placeholder="Admin"
-          className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
           {...register("username")}
         />
         {errors.username && (
-          <p className="mt-1 text-xs text-destructive font-medium">{errors.username.message}</p>
+          <p className="mt-1 text-xs text-red-600 font-medium">{errors.username.message}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+        <label htmlFor="password" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
           Password
         </label>
         <div className="relative">
@@ -91,27 +91,27 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             disabled={loading}
             placeholder="••••••••"
-            className="w-full rounded-lg border border-input bg-background pl-4 pr-10 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/60 pl-4 pr-11 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
             {...register("password")}
           />
           <button
             type="button"
             disabled={loading}
             onClick={() => setShowPassword((p) => !p)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600"
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
         {errors.password && (
-          <p className="mt-1 text-xs text-destructive font-medium">{errors.password.message}</p>
+          <p className="mt-1 text-xs text-red-600 font-medium">{errors.password.message}</p>
         )}
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-lg transition-all shadow disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-blue-500/10 disabled:opacity-50 text-sm mt-2"
       >
         {loading ? (
           <>

@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   },
   description:
     "Admin portal for managing Smart Barangay operations, staff, residents, and AI-powered services.",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
   robots: { index: false, follow: false }, // Admin portals should not be indexed
 };
 

@@ -29,6 +29,8 @@ class ChatResponse(BaseModel):
     context_used: bool
     flagged: bool
     latency_ms: int
+    form_type: Optional[str] = None
+    form_schema: Optional[dict] = None
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -81,6 +83,8 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             context_used=result["context_used"],
             flagged=result["flagged"],
             latency_ms=result["latency_ms"],
+            form_type=result.get("form_type"),
+            form_schema=result.get("form_schema")
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
