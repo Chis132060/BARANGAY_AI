@@ -23,7 +23,10 @@ interface RequestsTableProps {
     remarks?: string,
     customFee?: number,
     paymentStatus?: "Unpaid" | "Paid" | "Waived" | "Free",
-    pickupInstructions?: string
+    pickupInstructions?: string,
+    paymentDueDate?: string,
+    paymentReference?: string,
+    paymentNotes?: string
   ) => Promise<void>;
 }
 
@@ -35,6 +38,9 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
   const [pickupFee, setPickupFee] = useState<number>(50);
   const [pickupPaymentStatus, setPickupPaymentStatus] = useState<"Unpaid" | "Paid" | "Waived" | "Free">("Unpaid");
   const [pickupInstructions, setPickupInstructions] = useState("Please proceed to Window 2 with 1 Valid ID and exact payment.");
+  const [paymentDueDate, setPaymentDueDate] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
   const openPickupModal = (req: DocumentRequestItem) => {
@@ -43,6 +49,9 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
     setPickupFee(defaultFee);
     setPickupPaymentStatus(defaultFee === 0 ? "Free" : (req.payment_status || "Unpaid"));
     setPickupInstructions(req.pickup_instructions || "Please proceed to Window 2 with 1 Valid ID and exact payment.");
+    setPaymentDueDate(req.payment_due_date ? req.payment_due_date.slice(0, 10) : "");
+    setPaymentReference(req.payment_reference || "");
+    setPaymentNotes(req.payment_notes || "");
   };
 
   const handleConfirmPickup = async () => {
@@ -55,7 +64,10 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
         pickupModalReq.remarks,
         pickupFee,
         pickupPaymentStatus,
-        pickupInstructions
+        pickupInstructions,
+        paymentDueDate,
+        paymentReference,
+        paymentNotes
       );
       setPickupModalReq(null);
     } finally {
@@ -287,6 +299,21 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
                   onChange={(e) => setPickupInstructions(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Payment Due Date</label>
+                  <input type="date" value={paymentDueDate} onChange={(e) => setPaymentDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Receipt / Reference No.</label>
+                  <input type="text" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="OR number or reference" className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Payment Notes</label>
+                <input type="text" value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} placeholder="Optional payment or collection note" className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
 

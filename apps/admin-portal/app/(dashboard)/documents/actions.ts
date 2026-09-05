@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { checkUserPermission } from "../administration/rbac-actions";
 
 export interface DocumentRequestItem {
   id: string;
@@ -25,6 +26,12 @@ export interface DocumentRequestItem {
   status: "Pending" | "Under Review" | "Approved" | "Ready for Pickup" | "Released" | "Completed" | "Rejected";
   fee_amount: number;
   payment_status: "Unpaid" | "Paid" | "Waived" | "Free";
+  payment_due_date?: string;
+  payment_reference?: string;
+  payment_received_at?: string;
+  payment_notes?: string;
+  requirements_status?: "Pending" | "Complete" | "Incomplete" | "Verified";
+  transaction_id?: string;
   session_id?: string;
   form_data?: Record<string, any>;
   remarks?: string;
@@ -36,6 +43,11 @@ export interface DocumentRequestItem {
 
 export async function fetchDocumentRequests(statusFilter = "All"): Promise<DocumentRequestItem[]> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  if (!(await checkUserPermission(user.id, "documents", "canView"))) {
+    throw new Error("Insufficient permissions: view on documents required");
+  }
 
   let query = supabase
     .from("document_requests")
@@ -45,6 +57,12 @@ export async function fetchDocumentRequests(statusFilter = "All"): Promise<Docum
       status,
       fee_amount,
       payment_status,
+      payment_due_date,
+      payment_reference,
+      payment_received_at,
+      payment_notes,
+      requirements_status,
+      transaction_id,
       session_id,
       form_data,
       pickup_date,
@@ -91,10 +109,17 @@ export async function updateRequestStatus(
   remarks = "",
   customFee?: number,
   paymentStatus?: "Unpaid" | "Paid" | "Waived" | "Free",
-  pickupInstructions?: string
+  pickupInstructions?: string,
+  paymentDueDate?: string,
+  paymentReference?: string,
+  paymentNotes?: string
 ) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const canEdit = await checkUserPermission(user.id, "documents", "canEdit");
+  const canApprove = await checkUserPermission(user.id, "documents", "canApprove");
+  if (!canEdit && !canApprove) throw new Error("Insufficient permissions to process document requests");
 
   // Fetch current request details to get resident and document info
   const { data: existingReq } = await supabase
@@ -118,7 +143,11 @@ export async function updateRequestStatus(
   }
   if (paymentStatus) {
     updateFields.payment_status = paymentStatus;
+    if (paymentStatus === "Paid") updateFields.payment_received_at = new Date().toISOString();
   }
+  if (paymentDueDate) updateFields.payment_due_date = paymentDueDate;
+  if (paymentReference) updateFields.payment_reference = paymentReference;
+  if (paymentNotes) updateFields.payment_notes = paymentNotes;
   if (pickupInstructions) {
     updateFields.pickup_instructions = pickupInstructions;
   }
@@ -139,9 +168,10 @@ export async function updateRequestStatus(
 
   if (error) throw new Error(error.message);
 
-  // Send resident notification if user_id is linked
-  const residentUserId = (existingReq as any)?.resident?.user_id;
   const docName = (existingReq as any)?.document_type?.name || "Document";
+  // Status notifications are emitted by the database trigger so direct SQL
+  // updates and admin actions use the same notification path.
+  const residentUserId: string | null = null;
 
   if (residentUserId) {
     let notifTitle = `Document Request ${status}`;
@@ -177,6 +207,12 @@ export async function updateRequestStatus(
       module: "Documents",
       action: "Status Update",
       description: `Document request ${requestId} (${docName}) updated to ${status}.`,
+    });
+    await supabase.from("audit_logs").insert({
+      user_id: user.id,
+      action: "UPDATE_DOCUMENT_REQUEST",
+      module: "documents",
+      details: { request_id: requestId, document: docName, status },
     });
   }
 

@@ -86,7 +86,11 @@ class BoundedOrchestrator:
             elif selected_language == "ceb": msg = "Pasayloa ko, unsa imong gusto mahibal-an?"
             return self._build_response(msg, [], False, "NEEDS_CLARIFICATION", 1.0)
             
-        requires_tools = intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
+        query_lower = query.lower()
+        requires_tools = (
+            intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
+            or any(term in query_lower for term in ("ordinance", "ordinansa", "policy", "patakaran", "business", "negosyo", "permit"))
+        )
         requires_kg = ("related" in query.lower() or "requires" in query.lower())
         
         target_model_class = model_router.route_query(query, requires_tools=requires_tools, requires_kg=requires_kg)
@@ -214,16 +218,17 @@ class BoundedOrchestrator:
             "PASS" if not was_flagged else "BLOCKED", 
             final_confidence,
             final_form_type,
-            final_form_schema
+            final_form_schema,
+            chunk_ids,
         )
 
-    def _build_response(self, answer: str, citations: List[str], grounded: bool, status: str, confidence: float, form_type: Optional[str] = None, form_schema: Optional[dict] = None) -> dict:
+    def _build_response(self, answer: str, citations: List[str], grounded: bool, status: str, confidence: float, form_type: Optional[str] = None, form_schema: Optional[dict] = None, retrieved_chunk_ids: Optional[List[str]] = None) -> dict:
         # Keep the router contract stable for both normal and early-return responses.
         # Previously these fields were missing, causing FastAPI response validation to fail.
         return {
             "answer": answer,
             "citations": citations,
-            "chunk_ids": citations,
+            "chunk_ids": retrieved_chunk_ids or [],
             "context_used": grounded,
             "flagged": status == "BLOCKED",
             "latency_ms": 0,

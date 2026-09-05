@@ -30,6 +30,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   const [residents, setResidents] = useState<PendingResident[]>(initialResidents);
   const [error, setError] = useState<string | null>(initialError);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedResident, setSelectedResident] = useState<PendingResident | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -84,6 +85,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
       setResidents((prev) =>
         prev.map((r) => (r.id === id ? { ...r, verification_status: "Verified" } : r))
       );
+      setSelectedResident(null);
       const target = residents.find((r) => r.id === id);
       setActionMessage(
         `${target?.first_name} ${target?.last_name} has been verified and granted full resident access!`
@@ -104,6 +106,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
       setResidents((prev) =>
         prev.map((r) => (r.id === id ? { ...r, verification_status: "Rejected" } : r))
       );
+      setSelectedResident(null);
       const target = residents.find((r) => r.id === id);
       setActionMessage(
         `Registration for ${target?.first_name} ${target?.last_name} was rejected.`
@@ -221,115 +224,104 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
         </span>
       </div>
 
-      {/* Queue List */}
+      {/* Verification Queue Table */}
       {filtered.length === 0 ? (
         <div className="border border-dashed rounded-lg p-12 text-center bg-card shadow-sm">
           <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
           <p className="text-muted-foreground font-medium">All caught up! No pending verifications.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filtered.map((item) => (
-            <div
-              key={item.id}
-              className="border rounded-lg bg-card shadow-sm transition-all hover:border-primary/50"
-            >
-              <div className="flex items-start justify-between gap-3 border-b p-5">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase text-muted-foreground">
-                    Resident Applicant
-                  </p>
-                  <h3 className="truncate text-lg font-bold text-foreground">
-                    {item.first_name} {item.middle_name ? `${item.middle_name} ` : ""}{item.last_name}
-                  </h3>
-                  {item.email && (
-                    <p className="truncate text-xs text-muted-foreground">{item.email}</p>
-                  )}
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock3 className="h-3.5 w-3.5" />
-                    Submitted {timeAgo(item.created_at)}
-                  </p>
-                </div>
-                <span className="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                  Pending
-                </span>
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="border-b bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-5 py-3 font-bold">Resident applicant</th>
+                  <th className="px-5 py-3 font-bold">Contact</th>
+                  <th className="px-5 py-3 font-bold">Declared address</th>
+                  <th className="px-5 py-3 font-bold">ID type</th>
+                  <th className="px-5 py-3 font-bold">Submitted</th>
+                  <th className="px-5 py-3 text-right font-bold">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map((item) => (
+                  <tr key={item.id} className="transition-colors hover:bg-muted/30">
+                    <td className="px-5 py-4">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedResident(item)}
+                        className="text-left font-bold text-primary underline-offset-4 hover:underline"
+                      >
+                        {item.first_name} {item.middle_name ? `${item.middle_name} ` : ""}{item.last_name}
+                      </button>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{item.email || "No email recorded"}</p>
+                    </td>
+                    <td className="px-5 py-4 text-muted-foreground">{item.contact_number || "N/A"}</td>
+                    <td className="max-w-[220px] truncate px-5 py-4 text-muted-foreground">{formatAddress(item.address)}</td>
+                    <td className="px-5 py-4 text-muted-foreground">{item.id_type || "N/A"}</td>
+                    <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{timeAgo(item.created_at)}</td>
+                    <td className="px-5 py-4 text-right">
+                      <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Pending</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Resident details dialog */}
+      {selectedResident && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resident-details-title"
+          onClick={() => setSelectedResident(null)}
+        >
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border bg-card p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4 border-b pb-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Resident applicant</p>
+                <h2 id="resident-details-title" className="mt-1 text-xl font-extrabold text-foreground">
+                  {selectedResident.first_name} {selectedResident.middle_name ? `${selectedResident.middle_name} ` : ""}{selectedResident.last_name}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">Submitted {timeAgo(selectedResident.created_at)}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 p-5 text-xs text-muted-foreground">
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <span className="block font-semibold text-foreground">Birth Date</span>
-                  {item.birth_date}
-                </div>
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <span className="flex items-center gap-1.5 font-semibold text-foreground">
-                    <Phone className="h-3.5 w-3.5" /> Contact
-                  </span>
-                  {item.contact_number || "N/A"}
-                </div>
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <span className="block font-semibold text-foreground">Gender</span>
-                  {item.gender}
-                </div>
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <span className="flex items-center gap-1.5 font-semibold text-foreground">
-                    <FileCheck className="h-3.5 w-3.5" /> ID Type
-                  </span>
-                  {item.id_type || "N/A"}
-                </div>
-                <div className="col-span-2 rounded-lg bg-muted/40 p-3">
-                  <span className="flex items-center gap-1.5 font-semibold text-foreground">
-                    <MapPin className="h-3.5 w-3.5" /> Declared Address
-                  </span>
-                  {formatAddress(item.address)}
-                </div>
-              </div>
-
-              {/* ID Proof Section */}
-              {item.id_photo_url && (
-                <div className="space-y-2 px-5 pb-5">
-                  <span className="block text-xs font-bold text-foreground">Uploaded Proof of Identity</span>
-                  <div className="relative rounded-lg overflow-hidden border bg-black/5 h-44 group">
-                    <img
-                      src={item.id_photo_url}
-                      alt="Uploaded ID Photo"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <button
-                      onClick={() => setSelectedId(item.id_photo_url!)}
-                      className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold gap-1.5 transition-opacity"
-                    >
-                      <Eye className="h-4 w-4" /> View Full ID Image
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              {canApprove && (
-                <div className="flex items-center gap-3 border-t bg-muted/20 p-5">
-                  <button
-                    onClick={() => handleApprove(item.id)}
-                    disabled={processingId === item.id}
-                    className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-xs shadow transition-all disabled:opacity-50"
-                  >
-                    {processingId === item.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <UserCheck className="h-4 w-4" />
-                    )}
-                    Approve & Verify Resident
-                  </button>
-                  <button
-                    onClick={() => setRejectModalId(item.id)}
-                    disabled={processingId === item.id}
-                    className="px-4 py-2.5 bg-destructive/10 text-destructive hover:bg-destructive/20 font-bold rounded-lg text-xs transition-colors disabled:opacity-50"
-                  >
-                    <UserX className="h-4 w-4" /> Reject
-                  </button>
-                </div>
-              )}
+              <button type="button" onClick={() => setSelectedResident(null)} className="rounded-full px-3 py-1 text-xl text-muted-foreground hover:bg-muted" aria-label="Close resident details">&times;</button>
             </div>
-          ))}
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-muted/40 p-3"><span className="block text-xs font-semibold text-muted-foreground">Email</span><span className="font-medium">{selectedResident.email || "N/A"}</span></div>
+              <div className="rounded-xl bg-muted/40 p-3"><span className="block text-xs font-semibold text-muted-foreground">Contact number</span><span className="font-medium">{selectedResident.contact_number || "N/A"}</span></div>
+              <div className="rounded-xl bg-muted/40 p-3"><span className="block text-xs font-semibold text-muted-foreground">Birth date</span><span className="font-medium">{selectedResident.birth_date}</span></div>
+              <div className="rounded-xl bg-muted/40 p-3"><span className="block text-xs font-semibold text-muted-foreground">Gender</span><span className="font-medium">{selectedResident.gender}</span></div>
+              <div className="rounded-xl bg-muted/40 p-3"><span className="block text-xs font-semibold text-muted-foreground">ID type</span><span className="font-medium">{selectedResident.id_type || "N/A"}</span></div>
+              <div className="rounded-xl bg-muted/40 p-3 sm:col-span-2"><span className="block text-xs font-semibold text-muted-foreground">Declared address</span><span className="font-medium">{formatAddress(selectedResident.address)}</span></div>
+            </div>
+
+            {selectedResident.id_photo_url && (
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-bold">Uploaded proof of identity</p>
+                  <button type="button" onClick={() => setSelectedId(selectedResident.id_photo_url!)} className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"><Eye className="h-3.5 w-3.5" /> View full image</button>
+                </div>
+                <img src={selectedResident.id_photo_url} alt="Uploaded proof of identity" className="max-h-64 w-full rounded-xl border bg-black/5 object-contain" />
+              </div>
+            )}
+
+            {canApprove && (
+              <div className="mt-6 flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => setRejectModalId(selectedResident.id)} disabled={processingId === selectedResident.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-5 py-3 text-sm font-bold text-destructive hover:bg-destructive/20 disabled:opacity-50"><UserX className="h-4 w-4" /> Reject</button>
+                <button type="button" onClick={() => handleApprove(selectedResident.id)} disabled={processingId === selectedResident.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-50">
+                  {processingId === selectedResident.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+                  Approve & verify resident
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

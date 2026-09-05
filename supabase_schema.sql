@@ -134,8 +134,45 @@ CREATE TABLE IF NOT EXISTS documents (
     request_id UUID REFERENCES document_requests(id) ON DELETE CASCADE,
     file_url TEXT NOT NULL,
     generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    document_kind VARCHAR(30) NOT NULL DEFAULT 'generated',
+    file_name VARCHAR(255),
+    mime_type VARCHAR(120),
+    template_key VARCHAR(100),
+    document_number VARCHAR(100),
+    content_html TEXT,
+    field_snapshot JSONB NOT NULL DEFAULT '{}',
+    generated_at TIMESTAMPTZ,
+    uploaded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS request_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resident_id UUID NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    session_id TEXT NOT NULL UNIQUE,
+    status VARCHAR(30) NOT NULL DEFAULT 'Pending',
+    total_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    payment_due_date TIMESTAMPTZ,
+    payment_reference VARCHAR(100),
+    payment_received_at TIMESTAMPTZ,
+    payment_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE chat_messages
+    ADD COLUMN IF NOT EXISTS session_id TEXT;
+
+ALTER TABLE document_requests
+    ADD COLUMN IF NOT EXISTS transaction_id UUID REFERENCES request_transactions(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS payment_due_date TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS payment_received_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS payment_notes TEXT,
+    ADD COLUMN IF NOT EXISTS requirements_status VARCHAR(20) DEFAULT 'Pending',
+    ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ DEFAULT now();
 
 -- 4. Create Community Management structures
 CREATE TABLE IF NOT EXISTS officials (
@@ -363,6 +400,102 @@ CREATE TABLE IF NOT EXISTS ai_audit_logs (
     flag_reason TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- 10. Resident onboarding, business permitting, and policy records
+ALTER TABLE residents
+    ADD COLUMN IF NOT EXISTS household_onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS household_onboarding_completed_at TIMESTAMPTZ;
+
+ALTER TABLE businesses
+    ADD COLUMN IF NOT EXISTS registration_type VARCHAR(20) NOT NULL DEFAULT 'New',
+    ADD COLUMN IF NOT EXISTS business_nature TEXT,
+    ADD COLUMN IF NOT EXISTS owner_contact_number VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS dti_sec_registration_no VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS tin VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS establishment_type VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS capitalization NUMERIC(14,2),
+    ADD COLUMN IF NOT EXISTS gross_sales_previous_year NUMERIC(14,2),
+    ADD COLUMN IF NOT EXISTS location_map_url TEXT,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+ALTER TABLE households
+    ADD COLUMN IF NOT EXISTS member_count INTEGER NOT NULL DEFAULT 1;
+
+CREATE TABLE IF NOT EXISTS policies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    policy_number VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(200) NOT NULL,
+    category VARCHAR(80) NOT NULL DEFAULT 'Other',
+    description TEXT NOT NULL DEFAULT '',
+    effective_date DATE,
+    expiry_date DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Active', 'Repealed', 'Under Review', 'Draft')),
+    enacted_by VARCHAR(150) NOT NULL DEFAULT '',
+    full_text TEXT NOT NULL,
+    source_file TEXT,
+    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- User-data RLS for the resident-facing workflow. Staff policies are added by
+-- the deployment migration after RBAC functions are available.
+ALTER TABLE residents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE households ENABLE ROW LEVEL SECURITY;
+ALTER TABLE household_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE businesses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE policies ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Residents can update own verified profile" ON residents;
+CREATE POLICY "Residents can update own verified profile" ON residents
+    FOR UPDATE TO authenticated
+    USING (user_id = auth.uid() AND verification_status = 'Verified')
+    WITH CHECK (user_id = auth.uid() AND verification_status = 'Verified');
+
+DROP POLICY IF EXISTS "Residents can view own household" ON households;
+CREATE POLICY "Residents can view own household" ON households
+    FOR SELECT TO authenticated
+    USING (household_head_id IN (SELECT id FROM residents WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Verified residents can create household" ON households;
+CREATE POLICY "Verified residents can create household" ON households
+    FOR INSERT TO authenticated
+    WITH CHECK (household_head_id IN (SELECT id FROM residents WHERE user_id = auth.uid() AND verification_status = 'Verified'));
+
+DROP POLICY IF EXISTS "Residents can view own household membership" ON household_members;
+CREATE POLICY "Residents can view own household membership" ON household_members
+    FOR SELECT TO authenticated
+    USING (resident_id IN (SELECT id FROM residents WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Residents can add own household membership" ON household_members;
+CREATE POLICY "Residents can add own household membership" ON household_members
+    FOR INSERT TO authenticated
+    WITH CHECK (resident_id IN (SELECT id FROM residents WHERE user_id = auth.uid() AND verification_status = 'Verified'));
+
+DROP POLICY IF EXISTS "Residents can view own requests" ON document_requests;
+CREATE POLICY "Residents can view own requests" ON document_requests
+    FOR SELECT TO authenticated
+    USING (resident_id IN (SELECT id FROM residents WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Verified residents can create own requests" ON document_requests;
+CREATE POLICY "Verified residents can create own requests" ON document_requests
+    FOR INSERT TO authenticated
+    WITH CHECK (resident_id IN (SELECT id FROM residents WHERE user_id = auth.uid() AND verification_status = 'Verified'));
+
+DROP POLICY IF EXISTS "Residents can view own businesses" ON businesses;
+CREATE POLICY "Residents can view own businesses" ON businesses
+    FOR SELECT TO authenticated
+    USING (owner_id IN (SELECT id FROM residents WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Verified residents can register own business" ON businesses;
+CREATE POLICY "Verified residents can register own business" ON businesses
+    FOR INSERT TO authenticated
+    WITH CHECK (owner_id IN (SELECT id FROM residents WHERE user_id = auth.uid() AND verification_status = 'Verified'));
+
+DROP POLICY IF EXISTS "Residents can read active policies" ON policies;
+CREATE POLICY "Residents can read active policies" ON policies
+    FOR SELECT TO authenticated USING (status = 'Active');
 
 ALTER TABLE knowledge_docs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_chunks ENABLE ROW LEVEL SECURITY;

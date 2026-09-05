@@ -31,7 +31,7 @@ const mockDocumentTypes: any[] = [
 const mockDocumentRequests: any[] = [
   {
     id: "req-1",
-    resident_id: "mock-resident-id",
+    resident_id: "mock-resident-record",
     document_type_id: "dt-1",
     status: "Pending",
     remarks: "For Employment Application",
@@ -40,7 +40,7 @@ const mockDocumentRequests: any[] = [
   },
   {
     id: "req-2",
-    resident_id: "mock-resident-id",
+    resident_id: "mock-resident-record",
     document_type_id: "dt-2",
     status: "Approved",
     remarks: "Bank Requirement",
@@ -72,7 +72,32 @@ const mockChatMessages: any[] = [];
 const mockNotifications: any[] = [
   { id: "n-1", user_id: "mock-resident-id", title: "Barangay Updates", message: "Tap here to view the latest announcements from Barangay Hall.", read_status: false, created_at: new Date().toISOString() },
 ];
-const mockResidents: any[] = [];
+const mockResidents: any[] = [{
+  id: "mock-resident-record",
+  user_id: "mock-resident-id",
+  email: mockResidentUser.email,
+  first_name: "Juan",
+  middle_name: "Dela",
+  last_name: "Cruz",
+  birth_date: "1990-05-15",
+  gender: "Male",
+  civil_status: "Married",
+  contact_number: "09171234567",
+  verification_status: "Verified",
+  household_onboarding_completed: false,
+  senior_status: false,
+  pwd_status: false,
+  four_ps_status: false,
+}];
+const mockHouseholds: any[] = [];
+const mockHouseholdMembers: any[] = [];
+const mockBusinesses: any[] = [];
+const mockTransactions: any[] = [];
+const mockAuditLogs: any[] = [];
+const mockAiAuditLogs: any[] = [];
+const mockPolicies: any[] = [];
+const mockRequestTransactions: any[] = [];
+const mockDocuments: any[] = [];
 
 const mockRoles: any[] = [
   { id: "role-resident", name: "Resident" },
@@ -94,6 +119,15 @@ const tables: Record<string, any[]> = {
   residents: mockResidents,
   roles: mockRoles,
   users: mockUsers,
+  households: mockHouseholds,
+  household_members: mockHouseholdMembers,
+  businesses: mockBusinesses,
+  transactions: mockTransactions,
+  audit_logs: mockAuditLogs,
+  ai_audit_logs: mockAiAuditLogs,
+  policies: mockPolicies,
+  request_transactions: mockRequestTransactions,
+  documents: mockDocuments,
 };
 
 function checkIsLoggedIn(cookieStore?: any): boolean {
@@ -297,6 +331,18 @@ export function getMockSupabaseClient(cookieStore?: any) {
     },
     from(tableName: string) {
       return new MockQueryBuilder(tableName);
+    },
+    storage: {
+      from(bucket: string) {
+        return {
+          async upload(path: string) {
+            return { data: { path: `${bucket}/${path}` }, error: null };
+          },
+          getPublicUrl(path: string) {
+            return { data: { publicUrl: `mock-storage://${bucket}/${path}` } };
+          },
+        };
+      },
     },
   };
 }

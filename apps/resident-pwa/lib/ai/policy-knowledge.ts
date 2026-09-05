@@ -114,14 +114,14 @@ export const BARANGAY_KNOWLEDGE: PolicyTopic[] = [
       ceb: "Unsaon pag-apply og Business Clearance?",
     },
     response: {
-      en: "Barangay Business Clearance is required for Mayor's Permit application or renewal. Requirements: DTI / SEC Registration, Contract of Lease / Land Title, and Fire Safety Certificate. Fee: ₱500.00. Fill out business details below.",
-      tgl: "Ang Barangay Business Clearance ay kailangan para sa Mayor's Permit o renewal. Mga kailangan: DTI/SEC registration, Lease Contract, at Fire Safety. Bayad: ₱500.00. Ilagay ang detalye ng negosyo sa form sa ibaba.",
-      ceb: "Ang Barangay Business Clearance gikinahanglan para sa Mayor's Permit. Rekisitos: DTI/SEC registration, Lease Contract, ug Fire Safety. Bayad: ₱500.00. Isulat ang detalye sa negosyo sa ubos.",
+      en: "Business permitting normally uses a unified city/municipal application. A barangay clearance or business-related barangay permit is part of the local permitting process, subject to the LGU's current rules. Common records include DTI/SEC/CDA registration, owner TIN and valid ID, proof of address or lease/land title, location information, and applicable fire, sanitary, zoning, or environmental clearances. The Barangay AI must confirm the current fee and processing time from an approved local record before you pay.",
+      tgl: "Karaniwang gumagamit ng unified application ang city o municipality para sa business permit. Kasama sa proseso ang barangay clearance o business-related barangay permit, ayon sa kasalukuyang patakaran ng LGU. Karaniwang hinihingi ang DTI/SEC/CDA registration, TIN at valid ID ng may-ari, patunay ng address o lease/land title, lokasyon, at naaangkop na fire, sanitary, zoning, o environmental clearances. Dapat kumpirmahin muna ng Barangay AI ang kasalukuyang bayad at processing time mula sa aprubadong lokal na tala bago magbayad.",
+      ceb: "Kasagaran gigamit sa city o municipality ang unified application para sa business permit. Apil sa proseso ang barangay clearance o business-related barangay permit, depende sa kasamtangang lagda sa LGU. Kasagarang rekord ang DTI/SEC/CDA registration, TIN ug valid ID sa tag-iya, proof of address o lease/land title, lokasyon, ug angay nga fire, sanitary, zoning, o environmental clearances. Kinahanglan kumpirmahon una sa Barangay AI ang kasamtangang bayad ug processing time gikan sa aprubadong lokal nga rekord.",
     },
     guestResponse: {
-      en: "Business Clearance requires DTI/SEC registration and lease contract (₱500.00). Sign in to apply online.",
-      tgl: "Ang Business Clearance ay nangangailangan ng DTI/SEC registration (₱500.00). Mag-sign in para mag-apply.",
-      ceb: "Ang Business Clearance nagkinahanglan og DTI/SEC registration (₱500.00). Sign in aron mag-apply.",
+      en: "Business permitting commonly requires DTI/SEC/CDA registration, proof of address, and other LGU clearances. Sign in to submit details online; confirm the current fee and issuing office with the Barangay or BPLO.",
+      tgl: "Karaniwang kailangan sa business permitting ang DTI/SEC/CDA registration, patunay ng address, at iba pang LGU clearances. Mag-sign in para magsumite online; kumpirmahin ang kasalukuyang bayad at tanggapan sa Barangay o BPLO.",
+      ceb: "Kasagarang gikinahanglan sa business permitting ang DTI/SEC/CDA registration, proof of address, ug uban pang LGU clearances. Sign in aron makasumite online; kumpirmaha ang kasamtangang bayad ug opisina sa Barangay o BPLO.",
     },
   },
   {

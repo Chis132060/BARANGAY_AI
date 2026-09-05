@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { registerResidentAction } from "@/app/(auth)/register/actions";
 
 const PUROK_OPTIONS = ["Purok 1", "Purok 2", "Purok 3", "Purok 4", "Purok 5", "Purok 6", "Purok 7"];
 const ID_TYPE_OPTIONS = [
@@ -64,76 +65,16 @@ export function RegisterForm() {
     setErrorMsg(null);
 
     try {
-      // 1. Sign up user account
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+      const res = await registerResidentAction({
+        ...formData,
+        idPhotoUrl: formData.idPhotoUrl || previewImage || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
       });
 
-      if (authError) throw new Error(authError.message);
-      const authUserId = authData.user?.id;
-
-      if (!authUserId) {
-        setErrorMsg("Registration started. Please check your email to confirm your account, then sign in.");
-        return;
+      if (res.error) {
+        throw new Error(res.error);
       }
 
-      const { data: residentRole, error: roleError } = await supabase
-        .from("roles")
-        .select("id")
-        .eq("name", "Resident")
-        .single();
-
-      if (roleError) throw new Error(roleError.message);
-      if (!residentRole?.id) throw new Error("Resident role is not configured. Please contact the barangay office.");
-
-      const fullName = [formData.firstName, formData.middleName, formData.lastName]
-        .filter(Boolean)
-        .join(" ");
-
-      const { error: userError } = await supabase.from("users").insert({
-        id: authUserId,
-        name: fullName,
-        email: formData.email,
-        role_id: residentRole.id,
-      });
-
-      if (userError) throw new Error(userError.message);
-
-      // 2. Insert resident profile with Pending verification status
-      const { data: resident, error: resError } = await supabase
-        .from("residents")
-        .insert({
-          user_id: authUserId,
-          email: formData.email,
-          first_name: formData.firstName,
-          middle_name: formData.middleName,
-          last_name: formData.lastName,
-          birth_date: formData.birthDate,
-          gender: formData.gender,
-          contact_number: formData.contactNumber,
-          civil_status: "Single",
-          verification_status: "Pending",
-          id_type: formData.idType,
-          id_photo_url: formData.idPhotoUrl || previewImage || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
-        })
-        .select("id")
-        .single();
-
-      if (resError) throw new Error(resError.message);
-      if (!resident?.id) throw new Error("Resident profile was not created.");
-
-      const { error: addressError } = await supabase.from("addresses").insert({
-        resident_id: resident.id,
-        house_number: formData.houseNumber,
-        street: formData.street,
-        purok: formData.purok,
-      });
-
-      if (addressError) throw new Error(addressError.message);
-
       setSubmitted(true);
-      await supabase.auth.signOut();
       window.location.href = "/pending-approval";
     } catch (err: any) {
       setErrorMsg(err.message || "Registration failed. Please try again.");
