@@ -91,7 +91,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     },
     {
       title: "Document Fees Revenue",
-      value: `₱${(metrics.totalRevenue ?? 1850).toLocaleString()}`,
+      value: `₱${(metrics.totalRevenue ?? 0).toLocaleString()}`,
       icon: DollarSign,
       description: "Total fees collected from issued documents",
       href: "/documents/requests",

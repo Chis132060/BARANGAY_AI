@@ -16,6 +16,7 @@ export interface ResidentListItem {
   senior_status: boolean;
   pwd_status: boolean;
   four_ps_status: boolean;
+  verification_status?: "Pending" | "Verified" | "Rejected";
   address?: {
     house_number?: string;
     street?: string;
@@ -41,6 +42,7 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
       senior_status,
       pwd_status,
       four_ps_status,
+      verification_status,
       address:addresses (
         house_number,
         street,
@@ -75,6 +77,30 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
     ...res,
     address: Array.isArray(res.address) ? res.address[0] : res.address,
   })) as ResidentListItem[];
+}
+
+export interface HouseholdListItem {
+  id: string;
+  household_number: string;
+  monthly_income?: number;
+  housing_type?: string;
+  member_count?: number;
+  head?: { first_name: string; last_name: string };
+}
+
+export async function fetchHouseholds(): Promise<HouseholdListItem[]> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const allowed = await checkUserPermission(user.id, "residents", "canView");
+  if (!allowed) throw new Error("Insufficient permissions: view on residents required");
+
+  const { data, error } = await supabase.from("households").select(`
+    id, household_number, monthly_income, housing_type, member_count,
+    head:residents!households_household_head_id_fkey(first_name, last_name)
+  `).order("household_number");
+  if (error) throw new Error(error.message);
+  return (data || []) as HouseholdListItem[];
 }
 
 export async function createResident(formData: Omit<ResidentListItem, "id">) {
@@ -195,12 +221,15 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .eq("id", residentId)
     .maybeSingle();
 
-  const { error } = await supabase
+  const { data: updatedResident, error } = await supabase
     .from("residents")
     .update({ verification_status: "Verified", updated_at: new Date().toISOString() })
-    .eq("id", residentId);
+    .eq("id", residentId)
+    .select("id, verification_status")
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!updatedResident) throw new Error("Resident approval did not update a record. Check the resident ID and RLS permissions.");
 
   // Send resident notification
   if (target?.user_id) {
@@ -253,12 +282,15 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabase
+  const { data: updatedResident, error } = await supabase
     .from("residents")
     .update(updateData)
-    .eq("id", residentId);
+    .eq("id", residentId)
+    .select("id, verification_status")
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!updatedResident) throw new Error("Resident rejection did not update a record. Check the resident ID and RLS permissions.");
 
   // Send resident notification
   if (target?.user_id) {

@@ -30,8 +30,18 @@ export default function NewRequestPage() {
     setErrorMsg(null);
 
     try {
-      // 1. Get resident user
+      // 1. Resolve the public residents row. document_requests.resident_id is
+      // intentionally not the auth user id.
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please sign in before submitting a request.");
+      const { data: resident } = await supabase
+        .from("residents")
+        .select("id, verification_status")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!resident || resident.verification_status !== "Verified") {
+        throw new Error("Your resident account must be verified before submitting a request.");
+      }
 
       // 2. Ensure document_type exists or fetch id
       let { data: docType } = await supabase
@@ -53,7 +63,7 @@ export default function NewRequestPage() {
       const { error: reqError } = await supabase
         .from("document_requests")
         .insert({
-          resident_id: user?.id || null,
+          resident_id: resident.id,
           document_type_id: docType?.id || null,
           status: "Pending",
           remarks: purpose || `Requested ${selectedType}`,
@@ -61,6 +71,13 @@ export default function NewRequestPage() {
         });
 
       if (reqError) throw new Error(reqError.message);
+
+      await supabase.from("transactions").insert({
+        user_id: user.id,
+        module: "Documents",
+        action: "Create Request",
+        description: `Submitted ${selectedType} request.`,
+      });
 
       setSubmitted(true);
     } catch (err: any) {

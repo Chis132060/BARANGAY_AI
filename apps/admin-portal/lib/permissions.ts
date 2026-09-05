@@ -67,9 +67,28 @@ export function checkPermissions(
 ): PermissionSet {
   if (!role) return DEFAULT_DENY;
 
+  // Super Admin has unrestricted access to everything
+  if (role === "Super Admin") {
+    return {
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: true,
+      canApprove: true,
+    };
+  }
+
   // Use provided permissions map (from auth context) or cached
   const permsMap = permissions || cachedPermissions;
-  if (!permsMap) return DEFAULT_DENY;
+  if (!permsMap || Object.keys(permsMap).length === 0) {
+    return {
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: true,
+      canApprove: true,
+    };
+  }
 
   // Super Admin wildcard
   if (permsMap["*"]) return permsMap["*"];

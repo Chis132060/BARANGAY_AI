@@ -1,70 +1,14 @@
-import { Users, Home, Search, Plus, Filter } from "lucide-react";
+import { fetchHouseholds } from "../actions";
 
 export const metadata = { title: "Household Management | Admin" };
 
-const mockHouseholds = [
-  { id: "HH-2026-001", head: "Juan Dela Cruz", address: "123 Mabini St., Purok 1", members: 5, status: "Verified" },
-  { id: "HH-2026-002", head: "Maria Santos", address: "45 Rizal Ave., Purok 2", members: 4, status: "Verified" },
-  { id: "HH-2026-003", head: "Antonio Luna", address: "78 Bonifacio Rd., Purok 3", members: 6, status: "Pending Verification" },
-];
-
-export default function HouseholdPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-5">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Household Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage barangay household records and family trees.</p>
-        </div>
-        <button className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm shadow hover:bg-primary/95 transition-all">
-          <Plus className="h-4 w-4" /> Add Household
-        </button>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search household by head of family or address..."
-            className="w-full bg-background border rounded-lg pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-        <button className="flex items-center gap-1.5 border px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-accent">
-          <Filter className="h-4 w-4" /> Filter
-        </button>
-      </div>
-
-      <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">Household ID</th>
-              <th className="px-6 py-3">Head of Family</th>
-              <th className="px-6 py-3">Address</th>
-              <th className="px-6 py-3">Members</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {mockHouseholds.map((hh) => (
-              <tr key={hh.id} className="hover:bg-muted/40 transition-colors">
-                <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{hh.id}</td>
-                <td className="px-6 py-4 font-medium">{hh.head}</td>
-                <td className="px-6 py-4 text-muted-foreground">{hh.address}</td>
-                <td className="px-6 py-4 font-semibold">{hh.members}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    hh.status === "Verified" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                  }`}>
-                    {hh.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+export default async function HouseholdPage() {
+  let households: Awaited<ReturnType<typeof fetchHouseholds>> = [];
+  let error = "";
+  try { households = await fetchHouseholds(); } catch (err: any) { error = err.message || "Unable to load household records."; }
+  return <div className="space-y-6">
+    <div className="border-b pb-5"><h1 className="text-3xl font-bold tracking-tight">Household Management</h1><p className="mt-1 text-sm text-muted-foreground">Live household records and family counts from the barangay database.</p></div>
+    {error && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</div>}
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><tr><th className="px-6 py-3">Household No.</th><th className="px-6 py-3">Head of Family</th><th className="px-6 py-3">Housing Type</th><th className="px-6 py-3">Members</th><th className="px-6 py-3">Monthly Income</th></tr></thead><tbody className="divide-y">{households.map((household) => <tr key={household.id} className="hover:bg-muted/40"><td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{household.household_number}</td><td className="px-6 py-4 font-medium">{household.head ? `${household.head.first_name} ${household.head.last_name}` : "No head assigned"}</td><td className="px-6 py-4 text-muted-foreground">{household.housing_type || "Not recorded"}</td><td className="px-6 py-4 font-semibold">{household.member_count ?? 0}</td><td className="px-6 py-4 text-muted-foreground">₱{Number(household.monthly_income || 0).toLocaleString()}</td></tr>)}</tbody></table></div>{!error && households.length === 0 && <p className="p-10 text-center text-sm text-muted-foreground">No household records found.</p>}</div>
+  </div>;
 }

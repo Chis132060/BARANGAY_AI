@@ -1,53 +1,15 @@
-import { Accessibility, Search, Download, Plus } from "lucide-react";
+import { Accessibility } from "lucide-react";
+import { fetchResidents } from "../actions";
 
 export const metadata = { title: "PWD Directory | Admin" };
 
-const mockPWDs = [
-  { pwdId: "PWD-2025-012", name: "Gabriel Garcia", disabilityType: "Visual Impairment", guardian: "Elena Garcia", status: "Verified" },
-  { pwdId: "PWD-2025-034", name: "Luzviminda Cruz", disabilityType: "Physical / Mobility", guardian: "Self", status: "Verified" },
-];
-
-export default function PWDPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-5">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">PWD Directory</h1>
-          <p className="text-sm text-muted-foreground mt-1">Persons with Disability (PWD) barangay records & assistance program tracking.</p>
-        </div>
-        <button className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm shadow hover:bg-primary/95">
-          <Plus className="h-4 w-4" /> Register PWD Member
-        </button>
-      </div>
-
-      <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">PWD ID</th>
-              <th className="px-6 py-3">Full Name</th>
-              <th className="px-6 py-3">Disability Category</th>
-              <th className="px-6 py-3">Guardian</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {mockPWDs.map((pwd) => (
-              <tr key={pwd.pwdId} className="hover:bg-muted/40 transition-colors">
-                <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{pwd.pwdId}</td>
-                <td className="px-6 py-4 font-medium">{pwd.name}</td>
-                <td className="px-6 py-4 text-muted-foreground">{pwd.disabilityType}</td>
-                <td className="px-6 py-4">{pwd.guardian}</td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                    {pwd.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+export default async function PWDPage() {
+  let residents: Awaited<ReturnType<typeof fetchResidents>> = [];
+  let error = "";
+  try { residents = await fetchResidents("", "PWD"); } catch (err: any) { error = err.message || "Unable to load PWD records."; }
+  return <div className="space-y-6">
+    <div className="border-b pb-5"><h1 className="text-3xl font-bold tracking-tight">PWD Directory</h1><p className="mt-1 text-sm text-muted-foreground">Live Persons with Disability records from the resident registry.</p></div>
+    {error && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</div>}
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="border-b bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><tr><th className="px-6 py-3">Resident ID</th><th className="px-6 py-3">Full Name</th><th className="px-6 py-3">Contact</th><th className="px-6 py-3">Address</th><th className="px-6 py-3">Verification</th></tr></thead><tbody className="divide-y">{residents.map((resident) => <tr key={resident.id} className="hover:bg-muted/40"><td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{resident.id.slice(0, 8)}</td><td className="px-6 py-4 font-medium">{resident.first_name} {resident.last_name}</td><td className="px-6 py-4 text-muted-foreground">{resident.contact_number || "N/A"}</td><td className="px-6 py-4 text-muted-foreground">{resident.address ? [resident.address.house_number, resident.address.street, resident.address.purok].filter(Boolean).join(", ") : "Not recorded"}</td><td className="px-6 py-4"><span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800"><Accessibility className="h-3 w-3" />{resident.verification_status || "Recorded"}</span></td></tr>)}</tbody></table></div>{!error && residents.length === 0 && <p className="p-10 text-center text-sm text-muted-foreground">No PWD records found.</p>}</div>
+  </div>;
 }

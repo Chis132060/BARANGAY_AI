@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Smart Barangay AI - Requirements Audit</title>
+  <style>
+    @page { size: A4; margin: 16mm 14mm 16mm; }
+    :root { --blue:#155eef; --ink:#172033; --muted:#5b6475; --line:#dce2ec; --amber:#a15c00; --red:#b42318; --green:#067647; }
+    * { box-sizing:border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color:var(--ink); font-size:10px; line-height:1.45; margin:0; }
+    h1 { color:#0b3b91; font-size:25px; margin:0 0 4px; }
+    h2 { color:#0b3b91; font-size:15px; margin:20px 0 8px; border-bottom:2px solid #d9e5ff; padding-bottom:4px; }
+    h3 { font-size:11px; margin:14px 0 4px; }
+    p { margin:5px 0; }
+    .subtitle { color:var(--muted); font-size:12px; }
+    .meta { margin-top:15px; padding:9px 11px; background:#f4f7fb; border-left:4px solid var(--blue); }
+    .summary { display:flex; gap:7px; margin:12px 0 16px; }
+    .stat { flex:1; border:1px solid var(--line); border-radius:6px; padding:8px; text-align:center; }
+    .stat strong { display:block; font-size:18px; }
+    .stat span { color:var(--muted); font-size:9px; }
+    table { border-collapse:collapse; width:100%; margin:6px 0 10px; page-break-inside:auto; }
+    th,td { border:1px solid var(--line); padding:6px 7px; vertical-align:top; text-align:left; }
+    th { background:#edf3ff; color:#173b78; font-size:9px; }
+    tr { page-break-inside:avoid; }
+    td:first-child { width:22%; font-weight:bold; }
+    td:nth-child(2) { width:14%; font-weight:bold; }
+    .status-partial { color:var(--amber); }
+    .status-missing { color:var(--red); }
+    .status-broken { color:var(--red); }
+    .status-mock { color:#7a4e00; }
+    .note { color:var(--muted); font-size:9px; }
+    code { font-family: Consolas, monospace; font-size:8.5px; color:#344054; }
+    .priority { padding-left:18px; }
+    .priority li { margin:5px 0; }
+    .footer { margin-top:18px; padding-top:7px; border-top:1px solid var(--line); color:var(--muted); font-size:8.5px; }
+  </style>
+</head>
+<body>
+  <h1>Smart Barangay AI</h1>
+  <div class="subtitle">Requirements Audit Report</div>
+  <div class="meta"><strong>Audit date:</strong> 31 August 2026<br><strong>Audited branch:</strong> <code>fix/sync-admin-resident-supabase</code>, synchronized with <code>origin/main</code> at <code>0d23a14</code><br><strong>Scope:</strong> Resident PWA, Admin Portal, API, and Supabase schema<br><strong>Assessment rule:</strong> A feature is considered existing only when it is persisted and works end-to-end, not merely displayed in a mock or static screen.</div>
+
+  <div class="summary">
+    <div class="stat"><strong class="status-partial">5</strong><span>Partial / broken</span></div>
+    <div class="stat"><strong class="status-missing">1</strong><span>Missing</span></div>
+    <div class="stat"><strong class="status-partial">1</strong><span>Implemented</span></div>
+  </div>
+
+  <h2>Requirement Matrix</h2>
+  <table>
+    <thead><tr><th>Requirement</th><th>Status</th><th>Evidence and audit finding</th></tr></thead>
+    <tbody>
+      <tr><td>Chatbot: dynamic form</td><td class="status-partial">Partial</td><td>The chatbot detects document keywords and opens an in-chat form. The form only collects a purpose/notes field. It has no dynamic service-specific fields, document uploads, requirements validation, or structured form data.<br><code>apps/resident-pwa/components/chat/InChatFormCard.tsx:22-53</code></td></tr>
+      <tr><td>Admin receives requests; one transaction/chatbot session for multiple requests</td><td class="status-broken">Partial / broken in real DB</td><td>The Admin Portal has a request queue and status actions. However, requests are not grouped to a chatbot session or transaction. The frontend creates a session ID but saves chat messages with <code>session_id: null</code>. The request form submits the auth user ID as <code>resident_id</code>, while the database expects a residents-table ID.<br><code>apps/resident-pwa/app/(app)/requests/new/page.tsx:52-61</code><br><code>supabase_schema.sql:91-99</code></td></tr>
+      <tr><td>Notify users when documents are ready for pickup, including payment requirements</td><td class="status-partial">Partial</td><td>A resident notification inbox exists and Admin can mark a request as Released. There is no automatic notification when a status changes. There are also no payment amount, due status, receipt, or payment-required fields in the request/notification model.<br><code>apps/admin-portal/app/(dashboard)/documents/actions.ts:55-90</code><br><code>supabase_schema.sql:206-221</code></td></tr>
+      <tr><td>Admin generates a filled template from chatbot data</td><td class="status-missing">Missing</td><td>The documents table only stores a file URL and generating user. No request form payload, document templates, field mapping, or PDF/DOCX generation workflow exists.<br><code>supabase_schema.sql:102-107</code></td></tr>
+      <tr><td>Requests recorded for dashboard reports</td><td class="status-partial">Partial</td><td>Document requests are stored and the dashboard counts pending requests. Monthly transaction chart data is hard-coded, and the Reports page displays static mock reports rather than generating or downloading reports from database records.<br><code>apps/admin-portal/app/(dashboard)/dashboard/actions.ts:28-76</code></td></tr>
+      <tr><td>User registration requires staff review, validation, and approval</td><td class="status-partial">Implemented</td><td>The latest main branch now links the auth user to the resident profile, saves the address, assigns the Resident role, restricts pending/rejected accounts, loads pending residents from the database, supports staff-permission checks, approve/reject actions, rejection reasons, audit logging, and realtime queue refresh. The new migration must be applied to the deployed Supabase project. Applicant notifications after approval/rejection are still absent.<br><code>apps/resident-pwa/components/auth/RegisterForm.tsx:61-137</code><br><code>apps/admin-portal/app/(dashboard)/residents/actions.ts:141-268</code><br><code>supabase/migrations/001_registration_approval_rbac.sql:1-204</code></td></tr>
+      <tr><td>Clickable predefined questions only when answers are available</td><td class="status-partial">Partial</td><td>Five welcome buttons are hard-coded. They are not dynamically filtered against available knowledge or answerability. The knowledge base includes additional topics such as Business Clearance and Events, but those are not included in the buttons.<br><code>apps/resident-pwa/components/chat/ChatInterface.tsx:363-373</code><br><code>apps/resident-pwa/lib/ai/policy-knowledge.ts:12-64</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capstone / Thesis Alignment Review</h2>
+  <p>The attached 79-page capstone, <em>Smart Barangay: An AI-Powered Web and Mobile Services Portal for Barangay Tandang Sora, Butuan City</em>, was reviewed as the system's intended specification. The following checks go beyond the original feature checklist.</p>
+  <table>
+    <thead><tr><th>Capstone claim</th><th>Alignment</th><th>Deeper finding</th></tr></thead>
+    <tbody>
+      <tr><td>Two synchronized components: staff Web Portal and resident Mobile/PWA application</td><td class="status-partial">Partial</td><td>Both Next.js applications exist and share Supabase. Synchronization is not yet reliable for requests because of the resident-ID mismatch, and several admin modules are still mock/static screens. The resident application is a PWA, not a native Android/iOS application.</td></tr>
+      <tr><td>AI-powered multilingual chatbot using LLM, NLP, and RAG from approved barangay documents</td><td class="status-partial">Partial</td><td>A FastAPI/RAG path and multilingual controls exist, but the resident route can fall back to client/local keyword knowledge. The built-in fallback contains fixed policy answers, so production answerability must be tied to approved, versioned barangay sources only. The RAG/API deployment and source freshness need an integration test.</td></tr>
+      <tr><td>Session-based AI memory maintains context across turns</td><td class="status-broken">Not aligned</td><td>The frontend creates a random session ID but stores chat messages with a null session. The repository has both <code>chat_sessions/chat_messages</code> and <code>ai_sessions/ai_messages</code> models, with no single end-to-end session contract. Memory persistence is therefore unreliable.</td></tr>
+      <tr><td>Session privacy and deletion under the Data Privacy Act</td><td class="status-broken">Not aligned</td><td>The thesis says session data is isolated and permanently deleted when a session ends. The current app loads and persists chat history, while the backend has memory/audit persistence and no resident-facing end-session deletion flow. Define retention, deletion, audit minimization, and consent rules before claiming compliance.</td></tr>
+      <tr><td>Dynamic form generation inside chat, followed by automatic routing to staff</td><td class="status-partial">Partial / broken</td><td>Only a fixed purpose textarea is shown. The request payload lacks service-specific fields, uploads, validation, session linkage, and a durable routing/group identifier. Admin queue retrieval exists but the resident foreign-key path must be corrected.</td></tr>
+      <tr><td>Admin manages residents, senior citizens, documents, announcements, and reports</td><td class="status-partial">Partial</td><td>General resident CRUD and registration approval are real paths. Senior, PWD, household, certificate, business-clearance, and several community/report views still use mock arrays or local state. These cannot support capstone claims of synchronized operational records until connected to database actions.</td></tr>
+      <tr><td>Approval/rejection and notification workflow</td><td class="status-partial">Partial</td><td>Registration approval/rejection is now database-backed in the latest main branch. Document approval/release is database-backed, but neither workflow consistently creates resident notifications. PWA push/SMS delivery is not implemented; the current resident notification is in-app only.</td></tr>
+      <tr><td>Automated report generation and performance benchmarking</td><td class="status-missing">Missing</td><td>The report screen and monthly chart use static data. There is no report generation/export pipeline, senior citizen annual report implementation, or recorded benchmark for the thesis metrics: 200-query intent accuracy, report generation time, and transaction processing speed.</td></tr>
+      <tr><td>Role-based access control and secure resident records</td><td class="status-partial">Partial</td><td>RBAC and registration-related RLS were added in the latest main branch. However, the base schema documents RLS only for chat messages, and document request/data access policies are not comprehensively enforced at the database boundary. Server actions need permission checks and resident ownership checks, not UI-only protection.</td></tr>
+      <tr><td>Official Barangay Tandang Sora knowledge and operational data</td><td class="status-partial">Partial</td><td>The repository has seed policies and Tandang Sora references, but some demo/local knowledge contains fixed fees, schedules, events, and stock content. These must be marked as approved, versioned, locally verified, and auditable before they are presented as official data.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Required Work Before Claiming Capstone Completion</h2>
+  <ol class="priority">
+    <li><strong>P0 — Data correctness:</strong> Create one canonical <code>resident_id</code> lookup by authenticated user, enforce ownership with RLS, and test request creation against a real Supabase database.</li>
+    <li><strong>P0 — Session/privacy contract:</strong> Choose either <code>ai_sessions/ai_messages</code> or <code>chat_sessions/chat_messages</code>; persist the session correctly, link requests to it, implement end-session deletion/retention, and remove sensitive content from unnecessary audit logs.</li>
+    <li><strong>P0 — Request workflow:</strong> Define service configuration and dynamic fields, required documents, validation, request groups, statuses, assignment, approval/rejection reason, pickup/delivery, and payment state in the database.</li>
+    <li><strong>P0 — Notifications:</strong> Trigger in-app notifications for every status transition and add a real delivery adapter only if SMS/push is part of the approved capstone scope. Include amount, payment status, receipt, due date, and pickup instructions.</li>
+    <li><strong>P1 — Document automation:</strong> Add approved templates, field mapping, generated PDF/DOCX output, secure storage, document versioning, and an audit trail.</li>
+    <li><strong>P1 — Operational admin modules:</strong> Replace mock senior/PWD/household/certificate/business/report pages with database-backed actions and real filters.</li>
+    <li><strong>P1 — Reporting:</strong> Generate request-volume, processing-time, status, demographic, senior-citizen, and payment reports from real records with CSV/PDF export.</li>
+    <li><strong>P1 — Answer system:</strong> Make suggested questions derive from active approved knowledge/services and show a suggestion only when an answer source is available. Add source version, freshness, confidence, and escalation behavior.</li>
+    <li><strong>P1 — Evaluation evidence:</strong> Add traceable tests for the thesis claims: 200 multilingual chatbot queries, request processing latency, report generation timing, privacy/authorization tests, and UAT task completion for residents and staff.</li>
+    <li><strong>P2 — Thesis wording:</strong> Reconcile “Waterfall” versus “iterative sprints,” “mobile application” versus PWA, and “permanent deletion” versus retained chat/audit data so the written capstone matches the deployed behavior.</li>
+  </ol>
+
+  <h2>Minimum Acceptance Criteria</h2>
+  <ul class="priority">
+    <li>A registered resident can submit a request and the exact same request appears in the authorized admin queue with the correct resident identity.</li>
+    <li>A single chatbot session can create multiple related requests without losing context or mixing users.</li>
+    <li>Approval, rejection, payment-required, and ready-for-pickup events create visible notifications for the correct resident.</li>
+    <li>An authorized staff member can generate a completed official template from the submitted data and retrieve it securely.</li>
+    <li>Every dashboard value and exported report can be traced to database records and a selected date range.</li>
+    <li>Unauthenticated users, other residents, and unauthorized staff cannot read or mutate protected requests, documents, profiles, or sessions.</li>
+  </ul>
+
+  <h2>Highest-Priority Missing Work</h2>
+  <ol class="priority">
+    <li>Fix the authenticated-user to resident-profile relationship and use the correct resident ID for requests.</li>
+    <li>Implement a structured dynamic chatbot request form with service-specific fields, uploads, validation, and saved payloads.</li>
+    <li>Persist chatbot sessions and link multiple document requests to one session/transaction.</li>
+    <li>Add payment fields and automatic resident/admin notifications for approval, payment, and pickup readiness.</li>
+    <li>Connect registration review actions to the database, including validation, approval/rejection reason, and applicant notification.</li>
+    <li>Implement template generation and real dashboard/report queries using stored request data.</li>
+  </ol>
+
+  <h2>Validation Performed</h2>
+  <p>Attached thesis PDF: successfully read and reviewed (79 pages).</p>
+  <p>Resident PWA TypeScript check: passed after the branch synchronization.</p>
+  <p>Admin Portal TypeScript check: passed after the branch synchronization.</p>
+  <p>Branch synchronization: fast-forwarded to <code>origin/main</code>; local work was restored and four conflicts were resolved while preserving both sides.</p>
+  <p class="note">Type checking does not detect the runtime foreign-key mismatch or static/mock-only behavior identified in this audit.</p>
+
+  <div class="footer">Generated from the Smart Barangay AI repository audit. This report describes the current code state and does not modify application functionality.</div>
+</body>
+</html>

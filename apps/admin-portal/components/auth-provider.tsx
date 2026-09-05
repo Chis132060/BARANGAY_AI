@@ -123,8 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function hasPermission(module: string, action: keyof PermissionSet): boolean {
     if (!role) return false;
-    // Super Admin wildcard
+    // Super Admin has unrestricted access to all modules and actions
+    if (role === "Super Admin") return true;
+    // Super Admin wildcard from permissions
     if (permissions["*"]) return permissions["*"][action];
+    // Fallback if permissions table is empty or loading
+    if (Object.keys(permissions).length === 0) return true;
     return permissions[module]?.[action] ?? false;
   }
 

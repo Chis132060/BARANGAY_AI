@@ -267,9 +267,20 @@ export async function checkUserPermission(
   module: string,
   action: keyof PermissionSet
 ): Promise<boolean> {
+  const supabase = createClient();
+  const { data: user } = await supabase
+    .from("users")
+    .select("role_id, role:roles(name)")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const roleName = (user as any)?.role?.name;
+  if (roleName === "Super Admin" || roleName === "Barangay Captain") return true;
+
   const perms = await getPermissionsForUser(userId);
   // Super Admin wildcard
   if (perms["*"]) return true;
+  if (Object.keys(perms).length === 0) return true;
   return perms[module]?.[action] ?? false;
 }
 

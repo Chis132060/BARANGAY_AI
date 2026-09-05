@@ -31,6 +31,7 @@ yarn-error.log*
 # Workspace artifacts
 .antigravity/
 .brain/
+supabase/.temp/
 
 # Local-only seeders with private credentials
 *.local.js

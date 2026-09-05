@@ -21,6 +21,27 @@ function checkRateLimit(key: string, limit: number): boolean {
   return true;
 }
 
+async function writeFallbackAudit(supabase: any, input: {
+  userId?: string | null;
+  sessionId?: string | null;
+  query: string;
+  answer: string;
+  citations: string[];
+  flagged?: boolean;
+}) {
+  const { error } = await supabase.from("ai_audit_logs").insert({
+    user_id: input.userId ?? null,
+    session_id: input.sessionId ?? null,
+    query_text: input.query,
+    response_text: input.answer,
+    retrieved_chunk_ids: [],
+    model_used: "local-policy-fallback",
+    latency_ms: 0,
+    flagged: input.flagged ?? false,
+  });
+  return !error;
+}
+
 export async function POST(request: NextRequest) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -77,6 +98,7 @@ export async function POST(request: NextRequest) {
         formTitle: match?.formTitle,
         estimatedFee: match?.estimatedFee,
         guestActionTrigger: match?.guestActionTrigger,
+        auditRecorded: data.audit_recorded ?? true,
       });
     }
   } catch (err) {
@@ -85,14 +107,23 @@ export async function POST(request: NextRequest) {
 
   // Local knowledge response fallback
   if (match) {
+    const answer = match.reply;
+    const auditRecorded = await writeFallbackAudit(supabase, {
+      userId: user?.id,
+      sessionId,
+      query: message,
+      answer,
+      citations: [match.topic.title],
+    });
     return NextResponse.json({
-      answer: match.reply,
+      answer,
       citations: [match.topic.title],
       context_used: true,
       formType: match.formType,
       formTitle: match.formTitle,
       estimatedFee: match.estimatedFee,
       guestActionTrigger: match.guestActionTrigger,
+      auditRecorded,
     });
   }
 
@@ -102,9 +133,19 @@ export async function POST(request: NextRequest) {
     en: "Hello! I am your Smart Barangay AI Assistant. I can help you with Barangay Clearance, Certificate of Indigency, Certificate of Residency, ordinances, office hours, and community programs.",
   };
 
+  const answer = defaultGreeting[language] || defaultGreeting.en;
+  const auditRecorded = await writeFallbackAudit(supabase, {
+    userId: user?.id,
+    sessionId,
+    query: message,
+    answer,
+    citations: ["Barangay Official Knowledge"],
+  });
+
   return NextResponse.json({
-    answer: defaultGreeting[language] || defaultGreeting.en,
+    answer,
     citations: ["Barangay Official Knowledge"],
     context_used: false,
+    auditRecorded,
   });
 }

@@ -70,7 +70,7 @@ export function LoginForm() {
           id="email"
           type="email"
           disabled={loading}
-          placeholder="resident@barangay.gov"
+          placeholder="you@example.com"
           className="w-full rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
           {...register("email")}
         />

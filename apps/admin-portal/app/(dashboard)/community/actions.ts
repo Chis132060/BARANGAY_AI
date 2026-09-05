@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { checkUserPermission } from "../administration/rbac-actions";
 
 export interface OfficialItem {
   id: string;
@@ -64,6 +65,8 @@ export async function createOfficial(formData: {
   end_term?: string;
 }) {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "community", "canCreate"))) throw new Error("Insufficient permissions to create an official record");
 
   const { error } = await supabase
     .from("officials")
@@ -76,6 +79,27 @@ export async function createOfficial(formData: {
     });
 
   if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "CREATE_OFFICIAL", module: "community", details: formData });
+  return { success: true };
+}
+
+export async function createPurok(name: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "community", "canCreate"))) throw new Error("Insufficient permissions to create a purok");
+  const { error } = await supabase.from("puroks").insert({ name: name.trim() });
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "CREATE_PUROK", module: "community", details: { name: name.trim() } });
+  return { success: true };
+}
+
+export async function createPrecinct(number: string, location?: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "community", "canCreate"))) throw new Error("Insufficient permissions to create a precinct");
+  const { error } = await supabase.from("precincts").insert({ number: number.trim(), location: location?.trim() || null });
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "CREATE_PRECINCT", module: "community", details: { number: number.trim(), location } });
   return { success: true };
 }
 

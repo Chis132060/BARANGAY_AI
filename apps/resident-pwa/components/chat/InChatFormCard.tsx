@@ -13,7 +13,17 @@ interface InChatFormCardProps {
   formType: string;
   title: string;
   sessionId?: string;
-  formSchema?: any;
+  formSchema?: {
+    fields?: Array<{
+      name: string;
+      type?: "string" | "number" | "select" | "date" | "boolean" | "file";
+      label?: string;
+      required?: boolean;
+      options?: string[];
+      placeholder?: string;
+      accept?: string;
+    }>;
+  };
   onSubmitted?: (summary: { titles: string[]; totalFee: number; sessionId: string }) => void;
 }
 
@@ -31,6 +41,17 @@ interface DocItem {
   purokAddress?: string;
   businessName?: string;
   businessNature?: string;
+  assistanceType?: string;
+  registrationType?: string;
+  ownerContactNumber?: string;
+  dtiSecRegistrationNo?: string;
+  tin?: string;
+  establishmentType?: string;
+  capitalization?: string;
+  grossSalesPreviousYear?: string;
+  businessAddress?: string;
+  customFields: Record<string, string>;
+  attachments: File[];
 }
 
 const AVAILABLE_DOCS: { type: string; title: string; fee: number; icon: any }[] = [
@@ -40,7 +61,7 @@ const AVAILABLE_DOCS: { type: string; title: string; fee: number; icon: any }[] 
   { type: "business", title: "Business Clearance", fee: 500, icon: Building2 },
 ];
 
-export function InChatFormCard({ formType, title, sessionId: initialSessionId, onSubmitted }: InChatFormCardProps) {
+export function InChatFormCard({ formType, title, sessionId: initialSessionId, formSchema, onSubmitted }: InChatFormCardProps) {
   const [docList, setDocList] = useState<DocItem[]>(() => [
     {
       id: uuidv4(),
@@ -55,10 +76,22 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
       purokAddress: "Purok 1",
       businessName: "",
       businessNature: "Retail / Sari-Sari Store",
+      assistanceType: "Medical / Hospitalization",
+      registrationType: "New",
+      ownerContactNumber: "",
+      dtiSecRegistrationNo: "",
+      tin: "",
+      establishmentType: "Sari-sari store",
+      capitalization: "",
+      grossSalesPreviousYear: "",
+      businessAddress: "",
+      customFields: {},
+      attachments: [],
     },
   ]);
 
   const [contactNumber, setContactNumber] = useState("");
+  const [residentId, setResidentId] = useState<string | null>(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -74,10 +107,13 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
       if (user) {
         const { data: resident } = await supabase
           .from("residents")
-          .select("contact_number, addresses(purok, street)")
+          .select("id, verification_status, contact_number, addresses(purok, street)")
           .eq("user_id", user.id)
           .maybeSingle();
 
+        if (resident?.verification_status === "Verified") {
+          setResidentId(resident.id);
+        }
         if (resident?.contact_number) {
           setContactNumber(resident.contact_number);
         }
@@ -105,6 +141,17 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
         purokAddress: "Purok 1",
         businessName: "",
         businessNature: "Retail / Sari-Sari Store",
+        assistanceType: "Medical / Hospitalization",
+        registrationType: "New",
+        ownerContactNumber: "",
+        dtiSecRegistrationNo: "",
+        tin: "",
+        establishmentType: "Sari-sari store",
+        capitalization: "",
+        grossSalesPreviousYear: "",
+        businessAddress: "",
+        customFields: {},
+        attachments: [],
       },
     ]);
     setShowAddMenu(false);
@@ -130,7 +177,43 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !residentId) {
+        throw new Error("Your resident account must be verified before submitting a request.");
+      }
       const transactionSessionId = initialSessionId || `TXN-${Date.now().toString(36).toUpperCase()}`;
+
+      const invalidDoc = docList.find((doc) => {
+        if (!doc.purpose.trim()) return true;
+        if (doc.type === "business" && (!doc.businessName?.trim() || !doc.businessNature?.trim() || !doc.businessAddress?.trim())) return true;
+        if (doc.type === "residency" && doc.attachments.length === 0) return true;
+        if (doc.type === "business" && doc.attachments.length < 1) return true;
+        return false;
+      });
+      if (invalidDoc) {
+        throw new Error(
+          invalidDoc.type === "residency"
+            ? "Please attach proof of address for the Certificate of Residency."
+            : invalidDoc.type === "business"
+            ? "Business Clearance requires a business address and at least one registration or supporting document."
+            : "Please complete all required fields before submitting."
+        );
+      }
+
+      const { data: requestTransaction, error: transactionError } = await supabase
+        .from("request_transactions")
+        .insert({
+          resident_id: residentId,
+          user_id: user.id,
+          session_id: transactionSessionId,
+          status: "Pending",
+          total_fee: totalFee,
+          payment_status: totalFee === 0 ? "Free" : "Unpaid",
+        })
+        .select("id")
+        .single();
+      if (transactionError || !requestTransaction) {
+        throw new Error(transactionError?.message || "Unable to create the request transaction.");
+      }
 
       // Insert each requested document in transaction bundle
       for (const doc of docList) {
@@ -141,20 +224,15 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
           .eq("name", doc.title)
           .maybeSingle();
 
-        if (!docType) {
-          const { data: newDocType } = await supabase
-            .from("document_types")
-            .insert({ name: doc.title, description: doc.title })
-            .select("id")
-            .single();
-          docType = newDocType;
-        }
+        if (!docType) throw new Error(`${doc.title} is not configured by the Barangay. Please contact the administrator.`);
 
         // Build structured form data
         const formDataPayload: Record<string, any> = {
           purpose: doc.purpose,
           contactNumber: contactNumber,
           requestedVia: "Chatbot AI Dynamic Form",
+          requirementsStatus: doc.attachments.length > 0 ? "Complete" : "Pending",
+          ...doc.customFields,
         };
 
         if (doc.type === "clearance") {
@@ -162,28 +240,96 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
         } else if (doc.type === "indigency") {
           formDataPayload.incomeBracket = doc.incomeBracket;
           formDataPayload.dependentsCount = doc.dependentsCount;
+          formDataPayload.assistanceType = doc.assistanceType;
         } else if (doc.type === "residency") {
           formDataPayload.yearsResiding = doc.yearsResiding;
           formDataPayload.purokAddress = doc.purokAddress;
         } else if (doc.type === "business") {
           formDataPayload.businessName = doc.businessName;
           formDataPayload.businessNature = doc.businessNature;
+          formDataPayload.registrationType = doc.registrationType;
+          formDataPayload.ownerContactNumber = doc.ownerContactNumber || contactNumber;
+          formDataPayload.dtiSecRegistrationNo = doc.dtiSecRegistrationNo;
+          formDataPayload.tin = doc.tin;
+          formDataPayload.establishmentType = doc.establishmentType;
+          formDataPayload.capitalization = doc.capitalization;
+          formDataPayload.grossSalesPreviousYear = doc.grossSalesPreviousYear;
+          formDataPayload.businessAddress = doc.businessAddress;
         }
 
-        const { error } = await supabase.from("document_requests").insert({
-          resident_id: user?.id || null,
+        const { data: requestRow, error } = await supabase.from("document_requests").insert({
+          resident_id: residentId,
           document_type_id: docType?.id || null,
+          transaction_id: requestTransaction.id,
           status: "Pending",
           fee_amount: doc.fee,
           payment_status: doc.fee === 0 ? "Free" : "Unpaid",
           session_id: transactionSessionId,
           form_data: formDataPayload,
+          requirements_status: doc.attachments.length > 0 ? "Complete" : "Pending",
+          submitted_at: new Date().toISOString(),
           remarks: `[Session ${transactionSessionId}] ${doc.title}: ${doc.purpose}`,
           requested_date: new Date().toISOString(),
-        });
+        }).select("id").single();
 
         if (error) throw new Error(error.message);
+
+        for (const file of doc.attachments) {
+          if (file.size > 5 * 1024 * 1024) {
+            throw new Error(`${file.name} is larger than the 5 MB upload limit.`);
+          }
+          const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+          if (file.type && !allowedTypes.includes(file.type)) {
+            throw new Error(`${file.name} is not a supported requirement file type.`);
+          }
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const storagePath = `${user.id}/${transactionSessionId}/${doc.id}-${safeName}`;
+          const { error: uploadError } = await supabase.storage
+            .from("request-attachments")
+            .upload(storagePath, file, { contentType: file.type || "application/octet-stream", upsert: false });
+          if (uploadError) throw new Error(`Unable to upload ${file.name}: ${uploadError.message}`);
+
+          const { error: attachmentError } = await supabase.from("documents").insert({
+            request_id: requestRow?.id,
+            file_url: storagePath,
+            file_name: file.name,
+            mime_type: file.type || "application/octet-stream",
+            document_kind: "attachment",
+            uploaded_by: user.id,
+            field_snapshot: { service: doc.title, session_id: transactionSessionId },
+          });
+          if (attachmentError) throw new Error(`Unable to record ${file.name}: ${attachmentError.message}`);
+        }
+
+        // A Business Clearance request also creates the pending business
+        // registry record, so the Business Management module is not isolated
+        // from the resident transaction.
+        if (doc.type === "business" && doc.businessName?.trim()) {
+          const { error: businessError } = await supabase.from("businesses").insert({
+            owner_id: residentId,
+            business_name: doc.businessName.trim(),
+            business_type: doc.businessNature || "Other",
+            business_nature: doc.businessNature || null,
+            registration_type: doc.registrationType || "New",
+            owner_contact_number: doc.ownerContactNumber || contactNumber || null,
+            dti_sec_registration_no: doc.dtiSecRegistrationNo || null,
+            tin: doc.tin || null,
+            establishment_type: doc.establishmentType || null,
+            capitalization: doc.capitalization ? Number(doc.capitalization) : null,
+            gross_sales_previous_year: doc.grossSalesPreviousYear ? Number(doc.grossSalesPreviousYear) : null,
+            address: doc.businessAddress || "Barangay address on file",
+            status: "Pending",
+          });
+          if (businessError) throw new Error(businessError.message);
+        }
       }
+
+      await supabase.from("transactions").insert({
+        user_id: user.id,
+        module: "Documents",
+        action: "Create Request",
+        description: `Submitted ${docList.map((d) => d.title).join(", ")} via AI session ${transactionSessionId}.`,
+      });
 
       const summary = {
         titles: docList.map((d) => d.title),
@@ -386,6 +532,23 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
                     <option value="7+">7+ Persons</option>
                   </select>
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">
+                    Assistance Needed *
+                  </label>
+                  <select
+                    required
+                    value={doc.assistanceType}
+                    onChange={(e) => updateDocField(doc.id, "assistanceType", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:border-blue-600 outline-none"
+                  >
+                    <option>Medical / Hospitalization</option>
+                    <option>Education / Scholarship</option>
+                    <option>Burial Assistance</option>
+                    <option>Legal Assistance</option>
+                    <option>Other Social Assistance</option>
+                  </select>
+                </div>
               </div>
             )}
 
@@ -450,8 +613,126 @@ export function InChatFormCard({ formType, title, sessionId: initialSessionId, o
                     className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
                   />
                 </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">
+                    Registration Type *
+                  </label>
+                  <select
+                    required
+                    value={doc.registrationType}
+                    onChange={(e) => updateDocField(doc.id, "registrationType", e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:border-blue-600 outline-none"
+                  >
+                    <option>New</option>
+                    <option>Renewal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">
+                    Establishment Type *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={doc.establishmentType}
+                    onChange={(e) => updateDocField(doc.id, "establishmentType", e.target.value)}
+                    placeholder="Sari-sari store, eatery, salon"
+                    className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">
+                    DTI / SEC / CDA Registration No.
+                  </label>
+                  <input
+                    type="text"
+                    value={doc.dtiSecRegistrationNo}
+                    onChange={(e) => updateDocField(doc.id, "dtiSecRegistrationNo", e.target.value)}
+                    placeholder="Registration number"
+                    className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Owner TIN</label>
+                  <input
+                    type="text"
+                    value={doc.tin}
+                    onChange={(e) => updateDocField(doc.id, "tin", e.target.value)}
+                    placeholder="TIN (if available)"
+                    className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Capitalization (₱)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={doc.capitalization}
+                    onChange={(e) => updateDocField(doc.id, "capitalization", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Business Address *</label>
+                  <input
+                    required
+                    type="text"
+                    value={doc.businessAddress}
+                    onChange={(e) => updateDocField(doc.id, "businessAddress", e.target.value)}
+                    placeholder="House no., street, purok"
+                    className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
+                  />
+                </div>
               </div>
             )}
+
+            {Array.isArray(formSchema?.fields) && formSchema.fields
+              .filter((field) => !["purpose", "document_type", "idType", "incomeBracket", "dependentsCount", "yearsResiding", "purokAddress", "businessName", "businessNature"].includes(field.name))
+              .map((field) => (
+                <div key={field.name}>
+                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-wider">
+                    {field.label || field.name}{field.required ? " *" : ""}
+                  </label>
+                  {field.type === "select" ? (
+                    <select
+                      required={field.required}
+                      value={doc.customFields[field.name] || ""}
+                      onChange={(e) => setDocList((prev) => prev.map((item) => item.id === doc.id ? { ...item, customFields: { ...item.customFields, [field.name]: e.target.value } } : item))}
+                      className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:border-blue-600 outline-none"
+                    >
+                      <option value="">Select...</option>
+                      {(field.options || []).map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      required={field.required}
+                      type={field.type === "number" || field.type === "date" ? field.type : "text"}
+                      value={doc.customFields[field.name] || ""}
+                      onChange={(e) => setDocList((prev) => prev.map((item) => item.id === doc.id ? { ...item, customFields: { ...item.customFields, [field.name]: e.target.value } } : item))}
+                      placeholder={field.placeholder}
+                      className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 bg-white"
+                    />
+                  )}
+                </div>
+              ))}
+
+            <div className="rounded-lg border border-dashed border-blue-300 bg-blue-50/60 p-2.5">
+              <label className="block text-[10px] font-bold text-blue-900 mb-1 uppercase tracking-wider">
+                Supporting Documents {doc.type === "residency" || doc.type === "business" ? "*" : "(optional)"}
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => setDocList((prev) => prev.map((item) => item.id === doc.id ? { ...item, attachments: Array.from(e.target.files || []) } : item))}
+                className="w-full text-[10px] text-gray-600 file:mr-2 file:rounded-md file:border-0 file:bg-blue-600 file:px-2 file:py-1 file:text-[10px] file:font-semibold file:text-white"
+              />
+              {doc.attachments.length > 0 && (
+                <p className="mt-1 text-[10px] text-blue-800">{doc.attachments.length} file(s) selected: {doc.attachments.map((file) => file.name).join(", ")}</p>
+              )}
+              <p className="mt-1 text-[9px] text-blue-700">Accepted: PDF, DOC/DOCX, JPG, or PNG. Maximum size is enforced by the Barangay storage policy.</p>
+            </div>
           </div>
         ))}
 

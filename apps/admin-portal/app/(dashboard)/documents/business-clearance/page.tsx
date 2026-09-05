@@ -1,55 +1,12 @@
-import { Briefcase, Plus, Search } from "lucide-react";
+import { Briefcase } from "lucide-react";
+import { fetchDocumentRequests } from "../actions";
 
 export const metadata = { title: "Business Clearance | Admin" };
 
-const mockClearances = [
-  { clearanceNo: "BC-2026-088", businessName: "Aling Nena Variety Store", owner: "Elena Reyes", type: "SME Clearance", status: "Approved" },
-  { clearanceNo: "BC-2026-092", businessName: "QuickFix Water Station", owner: "Mark Garcia", type: "Commercial Clearance", status: "Pending Review" },
-];
-
-export default function BusinessClearancePage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-5">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Business Clearance</h1>
-          <p className="text-sm text-muted-foreground mt-1">Barangay business permits and clearance approvals directory.</p>
-        </div>
-        <button className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg text-sm shadow hover:bg-primary/95">
-          <Plus className="h-4 w-4" /> New Business Clearance
-        </button>
-      </div>
-
-      <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">Clearance No.</th>
-              <th className="px-6 py-3">Business Name</th>
-              <th className="px-6 py-3">Owner</th>
-              <th className="px-6 py-3">Clearance Type</th>
-              <th className="px-6 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {mockClearances.map((bc) => (
-              <tr key={bc.clearanceNo} className="hover:bg-muted/40 transition-colors">
-                <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{bc.clearanceNo}</td>
-                <td className="px-6 py-4 font-medium">{bc.businessName}</td>
-                <td className="px-6 py-4 text-muted-foreground">{bc.owner}</td>
-                <td className="px-6 py-4">{bc.type}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    bc.status === "Approved" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                  }`}>
-                    {bc.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+export default async function BusinessClearancePage() {
+  let requests: Awaited<ReturnType<typeof fetchDocumentRequests>> = [];
+  let error = "";
+  try { requests = await fetchDocumentRequests(); } catch (err: any) { error = err.message || "Unable to load business clearance requests."; }
+  const clearances = requests.filter((item) => item.document_type?.name?.toLowerCase().includes("business"));
+  return <div className="space-y-6"><div className="border-b pb-5"><h1 className="text-3xl font-bold tracking-tight">Business Clearance</h1><p className="mt-1 text-sm text-muted-foreground">Barangay business clearance applications linked to the live document queue.</p></div>{error && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</div>}<div className="flex items-center gap-2 text-sm text-muted-foreground"><Briefcase className="h-4 w-4" />{clearances.length} business clearance request(s)</div><div className="overflow-hidden rounded-xl border bg-card shadow-sm"><table className="w-full text-left text-sm"><thead className="border-b bg-muted/50 text-xs font-semibold uppercase text-muted-foreground"><tr><th className="px-6 py-3">Request ID</th><th className="px-6 py-3">Business / Applicant</th><th className="px-6 py-3">Purpose / Details</th><th className="px-6 py-3">Status</th><th className="px-6 py-3">Fee</th></tr></thead><tbody className="divide-y">{clearances.map((item) => <tr key={item.id}><td className="px-6 py-4 font-mono text-xs text-primary">{item.id.slice(0, 12)}</td><td className="px-6 py-4 font-medium">{item.resident ? `${item.resident.first_name} ${item.resident.last_name}` : "Applicant"}</td><td className="max-w-sm px-6 py-4 text-xs text-muted-foreground">{item.form_data?.businessName || item.remarks || "Business details not supplied"}</td><td className="px-6 py-4">{item.status}</td><td className="px-6 py-4 font-bold">₱{Number(item.fee_amount || 0).toFixed(2)}</td></tr>)}</tbody></table>{clearances.length === 0 && <p className="p-10 text-center text-sm text-muted-foreground">No business clearance requests yet.</p>}</div></div>;
 }
