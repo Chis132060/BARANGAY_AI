@@ -16,8 +16,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- 2. Secure storage.objects RLS policies
 
--- Ensure RLS is enabled for storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Ensure RLS is enabled for storage.objects (Actually, already enabled by Supabase by default, removing to avoid ERROR 42501)
 
 -- Residents can insert into their own folder (auth.uid() as root folder)
 DROP POLICY IF EXISTS "Residents can upload their own IDs" ON storage.objects;
