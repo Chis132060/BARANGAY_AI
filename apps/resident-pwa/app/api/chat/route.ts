@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
+import { getAIGreeting, AI_NAME } from "@/lib/ai/config";
 
 // Simple in-memory rate limiter: { key → { count, resetAt } }
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -19,6 +20,27 @@ function checkRateLimit(key: string, limit: number): boolean {
   if (entry.count >= limit) return false; // blocked
   entry.count += 1;
   return true;
+}
+
+async function writeFallbackAudit(supabase: any, input: {
+  userId?: string | null;
+  sessionId?: string | null;
+  query: string;
+  answer: string;
+  citations: string[];
+  flagged?: boolean;
+}) {
+  const { error } = await supabase.from("ai_audit_logs").insert({
+    user_id: input.userId ?? null,
+    session_id: input.sessionId ?? null,
+    query_text: input.query,
+    response_text: input.answer,
+    retrieved_chunk_ids: [],
+    model_used: "local-policy-fallback",
+    latency_ms: 0,
+    flagged: input.flagged ?? false,
+  });
+  return !error;
 }
 
 export async function POST(request: NextRequest) {
@@ -52,9 +74,13 @@ export async function POST(request: NextRequest) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
     const fastApiRes = await fetch(`${apiBaseUrl}/api/v1/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         query: message,
         session_id: sessionId ?? null,
@@ -62,6 +88,8 @@ export async function POST(request: NextRequest) {
         language: language,
       }),
     });
+
+    clearTimeout(timeoutId);
 
     if (fastApiRes.ok) {
       const data = await fastApiRes.json();
@@ -71,34 +99,54 @@ export async function POST(request: NextRequest) {
         formTitle: match?.formTitle,
         estimatedFee: match?.estimatedFee,
         guestActionTrigger: match?.guestActionTrigger,
+        auditRecorded: data.audit_recorded ?? true,
       });
     }
   } catch (err) {
-    console.warn("[/api/chat] API backend offline, using local policy fallback.");
+    console.warn("[/api/chat] API backend offline or timed out, using local policy fallback.");
   }
 
   // Local knowledge response fallback
   if (match) {
+    const answer = match.reply;
+    const auditRecorded = await writeFallbackAudit(supabase, {
+      userId: user?.id,
+      sessionId,
+      query: message,
+      answer,
+      citations: [match.topic.title],
+    });
     return NextResponse.json({
-      answer: match.reply,
+      answer,
       citations: [match.topic.title],
       context_used: true,
       formType: match.formType,
       formTitle: match.formTitle,
       estimatedFee: match.estimatedFee,
       guestActionTrigger: match.guestActionTrigger,
+      auditRecorded,
     });
   }
 
-  const defaultGreeting: Record<"tgl" | "ceb" | "en", string> = {
-    tgl: "Kumusta! Ako ang Smart Barangay AI Assistant. Maaari kitang tulungan tungkol sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, mga ordinansa, at mga aktibidad ng barangay.",
-    ceb: "Maayong adlaw! Ako ang Smart Barangay AI Assistant. Makatabang ko bahin sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, mga ordinansa, ug mga kalihokan sa barangay.",
-    en: "Hello! I am your Smart Barangay AI Assistant. I can help you with Barangay Clearance, Certificate of Indigency, Certificate of Residency, ordinances, office hours, and community programs.",
+  const localFallbackGreetings: Record<string, string> = {
+    tgl: `${getAIGreeting('tagalog')}`,
+    ceb: `${getAIGreeting('cebuano')}`,
+    en: `${getAIGreeting('english')}`,
   };
 
+  const answer = localFallbackGreetings[language] || localFallbackGreetings.en;
+  const auditRecorded = await writeFallbackAudit(supabase, {
+    userId: user?.id,
+    sessionId,
+    query: message,
+    answer,
+    citations: ["Barangay Official Knowledge"],
+  });
+
   return NextResponse.json({
-    answer: defaultGreeting[language] || defaultGreeting.en,
+    answer,
     citations: ["Barangay Official Knowledge"],
     context_used: false,
+    auditRecorded,
   });
 }

@@ -174,9 +174,23 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
 
   if (error) throw new Error(error.message);
 
-  return (data || []).map((res: any) => ({
-    ...res,
-    address: Array.isArray(res.address) ? res.address[0] : res.address,
+  return await Promise.all((data || []).map(async (res: any) => {
+    let signedUrl = res.id_photo_url;
+    // Generate signed URL if it's a private storage path
+    if (signedUrl && !signedUrl.startsWith("http")) {
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from("resident-ids")
+        .createSignedUrl(signedUrl, 3600); // 1 hour expiration
+      if (!urlError && urlData) {
+        signedUrl = urlData.signedUrl;
+      }
+    }
+
+    return {
+      ...res,
+      id_photo_url: signedUrl,
+      address: Array.isArray(res.address) ? res.address[0] : res.address,
+    };
   })) as PendingResident[];
 }
 

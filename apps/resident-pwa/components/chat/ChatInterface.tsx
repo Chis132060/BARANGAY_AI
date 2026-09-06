@@ -13,6 +13,7 @@ import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
+import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -57,9 +58,9 @@ function formatTime(ts?: number): string {
 
 export function ChatInterface() {
   const welcomeByLanguage: Record<TTSLanguage, string> = {
-    tgl: "Kumusta! Ako ang iyong Smart Barangay AI Assistant.\n\nMaaari mong itanong ang:\n\u2022 Mga kailangan sa Barangay Clearance\n\u2022 Mga ordinansa at patakaran\n\u2022 Certificate of Indigency\n\u2022 Oras ng opisina\n\u2022 Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.",
-    ceb: "Maayong adlaw! Ako ang imong Smart Barangay AI Assistant.\n\nMahimo kang mangutana bahin sa:\n\u2022 Mga kinahanglanon sa Barangay Clearance\n\u2022 Mga ordinansa ug polisiya\n\u2022 Certificate of Indigency\n\u2022 Oras sa opisina\n\u2022 Mga kalihokan sa barangay\n\nGigamit nako ang opisyal nga mga dokumento sa Barangay alang sa tukmang tubag.",
-    en: "Hello! I am your Smart Barangay AI Assistant.\n\nYou can ask about:\n\u2022 Barangay Clearance requirements\n\u2022 Ordinances and policies\n\u2022 Certificate of Indigency\n\u2022 Office hours\n\u2022 Community events\n\nI use official Barangay documents to provide accurate answers.",
+    tgl: `${getAIGreeting('tagalog')}\n\nMaaari mong itanong ang:\n• Mga kailangan sa Barangay Clearance\n• Mga ordinansa at patakaran\n• Certificate of Indigency\n• Oras ng opisina\n• Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.`,
+    ceb: `${getAIGreeting('cebuano')}\n\nMahimo kang mangutana bahin sa:\n• Mga kinahanglanon sa Barangay Clearance\n• Mga ordinansa ug polisiya\n• Certificate of Indigency\n• Oras sa opisina\n• Mga kalihokan sa barangay\n\nGigamit nako ang opisyal nga mga dokumento sa Barangay alang sa tukmang tubag.`,
+    en: `${getAIGreeting('english')}\n\nYou can ask about:\n• Barangay Clearance requirements\n• Ordinances and policies\n• Certificate of Indigency\n• Office hours\n• Community events\n\nI use official Barangay documents to provide accurate answers.`,
   };
 
   const [messages, setMessages] = useState<Message[]>([
@@ -266,9 +267,9 @@ export function ChatInterface() {
       <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Barangay Logo" className="h-9 w-auto object-contain shrink-0" />
-          <div>
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">Smart Barangay AI</h1>
-            <p className="text-[10px] text-gray-400 font-medium flex items-center gap-1 mt-0.5">
+          <div className="flex flex-col">
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">{AI_NAME}</h1>
+            <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
               {isLoggedIn ? (
                 <><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" />Resident Mode</>
               ) : (
@@ -343,7 +344,10 @@ export function ChatInterface() {
           {isWelcomeOnly && (
             <div className="flex flex-col items-center text-center pt-4 pb-2">
               <img src="/logo.png" alt="AI" className="h-14 w-14 object-contain mb-3" />
-              <h2 className="text-base font-bold text-gray-900">Smart Barangay AI</h2>
+              <div className="space-y-1">
+                <h2 className="text-base font-bold text-gray-900">{AI_NAME}</h2>
+                <p className="text-xs text-gray-500">Official Multilingual Assistant</p>
+              </div>
               <p className="text-xs text-gray-500 mt-1 max-w-[280px] leading-relaxed">
                 {ttsLang === "tgl"
                   ? "Pumili sa mga opisyal na katanungan sa ibaba para sa agarang sagot at application form:"
