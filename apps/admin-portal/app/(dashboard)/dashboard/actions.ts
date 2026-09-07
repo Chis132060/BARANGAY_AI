@@ -96,31 +96,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   };
 }
 
-export async function fetchRecentActivities() {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("document_requests")
-    .select(`
-      id,
-      status,
-      requested_date,
-      document_type:document_types(name),
-      resident:residents(first_name, last_name, addresses(purok))
-    `)
-    .order("requested_date", { ascending: false })
-    .limit(5);
 
-  if (error) return [];
-  
-  return (data || []).map((req: any) => ({
-    id: req.id,
-    type: "document",
-    title: req.document_type?.name || "Document Request",
-    subtitle: `${req.resident?.first_name} ${req.resident?.last_name} (${req.resident?.addresses?.[0]?.purok || 'Resident'})`,
-    status: req.status,
-    time: new Date(req.requested_date).toLocaleString(),
-  }));
-}
 
 export async function fetchMonthlyTransactions(): Promise<MonthlyTransactionItem[]> {
   const supabase = createClient();

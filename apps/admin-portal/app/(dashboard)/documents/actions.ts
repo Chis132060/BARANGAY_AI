@@ -38,6 +38,9 @@ export interface DocumentRequestItem {
   remarks?: string;
   pickup_date?: string;
   pickup_instructions?: string;
+  payment_due_date?: string;
+  payment_reference?: string;
+  payment_notes?: string;
   requested_date: string;
   released_date?: string;
 }

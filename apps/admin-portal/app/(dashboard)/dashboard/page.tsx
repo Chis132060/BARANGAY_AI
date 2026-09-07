@@ -11,7 +11,7 @@ export const metadata = {
 
 export default async function DashboardPage() {
   let metrics;
-  let recentActivities = [];
+  let recentActivities: any[] = [];
   let errorMsg = null;
 
   try {
@@ -35,6 +35,8 @@ export default async function DashboardPage() {
       totalRevenue: 0.0,
     };
   }
+
+  const populationBase = Math.max(1, metrics.totalPopulation);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
