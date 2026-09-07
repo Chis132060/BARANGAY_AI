@@ -1,7 +1,8 @@
-import { fetchDashboardMetrics, fetchRecentActivities, type RecentActivityItem } from "./actions";
+import { fetchDashboardMetrics, fetchRecentActivities } from "./actions";
 import { StatsGrid } from "./components";
 import { ShieldAlert, Clock, ArrowRight, FileCheck } from "lucide-react";
 import Link from "next/link";
+import { DashboardRealtime } from "./components/DashboardRealtime";
 
 export const metadata = {
   title: "Dashboard Overview | Smart Barangay Admin",
@@ -10,11 +11,12 @@ export const metadata = {
 
 export default async function DashboardPage() {
   let metrics;
-  let recentActivities: RecentActivityItem[] = [];
+  let recentActivities: any[] = [];
   let errorMsg = null;
 
   try {
-    [metrics, recentActivities] = await Promise.all([fetchDashboardMetrics(), fetchRecentActivities()]);
+    metrics = await fetchDashboardMetrics();
+    recentActivities = await fetchRecentActivities();
   } catch (err) {
     errorMsg = "Database connection is unavailable. Showing empty live metrics until the database reconnects.";
     metrics = {
@@ -30,10 +32,11 @@ export default async function DashboardPage() {
       completedRequests: 0,
       registeredBusinesses: 0,
       pendingRegistrations: 0,
-      totalRevenue: 0,
+      totalRevenue: 0.0,
     };
   }
-  const populationBase = Math.max(metrics.totalPopulation, 1);
+
+  const populationBase = Math.max(1, metrics.totalPopulation);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -58,6 +61,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Main Metrics Grid */}
+      <DashboardRealtime />
       <StatsGrid metrics={metrics} />
 
       {/* Activity Feed & Demographics Split Section */}
@@ -75,12 +79,10 @@ export default async function DashboardPage() {
           </div>
 
           <div className="divide-y divide-border/60">
-            {recentActivities.length === 0 ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">No recent operations recorded.</div>
-            ) : recentActivities.map((act) => (
+            {(recentActivities as { id: string; title: string; subtitle: string; status: string; time: string }[]).map((act) => (
               <div key={act.id} className="py-3 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl border text-blue-600 bg-blue-50">
+                  <div className={`p-2 rounded-xl border text-blue-600 bg-blue-50`}>
                     <FileCheck className="h-4 w-4" />
                   </div>
                   <div>

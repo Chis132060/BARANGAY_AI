@@ -25,18 +25,22 @@ export interface DocumentRequestItem {
   };
   status: "Pending" | "Under Review" | "Approved" | "Ready for Pickup" | "Released" | "Completed" | "Rejected";
   fee_amount: number;
-  payment_status: "Unpaid" | "Paid" | "Waived" | "Free";
-  payment_due_date?: string;
-  payment_reference?: string;
-  payment_received_at?: string;
-  payment_notes?: string;
-  requirements_status?: "Pending" | "Complete" | "Incomplete" | "Verified";
-  transaction_id?: string;
+  payment_status: "Unpaid" | "Pending" | "Paid" | "Waived" | "Free" | "Rejected";
   session_id?: string;
+  payments?: {
+    id: string;
+    amount: number;
+    provider: string;
+    reference_number: string;
+    status: string;
+  }[];
   form_data?: Record<string, any>;
   remarks?: string;
   pickup_date?: string;
   pickup_instructions?: string;
+  payment_due_date?: string;
+  payment_reference?: string;
+  payment_notes?: string;
   requested_date: string;
   released_date?: string;
 }
@@ -86,6 +90,13 @@ export async function fetchDocumentRequests(statusFilter = "All"): Promise<Docum
       document_type:document_types (
         name,
         description
+      ),
+      payments (
+        id,
+        amount,
+        provider,
+        reference_number,
+        status
       )
     `)
     .order("requested_date", { ascending: false });
@@ -215,6 +226,75 @@ export async function updateRequestStatus(
       details: { request_id: requestId, document: docName, status },
     });
   }
+
+  return { success: true };
+}
+
+export async function verifyPayment(
+  paymentId: string,
+  requestId: string,
+  status: "Paid" | "Rejected",
+  remarks?: string
+) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Use the secure RPC to update both payments and document_requests transactionally
+  const { data, error } = await supabase.rpc("verify_document_payment", {
+    p_payment_id: paymentId,
+    p_request_id: requestId,
+    p_status: status,
+    p_verified_by: user.id,
+    p_remarks: remarks || null
+  });
+
+  if (error) {
+    console.error("RPC verify_document_payment error:", error.message);
+    throw new Error(error.message);
+  }
+
+  // Fetch request details for notification
+  const { data: existingReq } = await supabase
+    .from("document_requests")
+    .select(`
+      id,
+      resident_id,
+      document_type:document_types(name),
+      resident:residents(user_id, first_name, last_name)
+    `)
+    .eq("id", requestId)
+    .single();
+
+  const residentUserId = (existingReq as any)?.resident?.user_id;
+  const docName = (existingReq as any)?.document_type?.name || "Document";
+
+  if (residentUserId) {
+    let notifTitle = `Payment ${status}`;
+    let notifMsg = `Your payment for ${docName} has been ${status.toLowerCase()}.`;
+    
+    if (status === "Rejected") {
+      notifMsg += remarks ? ` Reason: ${remarks}` : " Please check your payment details.";
+    }
+
+    await supabase.from("notifications").insert({
+      user_id: residentUserId,
+      title: notifTitle,
+      message: notifMsg,
+      read_status: false,
+    });
+  }
+
+  // Audit transaction log
+  await supabase.from("transactions").insert({
+    user_id: user.id,
+    module: "Payments",
+    action: "Verification",
+    description: `Payment ${paymentId} for request ${requestId} marked as ${status}.`,
+  });
 
   return { success: true };
 }
