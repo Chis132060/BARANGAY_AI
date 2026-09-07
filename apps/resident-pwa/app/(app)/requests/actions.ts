@@ -15,6 +15,17 @@ export async function submitDocumentRequest(formData: FormData) {
     throw new Error("Unauthorized");
   }
 
+  // 2. Fetch the authenticated resident's UUID from residents table
+  const { data: resident, error: resError } = await supabase
+    .from("residents")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (resError || !resident) {
+    throw new Error("Resident profile not found. Please complete your registration first.");
+  }
+
   const documentTypeId = formData.get("documentTypeId") as string;
   const purpose = formData.get("purpose") as string;
   const requirementsJson = formData.get("requirements") as string;
@@ -32,7 +43,7 @@ export async function submitDocumentRequest(formData: FormData) {
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
 
-  // 2. Validate and upload each requirement
+  // 3. Validate and upload each requirement
   for (const req of requirements) {
     const file = formData.get(`file_${req}`) as File | null;
     if (!file) {
@@ -75,11 +86,11 @@ export async function submitDocumentRequest(formData: FormData) {
     });
   }
 
-  // 3. Insert document request
+  // 4. Insert document request using resident.id (residents table UUID, not auth UID)
   const { error: reqError } = await supabase
     .from("document_requests")
     .insert({
-      resident_id: user.id,
+      resident_id: resident.id,
       document_type_id: documentTypeId,
       status: "Pending",
       remarks: purpose,

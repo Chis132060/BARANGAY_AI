@@ -12,7 +12,18 @@ export async function submitPaymentReference(requestId: string, referenceNumber:
     throw new Error("Unauthorized");
   }
 
-  // 2. Fetch the request to verify ownership and amount
+  // 2. Fetch the authenticated resident record
+  const { data: resident, error: resError } = await supabase
+    .from("residents")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (resError || !resident) {
+    throw new Error("Resident profile not found");
+  }
+
+  // 3. Fetch the request to verify ownership and amount
   const { data: request, error: reqError } = await supabase
     .from("document_requests")
     .select("resident_id, fee_amount, payment_status")
@@ -23,7 +34,8 @@ export async function submitPaymentReference(requestId: string, referenceNumber:
     throw new Error("Request not found");
   }
 
-  if (request.resident_id !== user.id) {
+  // Compare residents table UUID (not auth UID)
+  if (request.resident_id !== resident.id) {
     throw new Error("Unauthorized access to this request");
   }
 

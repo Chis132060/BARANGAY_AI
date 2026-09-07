@@ -104,15 +104,8 @@ export default function NewRequestPage() {
         formData.append(`file_${req}`, file);
       });
 
-      // Submit via Server Action
+      // Submit via Server Action (transaction audit is handled server-side)
       await submitDocumentRequest(formData);
-
-      await supabase.from("transactions").insert({
-        user_id: user.id,
-        module: "Documents",
-        action: "Create Request",
-        description: `Submitted ${selectedType} request.`,
-      });
 
       setSubmitted(true);
     } catch (err: any) {
