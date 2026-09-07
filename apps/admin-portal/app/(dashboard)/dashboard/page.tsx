@@ -1,7 +1,8 @@
-import { fetchDashboardMetrics } from "./actions";
+import { fetchDashboardMetrics, fetchRecentActivities } from "./actions";
 import { StatsGrid } from "./components";
 import { ShieldAlert, Clock, ArrowRight, UserCheck, FileCheck, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { DashboardRealtime } from "./components/DashboardRealtime";
 
 export const metadata = {
   title: "Dashboard Overview | Smart Barangay Admin",
@@ -10,34 +11,30 @@ export const metadata = {
 
 export default async function DashboardPage() {
   let metrics;
+  let recentActivities = [];
   let errorMsg = null;
 
   try {
     metrics = await fetchDashboardMetrics();
+    recentActivities = await fetchRecentActivities();
   } catch (err) {
     errorMsg = "Database connection offline. Displaying real-time fallback records.";
     metrics = {
-      totalPopulation: 1420,
-      totalHouseholds: 320,
-      totalFamilies: 350,
-      registeredVoters: 840,
-      seniorCitizens: 120,
-      pwdResidents: 45,
-      fourPsMembers: 68,
-      pendingRequests: 12,
-      readyForPickupRequests: 5,
-      completedRequests: 85,
-      registeredBusinesses: 28,
+      totalPopulation: 0,
+      totalHouseholds: 0,
+      totalFamilies: 0,
+      registeredVoters: 0,
+      seniorCitizens: 0,
+      pwdResidents: 0,
+      fourPsMembers: 0,
+      pendingRequests: 0,
+      readyForPickupRequests: 0,
+      completedRequests: 0,
+      registeredBusinesses: 0,
       pendingRegistrations: 0,
-      totalRevenue: 2450.0,
+      totalRevenue: 0.0,
     };
   }
-
-  const recentActivities = [
-    { id: "1", type: "document", title: "Barangay Clearance Request", subtitle: "Juan Dela Cruz (Purok 1)", status: "Pending Review", time: "10m ago", icon: FileCheck, color: "text-blue-600 bg-blue-50" },
-    { id: "2", type: "resident", title: "New Resident Registration", subtitle: "Maria Santos (Purok 2)", status: "Verified", time: "35m ago", icon: UserCheck, color: "text-emerald-600 bg-emerald-50" },
-    { id: "3", type: "document", title: "Certificate of Indigency Released", subtitle: "Pedro Penduko (Purok 4)", status: "Ready for Pickup", time: "1h ago", icon: FileCheck, color: "text-indigo-600 bg-indigo-50" },
-  ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -62,6 +59,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Main Metrics Grid */}
+      <DashboardRealtime />
       <StatsGrid metrics={metrics} />
 
       {/* Activity Feed & Demographics Split Section */}
@@ -79,11 +77,11 @@ export default async function DashboardPage() {
           </div>
 
           <div className="divide-y divide-border/60">
-            {recentActivities.map((act) => (
+            {(recentActivities as { id: string; title: string; subtitle: string; status: string; time: string }[]).map((act) => (
               <div key={act.id} className="py-3 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl border ${act.color}`}>
-                    <act.icon className="h-4 w-4" />
+                  <div className={`p-2 rounded-xl border text-blue-600 bg-blue-50`}>
+                    <FileCheck className="h-4 w-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-foreground">{act.title}</p>

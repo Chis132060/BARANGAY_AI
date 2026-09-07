@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ClipboardList, Plus, Clock, RefreshCw, FileText, CheckCircle2,
-  AlertCircle, DollarSign, MapPin, Sparkles, HelpCircle, ArrowRight, QrCode, X, Loader2
+  ClipboardList, Clock, RefreshCw, FileText, CheckCircle2,
+  AlertCircle, DollarSign, Sparkles, ArrowRight, QrCode, X, Loader2, Eye
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import QRScanner from "@/components/payments/QRScanner";
@@ -34,6 +34,7 @@ export default function RequestsPage() {
 
   // Payment UI State
   const [payingRequest, setPayingRequest] = useState<DocRequest | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<DocRequest | null>(null);
   const [scannedQR, setScannedQR] = useState<string | null>(null);
   const [referenceInput, setReferenceInput] = useState("");
   const [submittingPayment, setSubmittingPayment] = useState(false);
@@ -41,6 +42,19 @@ export default function RequestsPage() {
 
   useEffect(() => {
     loadRequests();
+
+    // Subscribe to realtime updates for document_requests
+    const channel = supabase
+      .channel('resident-document-requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'document_requests' }, () => {
+        // Targeted refresh when user's request is updated
+        loadRequests();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function loadRequests() {
@@ -142,6 +156,14 @@ export default function RequestsPage() {
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-blue-600" : ""}`} />
           </button>
+          {/* Realtime Status Indicator */}
+          <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            Live
+          </div>
           <Link
             href="/chat"
             className="flex items-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-sm"
@@ -223,26 +245,32 @@ export default function RequestsPage() {
                       )}
                     </div>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider ${getStatusBadge(req.status)}`}>
-                    {req.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider ${getStatusBadge(req.status)}`}>
+                      {req.status}
+                    </span>
+                    <button
+                      onClick={() => setViewingRequest(req)}
+                      className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                      title="View Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Pickup Ready Alert Banner */}
+                {/* Pickup Ready Alert Banner (Compact) */}
                 {isReadyForPickup && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-950 animate-in fade-in">
-                    <div className="flex items-center gap-1.5 font-bold text-emerald-800">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>Ready for Pick Up at Barangay Hall!</span>
-                    </div>
-                    <p className="text-[11px] text-emerald-800 leading-snug">
-                      {req.pickup_instructions || "Please proceed to Frontline Window 2. Bring 1 Valid ID and exact payment if required."}
-                    </p>
-                    {req.pickup_date && (
-                      <div className="text-[10px] text-emerald-700 font-medium">
-                        Schedule: {new Date(req.pickup_date).toLocaleDateString()} (8:00 AM - 5:00 PM)
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>Ready for Pick Up!</span>
                       </div>
-                    )}
+                      <button onClick={() => setViewingRequest(req)} className="text-[10px] text-emerald-700 underline font-bold">
+                        View Details
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -280,8 +308,8 @@ export default function RequestsPage() {
                 </div>
 
                 {/* Remarks / Purpose */}
-                {req.remarks && (
-                  <p className="text-[11px] text-gray-600 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+                {req.remarks && !isReadyForPickup && (
+                  <p className="text-[11px] text-gray-600 bg-gray-50/50 p-2 rounded-lg border border-gray-100 line-clamp-1">
                     {req.remarks}
                   </p>
                 )}
@@ -350,6 +378,94 @@ export default function RequestsPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* View Details (Eye) Modal */}
+      {viewingRequest && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-bold">Request Details</h3>
+              </div>
+              <button onClick={() => setViewingRequest(null)} className="p-1 rounded-full hover:bg-gray-100 text-gray-400">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Document</p>
+                <p className="font-semibold text-gray-900">{viewingRequest.document_type?.name || "Barangay Document"}</p>
+              </div>
+              
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Status</p>
+                  <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold ${getStatusBadge(viewingRequest.status)}`}>
+                    {viewingRequest.status}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Date Requested</p>
+                  <p className="font-medium text-gray-800">{new Date(viewingRequest.requested_date).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {(viewingRequest.status.toLowerCase().includes("ready") || viewingRequest.status.toLowerCase().includes("pickup") || viewingRequest.status.toLowerCase().includes("release")) && (
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider mb-1">Pickup Instructions</p>
+                  <p className="text-xs text-emerald-900">
+                    {viewingRequest.pickup_instructions || "Please proceed to Frontline Window 2. Bring 1 Valid ID."}
+                  </p>
+                  {viewingRequest.pickup_date && (
+                    <p className="text-[10px] text-emerald-700 mt-2 font-bold">
+                      <Clock className="h-3 w-3 inline mr-1" />
+                      {new Date(viewingRequest.pickup_date).toLocaleDateString()} (8:00 AM - 5:00 PM)
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-gray-50 border p-3 rounded-xl space-y-2">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <p className="text-xs font-bold text-gray-600">Payment Status</p>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    viewingRequest.payment_status === "Paid" ? "bg-emerald-100 text-emerald-800" :
+                    viewingRequest.payment_status === "Pending" ? "bg-blue-100 text-blue-800" :
+                    viewingRequest.payment_status === "Free" || viewingRequest.fee_amount === 0 ? "bg-emerald-50 text-emerald-700" :
+                    "bg-amber-100 text-amber-800"
+                  }`}>
+                    {viewingRequest.payment_status || (viewingRequest.fee_amount === 0 ? "Free" : "Unpaid")}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-gray-600">Fee Amount</p>
+                  <p className="text-sm font-extrabold text-gray-900">
+                    {viewingRequest.fee_amount === 0 ? "FREE" : `₱${(viewingRequest.fee_amount || 0).toFixed(2)}`}
+                  </p>
+                </div>
+              </div>
+
+              {viewingRequest.remarks && (
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Remarks / Purpose</p>
+                  <p className="text-xs text-gray-700 mt-1 bg-gray-50 p-2 rounded-lg border">{viewingRequest.remarks}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => setViewingRequest(null)}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-sm font-bold transition-colors"
+              >
+                Close Details
+              </button>
+            </div>
           </div>
         </div>
       )}
