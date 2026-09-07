@@ -1,0 +1,9 @@
+feat: Implement Camera ID, AI Name Ate Sora, and TTS improvements
+
+This commit implements three key features exactly as scoped:
+
+1. Camera ID Verification: Replaced file picker with live camera capture using getUserMedia. Includes proper resource cleanup (stopping tracks) and securely uploads blob to resident-ids via server actions.
+
+2. AI Name: Centralized branding to 'Ate Sora' in lib/ai/config.ts and applied consistently across Chat UI, PDFs, and API fallbacks in multiple languages.
+
+3. TTS Improvements: Refactored useTTS into a robust state machine with sequential sentence queueing, AbortController cancellation, race-condition protection via generationRef, and robust browser language fallback.

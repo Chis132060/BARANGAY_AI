@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ClipboardList, Plus, Clock, RefreshCw, FileText, CheckCircle2,
-  AlertCircle, DollarSign, MapPin, Sparkles, HelpCircle, ArrowRight
+  AlertCircle, DollarSign, MapPin, Sparkles, HelpCircle, ArrowRight, QrCode, X, Loader2
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import QRScanner from "@/components/payments/QRScanner";
+import { submitPaymentReference } from "./payment-actions";
 
 interface DocRequest {
   id: string;
@@ -29,6 +31,13 @@ export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState("All");
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+
+  // Payment UI State
+  const [payingRequest, setPayingRequest] = useState<DocRequest | null>(null);
+  const [scannedQR, setScannedQR] = useState<string | null>(null);
+  const [referenceInput, setReferenceInput] = useState("");
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     loadRequests();
@@ -70,6 +79,27 @@ export default function RequestsPage() {
     }
   }
 
+  const handleScan = (decodedText: string) => {
+    setScannedQR(decodedText);
+  };
+
+  const handlePaymentSubmit = async () => {
+    if (!payingRequest || !referenceInput) return;
+    setSubmittingPayment(true);
+    setPaymentError(null);
+    try {
+      await submitPaymentReference(payingRequest.id, referenceInput);
+      setPayingRequest(null);
+      setScannedQR(null);
+      setReferenceInput("");
+      loadRequests();
+    } catch (err: any) {
+      setPaymentError(err.message);
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
   const filteredRequests = activeTab === "All"
     ? requests
     : requests.filter((r) => {
@@ -97,7 +127,7 @@ export default function RequestsPage() {
   };
 
   return (
-    <div className="p-4 space-y-4 pb-24">
+    <div className="p-4 space-y-4 pb-24 relative">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -225,15 +255,28 @@ export default function RequestsPage() {
                       {isFree ? "FREE (₱0.00)" : `₱${fee.toFixed(2)}`}
                     </span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                    req.payment_status === "Paid"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : req.payment_status === "Free" || isFree
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-amber-100 text-amber-800"
-                  }`}>
-                    {req.payment_status || (isFree ? "Free" : "Pay at Barangay Hall")}
-                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                      req.payment_status === "Paid"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : req.payment_status === "Pending"
+                        ? "bg-blue-100 text-blue-800"
+                        : req.payment_status === "Free" || isFree
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-100 text-amber-800"
+                    }`}>
+                      {req.payment_status || (isFree ? "Free" : "Unpaid")}
+                    </span>
+                    {!isFree && (!req.payment_status || req.payment_status === 'Unpaid' || req.payment_status === 'Rejected') && (
+                      <button 
+                        onClick={() => setPayingRequest(req)}
+                        className="flex items-center gap-1 bg-gray-900 text-white px-2 py-1 rounded-md text-[10px] font-bold hover:bg-gray-800"
+                      >
+                        <QrCode className="h-3 w-3" /> Pay GCash
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Remarks / Purpose */}
@@ -251,6 +294,63 @@ export default function RequestsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {payingRequest && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95">
+            {!scannedQR ? (
+              <QRScanner
+                onScan={handleScan}
+                onCancel={() => setPayingRequest(null)}
+              />
+            ) : (
+              <div className="p-5 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-bold">Confirm Payment</h3>
+                  <button onClick={() => { setPayingRequest(null); setScannedQR(null); setReferenceInput(""); }} className="p-1 rounded-full hover:bg-gray-100">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl space-y-2">
+                  <p className="text-xs text-blue-800">Scanned Destination:</p>
+                  <p className="text-sm font-mono font-bold break-all text-blue-900">{scannedQR}</p>
+                  <p className="text-xs text-blue-800 mt-2 font-medium">Please send exactly <strong className="text-lg">₱{payingRequest.fee_amount?.toFixed(2)}</strong> via GCash/Bank Transfer.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-700">Reference Number</label>
+                  <input 
+                    type="text"
+                    value={referenceInput}
+                    onChange={(e) => setReferenceInput(e.target.value)}
+                    placeholder="e.g. 1234567890"
+                    className="w-full p-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                  />
+                  <p className="text-[10px] text-gray-500">Enter the reference number from your payment receipt.</p>
+                </div>
+
+                {paymentError && (
+                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl flex gap-2 items-start">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <p>{paymentError}</p>
+                  </div>
+                )}
+
+                <button
+                  disabled={submittingPayment || !referenceInput}
+                  onClick={handlePaymentSubmit}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex justify-center items-center gap-2"
+                >
+                  {submittingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Submit Verification
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
