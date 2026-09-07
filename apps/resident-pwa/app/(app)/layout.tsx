@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,25 +21,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // While checking auth — render frameless (avoids flash of nav for guests)
   if (isLoggedIn === null) {
-    return (
-      <div className="relative flex flex-col max-w-md mx-auto bg-white shadow-xl min-h-screen">
-        {children}
-      </div>
-    );
+    return <div className="relative flex flex-col max-w-md mx-auto bg-white shadow-xl min-h-screen">{children}</div>;
   }
 
-  // Guest mode — no TopBar or BottomNav, just full-screen content
   if (!isLoggedIn) {
-    return (
-      <div className="relative flex flex-col max-w-md mx-auto bg-white min-h-screen">
-        {children}
-      </div>
-    );
+    return <div className="relative flex flex-col max-w-md mx-auto bg-white min-h-screen">{children}</div>;
   }
 
-  // Authenticated — full app shell
   return (
     <div className="relative flex flex-col h-full max-w-md mx-auto bg-white shadow-xl min-h-screen">
       <TopBar />
@@ -49,6 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <BottomNav />
+      <ResidentOnboardingDialog />
     </div>
   );
 }

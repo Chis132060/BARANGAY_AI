@@ -10,12 +10,12 @@ import { navigationConfig, NavigationModule } from "../../lib/navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { permissions, hasPermission } = useAuth();
+  const { role, permissions, hasPermission } = useAuth();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   // Filter modules based on dynamic permissions from DB
   const filteredModules = navigationConfig.filter((module) => {
-    if (!module.module) return true;
+    if (!module.module || role === "Super Admin") return true;
     return hasPermission(module.module, module.requiredAction || "canView");
   });
 
@@ -53,7 +53,7 @@ export function Sidebar() {
 
           // Filter children based on their own module permissions
           const allowedChildren = module.children?.filter((child) => {
-            if (!child.module) return true;
+            if (!child.module || role === "Super Admin") return true;
             return hasPermission(child.module, child.requiredAction || "canView");
           }) || [];
 

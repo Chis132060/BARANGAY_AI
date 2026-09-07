@@ -37,6 +37,14 @@ export default function RequestsPage() {
   async function loadRequests() {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please sign in to view your requests.");
+      const { data: resident } = await supabase
+        .from("residents")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!resident) throw new Error("Resident profile not found.");
       const { data, error } = await supabase
         .from("document_requests")
         .select(`
@@ -54,6 +62,7 @@ export default function RequestsPage() {
             name
           )
         `)
+        .eq("resident_id", resident.id)
         .order("requested_date", { ascending: false });
 
       if (error) {

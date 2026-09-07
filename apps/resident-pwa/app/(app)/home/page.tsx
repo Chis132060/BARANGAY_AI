@@ -42,11 +42,21 @@ export default function HomePage() {
         }
 
         // 3. Fetch active document request if any
-        const { data: reqData } = await supabase
-          .from("document_requests")
-          .select("id, status, requested_date, document_type:document_types(name)")
-          .order("requested_date", { ascending: false })
-          .limit(1);
+        let reqData: any[] | null = null;
+        const { data: resident } = await supabase
+          .from("residents")
+          .select("id")
+          .eq("user_id", user?.id || "")
+          .maybeSingle();
+        if (resident) {
+          const response = await supabase
+            .from("document_requests")
+            .select("id, status, requested_date, document_type:document_types(name)")
+            .eq("resident_id", resident.id)
+            .order("requested_date", { ascending: false })
+            .limit(1);
+          reqData = response.data;
+        }
 
         if (reqData && reqData.length > 0) {
           setActiveRequest(reqData[0]);

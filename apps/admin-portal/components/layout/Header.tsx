@@ -28,7 +28,7 @@ export function Header() {
   const [notifications, setNotifications] = useState<HeaderNotification[]>([
     { id: 1, title: "New Document Request", desc: "Juan Dela Cruz requested Barangay Clearance", time: "5m ago", isRead: false },
     { id: 2, title: "New Resident Registered", desc: "Maria Santos submitted resident record", time: "25m ago", isRead: false },
-    { id: 3, title: "Incident Report Logged", desc: "Tanod on-duty logged noise complaint in Purok 3", time: "2h ago", isRead: true },
+    { id: 3, title: "Community Announcement Published", desc: "A new barangay announcement is available to residents", time: "2h ago", isRead: true },
   ]);
 
   const unreadCount = useMemo(

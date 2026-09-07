@@ -1,0 +1,17 @@
+BARANGAY BUSINESS PERMITTING REFERENCE
+
+This is a general reference for Smart Barangay AI. The barangay or LGU must confirm current local fees, forms, signatories, and processing times before an applicant pays or submits.
+
+Business permitting should be represented using these barangay/LGU fields:
+- registration type: New or Renewal
+- business name and business nature/activity
+- owner or responsible person, contact number, and TIN
+- DTI, SEC, or CDA registration number, as applicable
+- business establishment address, purok, and location/map information
+- establishment type and capitalization or previous-year gross sales where required
+- proof of address such as lease contract or land title
+- applicable fire safety, sanitary, zoning, building, environmental, and other LGU clearances
+- barangay clearance or business-related barangay permit reference
+- application status, permit number, issue date, expiry date, fee, and official receipt number
+
+Under the Local Government Code, barangay clearance is relevant to business licensing. Under the Ease of Doing Business and Efficient Government Service Delivery Act, barangay clearances and permits related to doing business are processed through the city or municipality's prescribed permitting process, with the barangay's share remitted according to law. The AI must not invent a fee or promise issuance authority; it should use an approved local record or refer the applicant to the Barangay/BPLO.

@@ -1,6 +1,6 @@
-import { fetchDashboardMetrics } from "./actions";
+import { fetchDashboardMetrics, fetchRecentActivities, type RecentActivityItem } from "./actions";
 import { StatsGrid } from "./components";
-import { ShieldAlert, Clock, ArrowRight, UserCheck, FileCheck, AlertCircle } from "lucide-react";
+import { ShieldAlert, Clock, ArrowRight, FileCheck } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
@@ -10,34 +10,30 @@ export const metadata = {
 
 export default async function DashboardPage() {
   let metrics;
+  let recentActivities: RecentActivityItem[] = [];
   let errorMsg = null;
 
   try {
-    metrics = await fetchDashboardMetrics();
+    [metrics, recentActivities] = await Promise.all([fetchDashboardMetrics(), fetchRecentActivities()]);
   } catch (err) {
-    errorMsg = "Database connection offline. Displaying real-time fallback records.";
+    errorMsg = "Database connection is unavailable. Showing empty live metrics until the database reconnects.";
     metrics = {
-      totalPopulation: 1420,
-      totalHouseholds: 320,
-      totalFamilies: 350,
-      registeredVoters: 840,
-      seniorCitizens: 120,
-      pwdResidents: 45,
-      fourPsMembers: 68,
-      pendingRequests: 12,
-      readyForPickupRequests: 5,
-      completedRequests: 85,
-      registeredBusinesses: 28,
+      totalPopulation: 0,
+      totalHouseholds: 0,
+      totalFamilies: 0,
+      registeredVoters: 0,
+      seniorCitizens: 0,
+      pwdResidents: 0,
+      fourPsMembers: 0,
+      pendingRequests: 0,
+      readyForPickupRequests: 0,
+      completedRequests: 0,
+      registeredBusinesses: 0,
       pendingRegistrations: 0,
-      totalRevenue: 2450.0,
+      totalRevenue: 0,
     };
   }
-
-  const recentActivities = [
-    { id: "1", type: "document", title: "Barangay Clearance Request", subtitle: "Juan Dela Cruz (Purok 1)", status: "Pending Review", time: "10m ago", icon: FileCheck, color: "text-blue-600 bg-blue-50" },
-    { id: "2", type: "resident", title: "New Resident Registration", subtitle: "Maria Santos (Purok 2)", status: "Verified", time: "35m ago", icon: UserCheck, color: "text-emerald-600 bg-emerald-50" },
-    { id: "3", type: "document", title: "Certificate of Indigency Released", subtitle: "Pedro Penduko (Purok 4)", status: "Ready for Pickup", time: "1h ago", icon: FileCheck, color: "text-indigo-600 bg-indigo-50" },
-  ];
+  const populationBase = Math.max(metrics.totalPopulation, 1);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -79,11 +75,13 @@ export default async function DashboardPage() {
           </div>
 
           <div className="divide-y divide-border/60">
-            {recentActivities.map((act) => (
+            {recentActivities.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">No recent operations recorded.</div>
+            ) : recentActivities.map((act) => (
               <div key={act.id} className="py-3 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl border ${act.color}`}>
-                    <act.icon className="h-4 w-4" />
+                  <div className="p-2 rounded-xl border text-blue-600 bg-blue-50">
+                    <FileCheck className="h-4 w-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-foreground">{act.title}</p>
@@ -111,40 +109,40 @@ export default async function DashboardPage() {
             <div>
               <div className="flex justify-between font-semibold mb-1">
                 <span className="text-muted-foreground">Registered Voters</span>
-                <span className="text-foreground">{Math.round((metrics.registeredVoters / metrics.totalPopulation) * 100)}%</span>
+                <span className="text-foreground">{Math.round((metrics.registeredVoters / populationBase) * 100)}%</span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-purple-600 rounded-full" style={{ width: `${Math.round((metrics.registeredVoters / metrics.totalPopulation) * 100)}%` }} />
+                <div className="h-full bg-purple-600 rounded-full" style={{ width: `${Math.round((metrics.registeredVoters / populationBase) * 100)}%` }} />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between font-semibold mb-1">
                 <span className="text-muted-foreground">Senior Citizens</span>
-                <span className="text-foreground">{Math.round((metrics.seniorCitizens / metrics.totalPopulation) * 100)}%</span>
+                <span className="text-foreground">{Math.round((metrics.seniorCitizens / populationBase) * 100)}%</span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.round((metrics.seniorCitizens / metrics.totalPopulation) * 100)}%` }} />
+                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.round((metrics.seniorCitizens / populationBase) * 100)}%` }} />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between font-semibold mb-1">
                 <span className="text-muted-foreground">4Ps Beneficiaries</span>
-                <span className="text-foreground">{Math.round((metrics.fourPsMembers / metrics.totalPopulation) * 100)}%</span>
+                <span className="text-foreground">{Math.round((metrics.fourPsMembers / populationBase) * 100)}%</span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((metrics.fourPsMembers / metrics.totalPopulation) * 100)}%` }} />
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((metrics.fourPsMembers / populationBase) * 100)}%` }} />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between font-semibold mb-1">
                 <span className="text-muted-foreground">PWD Residents</span>
-                <span className="text-foreground">{Math.round((metrics.pwdResidents / metrics.totalPopulation) * 100)}%</span>
+                <span className="text-foreground">{Math.round((metrics.pwdResidents / populationBase) * 100)}%</span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.round((metrics.pwdResidents / metrics.totalPopulation) * 100)}%` }} />
+                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.round((metrics.pwdResidents / populationBase) * 100)}%` }} />
               </div>
             </div>
           </div>

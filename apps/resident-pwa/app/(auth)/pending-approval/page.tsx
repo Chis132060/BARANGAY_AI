@@ -3,11 +3,15 @@ import Link from "next/link";
 import { AlertTriangle, Clock3, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./sign-out-button";
+import { RefreshStatusButton } from "./refresh-status-button";
 
 export const metadata: Metadata = {
   title: "Pending Approval",
   description: "Resident account verification status.",
 };
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface ResidentVerificationStatus {
   verification_status: "Pending" | "Verified" | "Rejected";
@@ -83,12 +87,7 @@ export default async function PendingApprovalPage() {
               Continue to Home
             </Link>
           ) : (
-            <Link
-              href="/login"
-              className="block w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow hover:bg-blue-700"
-            >
-              Sign in to check again
-            </Link>
+            <RefreshStatusButton />
           )}
           {status && <SignOutButton />}
         </div>

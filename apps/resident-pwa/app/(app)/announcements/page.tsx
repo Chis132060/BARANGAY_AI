@@ -34,26 +34,8 @@ export default function AnnouncementsPage() {
 
       if (error) {
         console.error("Error fetching announcements:", error);
-      } else if (data && data.length > 0) {
-        setAnnouncements(data);
       } else {
-        // Fallback default announcements
-        setAnnouncements([
-          {
-            id: "1",
-            title: "Purok Clean-up Drive this Saturday",
-            description: "Join us for our monthly community clean-up drive. Meet at the barangay hall at 6:00 AM.",
-            category: "General",
-            published_date: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            title: "Free Vaccination Clinic for Children",
-            description: "The health center will conduct free polio and measles vaccinations for children under 5 years old.",
-            category: "Health",
-            published_date: new Date(Date.now() - 86400000).toISOString(),
-          },
-        ]);
+        setAnnouncements(data || []);
       }
     } catch (err) {
       console.error("Fetch error:", err);

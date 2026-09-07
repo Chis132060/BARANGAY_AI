@@ -14,7 +14,10 @@ interface RequestsClientProps {
     remarks?: string,
     customFee?: number,
     paymentStatus?: "Unpaid" | "Paid" | "Waived" | "Free",
-    pickupInstructions?: string
+    pickupInstructions?: string,
+    paymentDueDate?: string,
+    paymentReference?: string,
+    paymentNotes?: string
   ) => Promise<{ success: boolean }>;
 }
 
@@ -34,10 +37,13 @@ export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus }: R
     remarks = "",
     customFee?: number,
     paymentStatus?: "Unpaid" | "Paid" | "Waived" | "Free",
-    pickupInstructions?: string
+    pickupInstructions?: string,
+    paymentDueDate?: string,
+    paymentReference?: string,
+    paymentNotes?: string
   ) {
     try {
-      await onUpdateStatus(requestId, status, remarks, customFee, paymentStatus, pickupInstructions);
+      await onUpdateStatus(requestId, status, remarks, customFee, paymentStatus, pickupInstructions, paymentDueDate, paymentReference, paymentNotes);
       const updated = await onRefresh(filter);
       setRequests(updated);
     } catch (err: any) {

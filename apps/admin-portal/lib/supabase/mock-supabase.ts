@@ -175,20 +175,6 @@ const mockDocumentRequests: any[] = [
   },
 ];
 
-const mockComplaints: any[] = [
-  {
-    id: "c-1",
-    complainant_id: "res-1",
-    respondent_id: "res-4",
-    category: "Noise Complaint",
-    description: "Loud karaoke music past midnight on weekdays.",
-    status: "Filed",
-    created_at: new Date().toISOString(),
-    complainant: { first_name: "Juan", last_name: "Dela Cruz" },
-    respondent: { first_name: "Rodrigo", last_name: "Reyes" },
-  },
-];
-
 const mockBusinesses: any[] = [
   {
     id: "b-1",
@@ -290,7 +276,6 @@ const mockPermissions: any[] = [
   { id: "perm-cap-2", role_id: "role-captain", module: "residents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
   { id: "perm-cap-3", role_id: "role-captain", module: "documents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
   { id: "perm-cap-4", role_id: "role-captain", module: "community", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
-  { id: "perm-cap-5", role_id: "role-captain", module: "cases", can_view: true, can_create: true, can_edit: true, can_delete: true, can_approve: true },
   { id: "perm-cap-6", role_id: "role-captain", module: "business", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
   { id: "perm-cap-7", role_id: "role-captain", module: "communication", can_view: true, can_create: true, can_edit: true, can_delete: true, can_approve: false },
   { id: "perm-cap-8", role_id: "role-captain", module: "administration", can_view: true, can_create: false, can_edit: true, can_delete: false, can_approve: false },
@@ -299,7 +284,6 @@ const mockPermissions: any[] = [
   { id: "perm-sec-2", role_id: "role-secretary", module: "residents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
   { id: "perm-sec-3", role_id: "role-secretary", module: "documents", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
   { id: "perm-sec-4", role_id: "role-secretary", module: "community", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
-  { id: "perm-sec-5", role_id: "role-secretary", module: "cases", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
   { id: "perm-sec-6", role_id: "role-secretary", module: "business", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
   { id: "perm-sec-7", role_id: "role-secretary", module: "communication", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: false },
   { id: "perm-sec-8", role_id: "role-secretary", module: "administration", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
@@ -308,7 +292,6 @@ const mockPermissions: any[] = [
   { id: "perm-tre-2", role_id: "role-treasurer", module: "residents", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-tre-3", role_id: "role-treasurer", module: "documents", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-tre-4", role_id: "role-treasurer", module: "community", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
-  { id: "perm-tre-5", role_id: "role-treasurer", module: "cases", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-tre-6", role_id: "role-treasurer", module: "business", can_view: true, can_create: true, can_edit: true, can_delete: false, can_approve: true },
   { id: "perm-tre-7", role_id: "role-treasurer", module: "communication", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-tre-8", role_id: "role-treasurer", module: "administration", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
@@ -317,7 +300,6 @@ const mockPermissions: any[] = [
   { id: "perm-stf-2", role_id: "role-staff", module: "residents", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-stf-3", role_id: "role-staff", module: "documents", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-stf-4", role_id: "role-staff", module: "community", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
-  { id: "perm-stf-5", role_id: "role-staff", module: "cases", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-stf-6", role_id: "role-staff", module: "business", can_view: true, can_create: false, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-stf-7", role_id: "role-staff", module: "communication", can_view: true, can_create: true, can_edit: false, can_delete: false, can_approve: false },
   { id: "perm-stf-8", role_id: "role-staff", module: "administration", can_view: false, can_create: false, can_edit: false, can_delete: false, can_approve: false },
@@ -337,7 +319,6 @@ const tables: Record<string, any[]> = {
   households: mockHouseholds,
   document_types: mockDocumentTypes,
   document_requests: mockDocumentRequests,
-  complaints: mockComplaints,
   businesses: mockBusinesses,
   announcements: mockAnnouncements,
   appointments: mockAppointments,
@@ -349,6 +330,10 @@ const tables: Record<string, any[]> = {
   roles: mockRoles,
   permissions: mockPermissions,
   users: mockSystemUsers,
+  policies: [],
+  ai_audit_logs: [],
+  request_transactions: [],
+  documents: [],
 };
 
 const mockUser = {

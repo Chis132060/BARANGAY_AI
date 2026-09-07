@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Printer, Download, X, FileCheck, Shield, CheckCircle2 } from "lucide-react";
 import type { DocumentRequestItem } from "../../actions";
+import { createClient } from "@/lib/supabase/client";
 
 interface CertificateTemplateModalProps {
   request: DocumentRequestItem | null;
@@ -15,6 +16,9 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
   const [secretaryName, setSecretaryName] = useState("MARIA ELENA C. CRUZ");
   const [orNumber, setOrNumber] = useState(() => `OR-${Math.floor(100000 + Math.random() * 900000)}`);
   const [certNumber, setCertNumber] = useState(() => `CERT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [generating, setGenerating] = useState(false);
+  const [generatedId, setGeneratedId] = useState<string | null>(null);
+  const supabase = createClient();
 
   if (!isOpen || !request) return null;
 
@@ -35,7 +39,43 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
     year: "numeric",
   });
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    setGenerating(true);
+    const printable = document.getElementById("printable-certificate");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !printable) {
+      alert("Please sign in as an authorized Barangay staff member before generating a document.");
+      setGenerating(false);
+      return;
+    }
+
+    const contentHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${docTitle}</title></head><body>${printable.outerHTML}</body></html>`;
+    const { data, error } = await supabase.from("documents").insert({
+      request_id: request.id,
+      file_url: `generated://${request.id}/${certNumber}.html`,
+      generated_by: user.id,
+      uploaded_by: user.id,
+      document_kind: "generated",
+      template_key: "barangay-certificate-v1",
+      document_number: certNumber,
+      content_html: contentHtml,
+      field_snapshot: {
+        request_id: request.id,
+        document_type: docTitle,
+        resident_name: residentName,
+        purpose,
+        fee_amount: request.fee_amount,
+        payment_status: request.payment_status,
+      },
+      generated_at: new Date().toISOString(),
+    }).select("id").single();
+
+    setGenerating(false);
+    if (error) {
+      alert(`Unable to save generated document: ${error.message}`);
+      return;
+    }
+    setGeneratedId(data?.id || null);
     window.print();
   };
 
@@ -60,9 +100,10 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
+              disabled={generating}
               className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow transition-all"
             >
-              <Printer className="h-4 w-4" /> Print / Save PDF
+              <Printer className="h-4 w-4" /> {generating ? "Saving..." : generatedId ? "Print Saved Document" : "Generate & Print"}
             </button>
             <button
               onClick={onClose}

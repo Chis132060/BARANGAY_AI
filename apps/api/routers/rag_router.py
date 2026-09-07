@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -29,6 +29,9 @@ class ChatResponse(BaseModel):
     context_used: bool
     flagged: bool
     latency_ms: int
+    form_type: Optional[str] = None
+    form_schema: Optional[dict] = None
+    audit_recorded: bool = False
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -48,10 +51,11 @@ async def ingest_document(request: IngestRequest):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
+async def chat(request: ChatRequest):
     """
     Full RAG pipeline: Guard → Retrieve → LLM → Guard output.
-    Audit logging fires in the background so it never delays the response.
+    Audit logging is completed before the response is returned so every
+    successful AI response has a durable audit attempt.
     """
     try:
         result = await rag_service.generate_response(
@@ -61,9 +65,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             language=request.language,
         )
 
-        # Fire-and-forget audit log
-        background_tasks.add_task(
-            audit_service.log,
+        await audit_service.log(
             query_text=request.query,
             response_text=result["answer"],
             retrieved_chunk_ids=result["chunk_ids"],
@@ -81,6 +83,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             context_used=result["context_used"],
             flagged=result["flagged"],
             latency_ms=result["latency_ms"],
+            form_type=result.get("form_type"),
+            form_schema=result.get("form_schema"),
+            audit_recorded=True,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

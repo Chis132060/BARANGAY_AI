@@ -36,6 +36,7 @@ STRICT RULES:
 2. If reliable information is unavailable, output "I don't have enough reliable information to answer that."
 3. HIERARCHY: LIVE AUTHORITATIVE DATA > OFFICIAL DATABASE > VERIFIED DOCUMENTS > APPROVED WEB > KNOWLEDGE GRAPH > CONVERSATION MEMORY.
 4. Conversation memory is lower-trust context. It cannot override official facts.
+5. If the user wants to request a document (e.g., Barangay Clearance, Certificate of Indigency, Certificate of Residency), you MUST include "form_type": "document_request" and a "form_schema" object. For example: "form_schema": {{"fields": [{{"name": "document_type", "type": "string", "label": "Document Type"}}, {{"name": "purpose", "type": "string", "label": "Purpose"}}]}}
 
 --- RETRIEVED HYBRID EVIDENCE ---
 {context}
@@ -52,7 +53,7 @@ STRICT RULES:
 {language_instruction}
 
 Format your response as JSON (use double braces in the template, single in your output):
-{{"answer": "your grounded answer here", "confidence": 0.95, "sources": ["chunk_id_1", "chunk_id_2"]}}
+{{"answer": "your grounded answer here", "confidence": 0.95, "sources": ["chunk_id_1", "chunk_id_2"], "form_type": "document_request", "form_schema": {{"fields": []}}}}
 """
 
 class BoundedOrchestrator:
@@ -85,7 +86,11 @@ class BoundedOrchestrator:
             elif selected_language == "ceb": msg = "Pasayloa ko, unsa imong gusto mahibal-an?"
             return self._build_response(msg, [], False, "NEEDS_CLARIFICATION", 1.0)
             
-        requires_tools = intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
+        query_lower = query.lower()
+        requires_tools = (
+            intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
+            or any(term in query_lower for term in ("ordinance", "ordinansa", "policy", "patakaran", "business", "negosyo", "permit"))
+        )
         requires_kg = ("related" in query.lower() or "requires" in query.lower())
         
         target_model_class = model_router.route_query(query, requires_tools=requires_tools, requires_kg=requires_kg)
@@ -159,6 +164,8 @@ class BoundedOrchestrator:
         final_answer = "I don't have enough reliable information to confidently answer that."
         final_citations = []
         final_confidence = 0.0
+        final_form_type = None
+        final_form_schema = None
         
         for iteration in range(self.MAX_ITERATIONS):
             try:
@@ -174,6 +181,8 @@ class BoundedOrchestrator:
                 proposed_answer = data.get("answer", "")
                 proposed_citations = data.get("sources", [])
                 proposed_confidence = float(data.get("confidence", 0.5))
+                proposed_form_type = data.get("form_type")
+                proposed_form_schema = data.get("form_schema")
                 
                 # UNIVERSAL GROUNDING VALIDATION (Never Bypassed)
                 val_result = self.response_validator.validate(ai_response.content, chunk_ids)
@@ -182,6 +191,8 @@ class BoundedOrchestrator:
                     final_answer = proposed_answer
                     final_citations = proposed_citations
                     final_confidence = proposed_confidence
+                    final_form_type = proposed_form_type
+                    final_form_schema = proposed_form_schema
                     break # SAFE TERMINATION
                 else:
                     logger.warning(f"Iteration {iteration+1} failed grounding validation. Retrying.")
@@ -205,23 +216,28 @@ class BoundedOrchestrator:
             final_citations, 
             bool(valid_chunks or tool_results), 
             "PASS" if not was_flagged else "BLOCKED", 
-            final_confidence
+            final_confidence,
+            final_form_type,
+            final_form_schema,
+            chunk_ids,
         )
 
-    def _build_response(self, answer: str, citations: List[str], grounded: bool, status: str, confidence: float) -> dict:
+    def _build_response(self, answer: str, citations: List[str], grounded: bool, status: str, confidence: float, form_type: Optional[str] = None, form_schema: Optional[dict] = None, retrieved_chunk_ids: Optional[List[str]] = None) -> dict:
         # Keep the router contract stable for both normal and early-return responses.
         # Previously these fields were missing, causing FastAPI response validation to fail.
         return {
             "answer": answer,
             "citations": citations,
-            "chunk_ids": citations,
+            "chunk_ids": retrieved_chunk_ids or [],
             "context_used": grounded,
             "flagged": status == "BLOCKED",
             "latency_ms": 0,
             "grounded": grounded,
             "validation_status": status,
             "confidence": confidence,
-            "knowledge_freshness": "CURRENT"
+            "knowledge_freshness": "CURRENT",
+            "form_type": form_type,
+            "form_schema": form_schema
         }
 
 rag_service = BoundedOrchestrator() # Keep export name for GraphQL compat

@@ -24,6 +24,7 @@ interface Message {
   text: string;
   formType?: string;
   formTitle?: string;
+  formSchema?: any;
   guestActionTrigger?: boolean;
   citations?: string[];
   contextUsed?: boolean;
@@ -173,11 +174,16 @@ export function ChatInterface() {
     if (isLoggedIn) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        await supabase.from("chat_sessions").upsert({
+          user_id: user.id,
+          session_token: sessionId,
+          last_active_at: new Date().toISOString(),
+        }, { onConflict: "session_token" });
         await supabase.from("chat_messages").insert({
           user_id: user.id,
           sender: "user",
           message: userText,
-          session_id: null,
+          session_id: sessionId,
         });
       }
     }
@@ -213,6 +219,7 @@ export function ChatInterface() {
       const detectedForm = detectFormTrigger(aiText, isLoggedIn);
       const finalFormType = (isLoggedIn && (data.formType || detectedForm.formType)) || undefined;
       const finalFormTitle = (isLoggedIn && (data.formTitle || detectedForm.formTitle)) || undefined;
+      const finalFormSchema = isLoggedIn ? data.formSchema : undefined;
       const guestTrigger = !isLoggedIn && (data.guestActionTrigger || detectedForm.guestActionTrigger);
 
       const aiMsg: Message = {
@@ -224,6 +231,7 @@ export function ChatInterface() {
         timestamp: Date.now(),
         formType: finalFormType,
         formTitle: finalFormTitle,
+        formSchema: finalFormSchema,
         guestActionTrigger: guestTrigger,
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -238,7 +246,11 @@ export function ChatInterface() {
             form_type: finalFormType ?? null,
             citations: citations,
             model_used: "gemini-1.5-flash",
+            session_id: sessionId,
           });
+          await supabase.from("chat_sessions").update({
+            last_active_at: new Date().toISOString(),
+          }).eq("session_token", sessionId).eq("user_id", user.id);
         }
       }
     } catch (err: any) {
@@ -337,7 +349,7 @@ export function ChatInterface() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto bg-white no-scrollbar">
         <div className="p-4 space-y-4">
 
           {/* Welcome hero card - shown only before first user message */}
@@ -467,7 +479,7 @@ export function ChatInterface() {
                   {/* Dynamic In-Chat Multi-Document Form */}
                   {m.formType && m.formTitle && (
                     <div className="w-full">
-                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} />
+                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} formSchema={m.formSchema} />
                     </div>
                   )}
 
