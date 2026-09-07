@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
+import { getAIGreeting, AI_NAME } from "@/lib/ai/config";
 
 // Simple in-memory rate limiter: { key → { count, resetAt } }
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -127,13 +128,13 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const defaultGreeting: Record<"tgl" | "ceb" | "en", string> = {
-    tgl: "Kumusta! Ako ang Smart Barangay AI Assistant. Maaari kitang tulungan tungkol sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, mga ordinansa, at mga aktibidad ng barangay.",
-    ceb: "Maayong adlaw! Ako ang Smart Barangay AI Assistant. Makatabang ko bahin sa Barangay Clearance, Certificate of Indigency, Certificate of Residency, mga ordinansa, ug mga kalihokan sa barangay.",
-    en: "Hello! I am your Smart Barangay AI Assistant. I can help you with Barangay Clearance, Certificate of Indigency, Certificate of Residency, ordinances, office hours, and community programs.",
+  const localFallbackGreetings: Record<string, string> = {
+    tgl: `${getAIGreeting('tagalog')}`,
+    ceb: `${getAIGreeting('cebuano')}`,
+    en: `${getAIGreeting('english')}`,
   };
 
-  const answer = defaultGreeting[language] || defaultGreeting.en;
+  const answer = localFallbackGreetings[language] || localFallbackGreetings.en;
   const auditRecorded = await writeFallbackAudit(supabase, {
     userId: user?.id,
     sessionId,

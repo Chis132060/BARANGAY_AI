@@ -262,7 +262,7 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
                   <span>O.R. No: {orNumber}</span> • <span>Fee: ₱{(request.fee_amount || 0).toFixed(2)}</span> • <span>Status: {request.payment_status || "Paid"}</span>
                 </div>
                 <div className="font-serif italic text-gray-400">
-                  Not valid without official dry seal • Smart Barangay AI System
+                  Not valid without official dry seal • {process.env.NEXT_PUBLIC_AI_NAME || "Ate Sora"} System
                 </div>
               </div>
             </div>

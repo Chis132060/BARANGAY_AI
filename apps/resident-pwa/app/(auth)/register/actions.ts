@@ -1,36 +1,50 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { v4 as uuidv4 } from "uuid";
 
-export interface RegisterInput {
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-  birthDate: string;
-  gender: string;
-  contactNumber?: string;
-  houseNumber?: string;
-  street?: string;
-  purok?: string;
-  email: string;
-  password: string;
-  idType: string;
-  idPhotoUrl?: string;
-}
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-export async function registerResidentAction(input: RegisterInput): Promise<{ success?: boolean; error?: string }> {
+export async function registerResidentAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   try {
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const firstName = formData.get("firstName") as string;
+    const middleName = formData.get("middleName") as string;
+    const lastName = formData.get("lastName") as string;
+    const birthDate = formData.get("birthDate") as string;
+    const gender = formData.get("gender") as string;
+    const contactNumber = formData.get("contactNumber") as string;
+    const houseNumber = formData.get("houseNumber") as string;
+    const street = formData.get("street") as string;
+    const purok = formData.get("purok") as string;
+    const idType = formData.get("idType") as string;
+    const idBlob = formData.get("idBlob") as Blob | null;
+
+    if (!email || !password || !firstName || !lastName || !birthDate || !idBlob) {
+      return { error: "Missing required fields." };
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(idBlob.type)) {
+      return { error: "Invalid image format. Only JPEG, PNG, and WEBP are allowed." };
+    }
+
+    if (idBlob.size > MAX_FILE_SIZE) {
+      return { error: "Image size exceeds 5MB limit." };
+    }
+
     const supabase = createAdminClient();
 
     // 1. Create or retrieve auth user with auto-confirmation
     let authUserId: string;
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: input.email,
-      password: input.password,
+      email,
+      password,
       email_confirm: true,
       user_metadata: {
         role: "Resident",
-        full_name: `${input.firstName} ${input.lastName}`.trim(),
+        full_name: `${firstName} ${lastName}`.trim(),
       },
     });
 
@@ -40,7 +54,7 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
         authError.message.toLowerCase().includes("already been registered")
       ) {
         const { data: usersPage } = await supabase.auth.admin.listUsers({ page: 1, perPage: 100 });
-        const existingUser = usersPage?.users.find((u) => u.email?.toLowerCase() === input.email.toLowerCase());
+        const existingUser = usersPage?.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
         if (existingUser) {
           authUserId = existingUser.id;
         } else {
@@ -53,7 +67,24 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
       authUserId = authData.user.id;
     }
 
-    // 2. Lookup Resident role
+    // 2. Upload ID Blob securely
+    const fileName = `id_capture_${uuidv4()}.jpg`;
+    const storagePath = `${authUserId}/${fileName}`;
+    const arrayBuffer = await idBlob.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from("resident-ids")
+      .upload(storagePath, buffer, {
+        contentType: idBlob.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: `Failed to secure upload ID: ${uploadError.message}` };
+    }
+
+    // 3. Lookup Resident role
     const { data: residentRole } = await supabase
       .from("roles")
       .select("id")
@@ -62,8 +93,8 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
 
     const roleId = residentRole?.id;
 
-    // 3. Upsert user in public.users table
-    const fullName = [input.firstName, input.middleName, input.lastName].filter(Boolean).join(" ");
+    // 4. Upsert user in public.users table
+    const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
     const { data: existingUserRow } = await supabase
       .from("users")
       .select("id")
@@ -75,7 +106,7 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
         .from("users")
         .update({
           name: fullName,
-          email: input.email,
+          email,
           role_id: roleId,
           updated_at: new Date().toISOString(),
         })
@@ -84,33 +115,33 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
       await supabase.from("users").insert({
         id: authUserId,
         name: fullName,
-        email: input.email,
+        email,
         role_id: roleId,
         updated_at: new Date().toISOString(),
       });
     }
 
-    // 4. Safe insert or update in residents table (avoiding ON CONFLICT errors)
+    // 5. Safe insert or update in residents table
     const { data: existingResident } = await supabase
       .from("residents")
       .select("id")
-      .or(`user_id.eq.${authUserId},email.eq.${input.email}`)
+      .or(`user_id.eq.${authUserId},email.eq.${email}`)
       .maybeSingle();
 
     let residentId: string;
     const residentPayload = {
       user_id: authUserId,
-      email: input.email,
-      first_name: input.firstName,
-      middle_name: input.middleName || null,
-      last_name: input.lastName,
-      birth_date: input.birthDate,
-      gender: input.gender,
-      contact_number: input.contactNumber || null,
+      email,
+      first_name: firstName,
+      middle_name: middleName || null,
+      last_name: lastName,
+      birth_date: birthDate,
+      gender: gender,
+      contact_number: contactNumber || null,
       civil_status: "Single",
       verification_status: "Pending",
-      id_type: input.idType,
-      id_photo_url: input.idPhotoUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400",
+      id_type: idType,
+      id_photo_url: storagePath, // We now store the private storage path here.
       updated_at: new Date().toISOString(),
     };
 
@@ -133,7 +164,7 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
       residentId = newResident.id;
     }
 
-    // 5. Safe insert or update address
+    // 6. Safe insert or update address
     const { data: existingAddress } = await supabase
       .from("addresses")
       .select("id")
@@ -142,9 +173,9 @@ export async function registerResidentAction(input: RegisterInput): Promise<{ su
 
     const addressPayload = {
       resident_id: residentId,
-      house_number: input.houseNumber || null,
-      street: input.street || null,
-      purok: input.purok || "Purok 1",
+      house_number: houseNumber || null,
+      street: street || null,
+      purok: purok || "Purok 1",
     };
 
     if (existingAddress) {
