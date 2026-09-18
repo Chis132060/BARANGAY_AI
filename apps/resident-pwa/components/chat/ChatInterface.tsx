@@ -525,22 +525,27 @@ export function ChatInterface() {
 
       {/* Speaking presence */}
       {soraIsSpeaking && (
-        <div className="absolute inset-x-3 bottom-[8.5rem] z-30 flex items-center gap-3 rounded-2xl border border-blue-100 bg-white/95 p-3 shadow-xl shadow-blue-900/10 backdrop-blur-sm">
-          <div className="relative shrink-0">
-            <span className="absolute -inset-1 rounded-full bg-blue-400/25 animate-ping" />
-            <img src={SORA_AVATAR} alt="Ate Sora is speaking" className="relative h-12 w-12 rounded-full object-cover object-top ring-2 ring-blue-500" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-gray-900">Ate Sora is {loadingId ? "preparing your answer" : "speaking"}</p>
-            <div className="mt-1 flex h-3 items-end gap-0.5" aria-label="Ate Sora is speaking">
-              {["h-1.5", "h-2.5", "h-3", "h-2", "h-1"].map((height, index) => (
-                <span key={index} className={`w-1 rounded-full bg-blue-500 animate-pulse ${height}`} style={{ animationDelay: `${index * 90}ms` }} />
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ate Sora voice playback">
+          <div className="w-full max-w-sm rounded-[2rem] border border-white/70 bg-white px-5 py-7 text-center shadow-2xl shadow-slate-950/30">
+            <div className="relative mx-auto mb-5 h-44 w-44">
+              <span className="absolute inset-0 rounded-full bg-blue-300/30 animate-ping" />
+              <span className="absolute -inset-3 rounded-full border border-blue-200 animate-pulse" />
+              <div className="relative h-full w-full overflow-hidden rounded-full bg-blue-50 ring-4 ring-white shadow-xl">
+                <img src={SORA_AVATAR} alt="Ate Sora is speaking" className="h-full w-full object-cover object-top" />
+                <span className="absolute left-1/2 top-[62%] h-3 w-7 -translate-x-1/2 rounded-full bg-[#9D3E55] shadow-sm animate-pulse" aria-hidden="true" />
+              </div>
+            </div>
+            <p className="text-lg font-extrabold tracking-tight text-gray-900">Ate Sora</p>
+            <p className="mt-1 text-sm font-medium text-blue-600">{loadingId ? "Preparing your answer..." : "Speaking..."}</p>
+            <div className="mx-auto mt-5 flex h-8 items-end justify-center gap-1.5" aria-label="Ate Sora is speaking">
+              {["h-3", "h-6", "h-8", "h-5", "h-7", "h-4", "h-6"].map((height, index) => (
+                <span key={index} className={`w-1.5 rounded-full bg-blue-500 animate-pulse ${height}`} style={{ animationDelay: `${index * 90}ms` }} />
               ))}
             </div>
+            <button type="button" onClick={stop} className="mt-6 min-h-11 w-full rounded-2xl bg-red-500 px-5 text-sm font-bold text-white shadow-lg shadow-red-200 transition hover:bg-red-600">
+              Stop speaking
+            </button>
           </div>
-          <button type="button" onClick={stop} className="rounded-full px-3 py-1.5 text-[11px] font-bold text-red-600 hover:bg-red-50">
-            Stop
-          </button>
         </div>
       )}
 
