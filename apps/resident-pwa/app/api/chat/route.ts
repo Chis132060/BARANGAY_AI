@@ -1,7 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
-import { getAIGreeting, AI_NAME } from "@/lib/ai/config";
+import { getAIGreeting } from "@/lib/ai/config";
+
+// Fetch published policies from DB matching a query keyword
+async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ title: string; content: string }[]> {
+  const keywords = query.toLowerCase().split(' ').filter(w => w.length > 3);
+  if (!keywords.length) return [];
+
+  const { data } = await supabase
+    .from('barangay_policies')
+    .select('title, content')
+    .eq('status', 'Published')
+    .limit(3);
+
+  if (!data || !data.length) return [];
+
+  // Filter to policies whose title or content contains any query keyword
+  return data.filter((p: any) =>
+    keywords.some(
+      (kw: string) =>
+        p.title.toLowerCase().includes(kw) ||
+        p.content.toLowerCase().includes(kw)
+    )
+  );
+}
 
 // Simple in-memory rate limiter: { key → { count, resetAt } }
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -126,6 +149,16 @@ export async function POST(request: NextRequest) {
       guestActionTrigger: match.guestActionTrigger,
       auditRecorded,
     });
+  }
+
+  // Dynamic DB policy lookup — check Published barangay_policies for matching content
+  const dbPolicies = await fetchMatchingPolicies(supabase, message);
+  if (dbPolicies.length > 0) {
+    const policyContext = dbPolicies.map(p => `**${p.title}**:\n${p.content}`).join('\n\n');
+    const answer = `Based on Barangay Records:\n\n${policyContext}`;
+    const citations = dbPolicies.map(p => p.title);
+    await writeFallbackAudit(supabase, { userId: user?.id, sessionId, query: message, answer, citations });
+    return NextResponse.json({ answer, citations, context_used: true, auditRecorded: true });
   }
 
   const localFallbackGreetings: Record<string, string> = {

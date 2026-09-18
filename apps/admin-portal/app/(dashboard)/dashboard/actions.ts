@@ -92,9 +92,11 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     completedRequests: completedRequests || 0,
     registeredBusinesses: registeredBusinesses || 0,
     pendingRegistrations: pendingRegistrations || 0,
-    totalRevenue: totalRev,
+    totalRevenue: totalRev || 0,
   };
 }
+
+
 
 export async function fetchMonthlyTransactions(): Promise<MonthlyTransactionItem[]> {
   const supabase = createClient();

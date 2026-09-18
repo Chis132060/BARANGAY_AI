@@ -28,9 +28,15 @@ interface RequestsTableProps {
     paymentReference?: string,
     paymentNotes?: string
   ) => Promise<void>;
+  onVerifyPayment: (
+    paymentId: string,
+    requestId: string,
+    status: "Paid" | "Rejected",
+    remarks?: string
+  ) => Promise<void>;
 }
 
-export function RequestsTable({ requests, onAction }: RequestsTableProps) {
+export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsTableProps) {
   const [selectedForCert, setSelectedForCert] = useState<DocumentRequestItem | null>(null);
   const [pickupModalReq, setPickupModalReq] = useState<DocumentRequestItem | null>(null);
 
@@ -47,7 +53,7 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
     setPickupModalReq(req);
     const defaultFee = req.fee_amount !== undefined ? req.fee_amount : (req.document_type?.name?.toLowerCase().includes("indigency") ? 0 : 50);
     setPickupFee(defaultFee);
-    setPickupPaymentStatus(defaultFee === 0 ? "Free" : (req.payment_status || "Unpaid"));
+    setPickupPaymentStatus(defaultFee === 0 ? "Free" : ((req.payment_status as any) || "Unpaid"));
     setPickupInstructions(req.pickup_instructions || "Please proceed to Window 2 with 1 Valid ID and exact payment.");
     setPaymentDueDate(req.payment_due_date ? req.payment_due_date.slice(0, 10) : "");
     setPaymentReference(req.payment_reference || "");
@@ -136,9 +142,12 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
                             <span className="text-blue-700">₱{(req.fee_amount ?? 0).toFixed(2)}</span>
                           )}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          <span className={`inline-block px-1.5 py-0.2 rounded font-semibold ${
-                            req.payment_status === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-50 text-amber-700"
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          <span className={`inline-block px-1.5 py-0.5 rounded font-semibold ${
+                            req.payment_status === "Paid" ? "bg-emerald-100 text-emerald-800" : 
+                            req.payment_status === "Pending" ? "bg-amber-100 text-amber-800 border border-amber-200 animate-pulse" :
+                            req.payment_status === "Rejected" ? "bg-red-100 text-red-800" :
+                            "bg-gray-100 text-gray-700"
                           }`}>
                             {req.payment_status || (isFree ? "Free" : "Unpaid")}
                           </span>
@@ -181,6 +190,31 @@ export function RequestsTable({ requests, onAction }: RequestsTableProps) {
                         >
                           <Printer className="h-3.5 w-3.5" /> Certificate
                         </button>
+
+                        {/* Payment Verification Action */}
+                        {req.payment_status === "Pending" && req.payments && req.payments.find(p => p.status === 'Pending') && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => {
+                                const p = req.payments?.find(p => p.status === 'Pending');
+                                if (p) onVerifyPayment(p.id, req.id, "Paid");
+                              }}
+                              className="px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-xs"
+                            >
+                              Verify GCash
+                            </button>
+                            <button
+                              onClick={() => {
+                                const p = req.payments?.find(p => p.status === 'Pending');
+                                const reason = prompt("Enter rejection reason:");
+                                if (p && reason) onVerifyPayment(p.id, req.id, "Rejected", reason);
+                              }}
+                              className="px-2.5 py-1.5 text-xs font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-all"
+                            >
+                              Reject Pay
+                            </button>
+                          </div>
+                        )}
 
                         {/* Status Actions */}
                         {req.status === "Pending" && (

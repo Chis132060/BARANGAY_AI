@@ -54,7 +54,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
         authError.message.toLowerCase().includes("already been registered")
       ) {
         const { data: usersPage } = await supabase.auth.admin.listUsers({ page: 1, perPage: 100 });
-        const existingUser = usersPage?.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+        const existingUser = usersPage?.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
         if (existingUser) {
           authUserId = existingUser.id;
         } else {
