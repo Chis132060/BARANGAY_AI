@@ -22,9 +22,15 @@ Set these values in `apps/resident-pwa/.env.local`:
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 AI_TTS_SERVICE_URL=http://localhost:8003
+
+# Server-only. These are read by the Next.js /api/tts route and are never
+# exposed to the browser because they do not use the NEXT_PUBLIC_ prefix.
+GEMINI_API_KEY=your_rotated_gemini_key
+GEMINI_TTS_MODEL=gemini-2.5-pro-preview-tts
+GEMINI_TTS_VOICE=Umbriel
 ```
 
-`NEXT_PUBLIC_API_BASE_URL` is safe to expose as a URL. The Gemini key is not safe to expose and must never be placed in the resident PWA environment.
+`NEXT_PUBLIC_API_BASE_URL` is safe to expose as a URL. The Gemini key must remain server-only: keep it unprefixed, never reference it from client components, and never expose it through `NEXT_PUBLIC_` variables.
 
 ## Start order
 

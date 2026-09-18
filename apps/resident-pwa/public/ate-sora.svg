@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
+  <title id="title">Ate Sora cartoon avatar</title>
+  <desc id="desc">A friendly cartoon woman with dark hair wearing a blue top.</desc>
+  <rect width="640" height="640" rx="96" fill="#EAF3FF"/>
+  <circle cx="120" cy="120" r="74" fill="#CFE4FF"/>
+  <circle cx="542" cy="168" r="92" fill="#DDF6F0"/>
+  <path d="M35 586c54-108 156-163 285-163s232 55 285 163H35Z" fill="#4F73D9"/>
+  <path d="M173 586c16-83 66-127 147-127s132 44 147 127H173Z" fill="#F3B45B"/>
+  <path d="M214 429c22 38 59 57 106 57s85-19 107-57l33 24c-28 64-76 96-140 96s-112-32-139-96l33-24Z" fill="#FFFFFF" opacity=".92"/>
+  <path d="M177 264c0-109 70-179 160-179s160 70 160 179v104c0 109-70 174-160 174s-160-65-160-174V264Z" fill="#2A1F2D"/>
+  <ellipse cx="320" cy="325" rx="121" ry="142" fill="#F1B28E"/>
+  <path d="M201 292c-4-97 50-160 136-160 69 0 122 45 130 122-42-29-91-43-147-39-47 3-84 26-119 77Z" fill="#2A1F2D"/>
+  <path d="M197 292c-18 27-27 62-27 99 0 46 18 85 47 113-7-36-11-72-10-108 1-34 8-69 24-104l-34 0Z" fill="#2A1F2D"/>
+  <path d="M443 288c18 27 27 62 27 99 0 46-18 85-47 113 7-36 11-72 10-108-1-34-8-69-24-104l34 0Z" fill="#2A1F2D"/>
+  <path d="M258 308c16-10 34-12 52-3" fill="none" stroke="#5B3540" stroke-width="9" stroke-linecap="round"/>
+  <path d="M330 305c18-9 37-7 52 3" fill="none" stroke="#5B3540" stroke-width="9" stroke-linecap="round"/>
+  <ellipse cx="280" cy="331" rx="10" ry="13" fill="#202033"/>
+  <ellipse cx="360" cy="331" rx="10" ry="13" fill="#202033"/>
+  <circle cx="283" cy="327" r="3" fill="#FFFFFF"/>
+  <circle cx="363" cy="327" r="3" fill="#FFFFFF"/>
+  <path d="M320 332c-5 16-8 28 5 32" fill="none" stroke="#C57F6D" stroke-width="6" stroke-linecap="round"/>
+  <path d="M281 384c25 25 55 25 80 0" fill="#D65B68" stroke="#9D3E55" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M259 395c35 19 67 19 102 0" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+  <circle cx="199" cy="356" r="13" fill="#F1B28E"/>
+  <circle cx="441" cy="356" r="13" fill="#F1B28E"/>
+  <path d="M201 276c13-82 79-123 139-123 72 0 122 47 135 119-31-22-66-32-106-31-69 1-119 22-168 68Z" fill="#332335"/>
+  <path d="M202 268c-1-47 13-88 42-116-3 41 2 75 15 102-22 8-41 18-57 35Z" fill="#332335"/>
+  <path d="M435 257c10-27 13-59 8-96 29 29 42 65 39 107-14-5-30-9-47-11Z" fill="#332335"/>
+  <path d="M235 450c24 20 52 31 85 31s61-11 85-31v61H235v-61Z" fill="#F1B28E"/>
+</svg>

@@ -55,6 +55,29 @@ function selectVoice(language: TTSLanguage): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
 
+  // Prefer a natural-sounding female voice for Ate Sora when the browser
+  // exposes one. Voice names vary by device and operating system, so this is
+  // intentionally a preference list rather than a hard-coded voice choice.
+  const femaleVoiceHints = [
+    "samantha",
+    "zira",
+    "jenny",
+    "aria",
+    "susan",
+    "karen",
+    "moira",
+    "tessa",
+    "victoria",
+    "google us english",
+    "google uk english female",
+    "female",
+  ];
+
+  const isFemaleVoice = (voice: SpeechSynthesisVoice) => {
+    const name = voice.name.toLowerCase();
+    return femaleVoiceHints.some((hint) => name.includes(hint));
+  };
+
   // Ordered preference lists per language
   const preferences: Record<TTSLanguage, string[]> = {
     ceb: ["ceb", "ceb-PH", "fil", "fil-PH", "tl", "tl-PH", "en-PH", "en-US", "en"],
@@ -63,12 +86,17 @@ function selectVoice(language: TTSLanguage): SpeechSynthesisVoice | null {
   };
 
   for (const pref of preferences[language]) {
-    const found = voices.find((v) =>
-      v.lang.toLowerCase().startsWith(pref.toLowerCase())
+    const matches = voices.filter((voice) =>
+      voice.lang.toLowerCase().startsWith(pref.toLowerCase())
     );
-    if (found) return found;
+    const female = matches.find(isFemaleVoice);
+    if (female) return female;
+    if (matches[0]) return matches[0];
   }
-  return null;
+
+  // If the device has no voice for the requested language, a clear female
+  // English voice is a better fallback than an arbitrary system voice.
+  return voices.find(isFemaleVoice) ?? null;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -153,9 +181,9 @@ export function useTTS(): UseTTSReturn {
 
   // ── Play ONE audio URL from the TTS service ─────────────────────────────────
   const playSentenceAudio = useCallback(
-    (audioUrl: string, messageId: string, generation: number): Promise<void> =>
+    (audioUrl: string, messageId: string, generation: number): Promise<boolean> =>
       new Promise((resolve) => {
-        if (generationRef.current !== generation) { resolve(); return; }
+        if (generationRef.current !== generation) { resolve(false); return; }
 
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
@@ -163,17 +191,17 @@ export function useTTS(): UseTTSReturn {
         audio.onplay = () => {
           if (generationRef.current !== generation) {
             audio.pause();
-            resolve();
+            resolve(false);
             return;
           }
           setLoadingId(null);
           setSpeakingId(messageId);
           setTtsState("PLAYING");
         };
-        audio.onended = () => { audioRef.current = null; resolve(); };
-        audio.onerror = () => { audioRef.current = null; resolve(); }; // let caller fallback
+        audio.onended = () => { audioRef.current = null; resolve(true); };
+        audio.onerror = () => { audioRef.current = null; resolve(false); };
 
-        audio.play().catch(() => { audioRef.current = null; resolve(); });
+        audio.play().catch(() => { audioRef.current = null; resolve(false); });
       }),
     []
   );
@@ -195,42 +223,41 @@ export function useTTS(): UseTTSReturn {
       setLoadingId(messageId);
       setTtsState("LOADING");
 
-      const sentences = segmentSentences(text);
+      const completeText = segmentSentences(text).join(" ").trim() || text.trim();
 
       // Run asynchronously but don't make speak() itself async
       (async () => {
-        for (const sentence of sentences) {
-          if (generationRef.current !== generation) break; // cancelled
+        let playedGeneratedAudio = false;
 
-          try {
-            const controller = new AbortController();
-            abortRef.current = controller;
+        try {
+          const controller = new AbortController();
+          abortRef.current = controller;
 
-            const res = await fetch("/api/tts", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: sentence, language }),
-              signal: controller.signal,
-            });
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: completeText, language }),
+            signal: controller.signal,
+          });
 
-            if (generationRef.current !== generation) break;
+          if (generationRef.current !== generation) return;
 
-            if (res.ok) {
-              const data = await res.json();
-              if (data?.data?.audio_url) {
-                await playSentenceAudio(data.data.audio_url, messageId, generation);
-                if (generationRef.current !== generation) break;
-                continue; // next sentence
-              }
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.data?.audio_url) {
+              playedGeneratedAudio = await playSentenceAudio(data.data.audio_url, messageId, generation);
             }
-          } catch (err: any) {
-            if (err?.name === "AbortError") break; // user stopped
-            // fall through to browser fallback for this sentence
           }
+        } catch (err: any) {
+          if (err?.name === "AbortError") return;
+        }
 
-          // Browser fallback for this sentence
-          await speakSentenceWithBrowser(sentence, language, generation, messageId);
-          if (generationRef.current !== generation) break;
+        if (generationRef.current !== generation) return;
+
+        // Speak the complete answer as one browser utterance if server audio
+        // is unavailable. This avoids pauses between sentence queues.
+        if (!playedGeneratedAudio) {
+          await speakSentenceWithBrowser(completeText, language, generation, messageId);
         }
 
         // Only clean up if this generation is still active

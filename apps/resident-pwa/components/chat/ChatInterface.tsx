@@ -16,6 +16,8 @@ import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
+const SORA_AVATAR = "/ate-sora.svg";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Message {
@@ -83,6 +85,7 @@ export function ChatInterface() {
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+  const soraIsSpeaking = Boolean(speakingId || loadingId);
 
   // Load verified suggestions for the active language
   const verifiedSuggestions = getVerifiedQuestionSuggestions(ttsLang);
@@ -273,12 +276,12 @@ export function ChatInterface() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen max-w-lg mx-auto bg-white overflow-hidden">
+    <div className="relative flex flex-col h-screen max-w-lg mx-auto bg-white overflow-hidden">
 
       {/* Header */}
       <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Barangay Logo" className="h-9 w-auto object-contain shrink-0" />
+          <img src={SORA_AVATAR} alt="Ate Sora" className="h-9 w-9 rounded-full object-cover object-top shrink-0 ring-2 ring-blue-100" />
           <div className="flex flex-col">
             <h1 className="text-sm font-bold text-gray-900 leading-tight">{AI_NAME}</h1>
             <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
@@ -355,7 +358,7 @@ export function ChatInterface() {
           {/* Welcome hero card - shown only before first user message */}
           {isWelcomeOnly && (
             <div className="flex flex-col items-center text-center pt-4 pb-2">
-              <img src="/logo.png" alt="AI" className="h-14 w-14 object-contain mb-3" />
+              <img src={SORA_AVATAR} alt="Ate Sora" className="h-14 w-14 rounded-full object-cover object-top mb-3 ring-4 ring-blue-50" />
               <div className="space-y-1">
                 <h2 className="text-base font-bold text-gray-900">{AI_NAME}</h2>
                 <p className="text-xs text-gray-500">Official Multilingual Assistant</p>
@@ -406,7 +409,7 @@ export function ChatInterface() {
                       <AlertCircle className="h-3.5 w-3.5 text-red-400" />
                     </div>
                   ) : (
-                    <img src="/logo.png" alt="AI" className="h-7 w-7 object-contain shrink-0 mt-0.5" />
+                    <img src={SORA_AVATAR} alt="Ate Sora" className="h-7 w-7 rounded-full object-cover object-top shrink-0 mt-0.5 ring-1 ring-blue-100" />
                   )
                 )}
 
@@ -507,7 +510,7 @@ export function ChatInterface() {
           {/* Typing indicator */}
           {loading && (
             <div className="flex gap-2.5 items-end">
-              <img src="/logo.png" alt="AI" className="h-7 w-7 object-contain shrink-0" />
+              <img src={SORA_AVATAR} alt="Ate Sora" className="h-7 w-7 rounded-full object-cover object-top shrink-0 ring-1 ring-blue-100" />
               <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
                 <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
@@ -519,6 +522,27 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Speaking presence */}
+      {soraIsSpeaking && (
+        <div className="absolute inset-x-3 bottom-[8.5rem] z-30 flex items-center gap-3 rounded-2xl border border-blue-100 bg-white/95 p-3 shadow-xl shadow-blue-900/10 backdrop-blur-sm">
+          <div className="relative shrink-0">
+            <span className="absolute -inset-1 rounded-full bg-blue-400/25 animate-ping" />
+            <img src={SORA_AVATAR} alt="Ate Sora is speaking" className="relative h-12 w-12 rounded-full object-cover object-top ring-2 ring-blue-500" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-gray-900">Ate Sora is {loadingId ? "preparing your answer" : "speaking"}</p>
+            <div className="mt-1 flex h-3 items-end gap-0.5" aria-label="Ate Sora is speaking">
+              {["h-1.5", "h-2.5", "h-3", "h-2", "h-1"].map((height, index) => (
+                <span key={index} className={`w-1 rounded-full bg-blue-500 animate-pulse ${height}`} style={{ animationDelay: `${index * 90}ms` }} />
+              ))}
+            </div>
+          </div>
+          <button type="button" onClick={stop} className="rounded-full px-3 py-1.5 text-[11px] font-bold text-red-600 hover:bg-red-50">
+            Stop
+          </button>
+        </div>
+      )}
 
       {/* Persistent Clickable Question Chips during conversation */}
       {!isWelcomeOnly && (
