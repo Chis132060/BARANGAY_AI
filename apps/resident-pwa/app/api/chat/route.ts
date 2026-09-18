@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting } from "@/lib/ai/config";
+import { runSoraAgent } from "@/lib/ai/sora-agent";
+
+export const runtime = "nodejs";
 
 // Fetch published policies from DB matching a query keyword
 async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ title: string; content: string }[]> {
@@ -95,6 +98,26 @@ export async function POST(request: NextRequest) {
   const match = findMatchingKnowledge(message, !!user, language);
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+  const agentResponse = await runSoraAgent({
+    message,
+    sessionId,
+    userId: user?.id,
+    language,
+    apiBaseUrl,
+  });
+
+  if (agentResponse) {
+    return NextResponse.json({
+      ...agentResponse,
+      formType: match?.formType ?? agentResponse.form_type,
+      formSchema: agentResponse.form_schema,
+      formTitle: match?.formTitle,
+      estimatedFee: match?.estimatedFee,
+      guestActionTrigger: match?.guestActionTrigger,
+      auditRecorded: agentResponse.audit_recorded ?? true,
+    });
+  }
 
   try {
     const controller = new AbortController();

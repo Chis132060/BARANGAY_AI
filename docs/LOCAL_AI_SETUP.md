@@ -32,6 +32,18 @@ GEMINI_TTS_VOICE=Umbriel
 
 `NEXT_PUBLIC_API_BASE_URL` is safe to expose as a URL. The Gemini key must remain server-only: keep it unprefixed, never reference it from client components, and never expose it through `NEXT_PUBLIC_` variables.
 
+## OpenAI Agent enhancement
+
+The resident PWA can optionally use the official OpenAI Agents SDK to improve Ate Sora's responses while keeping the existing Barangay RAG service as the factual source. Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys), then set these server-only values in `apps/resident-pwa/.env.local`:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_AGENT_ENABLED=true
+OPENAI_AGENT_MODEL=gpt-4.1-mini
+```
+
+The agent is disabled by default. It must retrieve an answer from the official Barangay API before responding. If the key is missing, the API is unavailable, or the agent fails, `/api/chat` falls back to the existing Gemini/local policy flow.
+
 ## Start order
 
 1. Start the API service on port 8000.
