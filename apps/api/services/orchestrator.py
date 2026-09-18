@@ -89,7 +89,11 @@ class BoundedOrchestrator:
         query_lower = query.lower()
         requires_tools = (
             intent in ["SERVICE_REQUIREMENTS", "SERVICE_FEE", "SERVICE_LOCATION", "OFFICIAL_INFO", "ANNOUNCEMENTS"]
-            or any(term in query_lower for term in ("ordinance", "ordinansa", "policy", "patakaran", "business", "negosyo", "permit"))
+            or any(term in query_lower for term in (
+                "ordinance", "ordinances", "ordinansa", "policy", "policies", "patakaran",
+                "law", "laws", "batas", "balaod", "rule", "rules", "regulation", "regulations",
+                "business", "negosyo", "permit"
+            ))
         )
         requires_kg = ("related" in query.lower() or "requires" in query.lower())
         
