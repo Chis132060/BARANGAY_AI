@@ -2,7 +2,6 @@
 
 import { LoginForm } from "@/components/login-form";
 import Link from "next/link";
-import { Bot } from "lucide-react";
 import { PreAuthWelcome } from "@/components/auth/PreAuthWelcome";
 
 export default function LoginPage() {
@@ -35,10 +34,17 @@ export default function LoginPage() {
 
           <Link
             href="/chat"
-            className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-700 transition-all"
+            className="mt-5 w-full flex items-center justify-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-left transition-all hover:border-blue-400 hover:bg-blue-50/40"
           >
-            <Bot className="h-4 w-4 text-blue-500" />
-            Continue as Guest (AI Chat Only)
+            <img
+              src="/ate-sora.svg"
+              alt="Ate Sora"
+              className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-blue-100"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-gray-800">Continue as Guest</span>
+              <span className="mt-0.5 block text-[11px] font-medium text-gray-500">Chat with Ate Sora · AI Chat Only</span>
+            </span>
           </Link>
         </div>
       </main>
