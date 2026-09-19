@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
+import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 
 const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/auth", "/chat", "/announcements", "/home"];
 
@@ -11,7 +12,8 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let supabase: any;
-  if (!url || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+  const mockSupabaseEnabled = isMockSupabaseEnabled();
+  if (!url || mockSupabaseEnabled) {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
@@ -58,7 +60,7 @@ export async function middleware(request: NextRequest) {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
     
-    if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE !== "true") {
+    if (user && !mockSupabaseEnabled) {
       const { data: userData } = await supabase
         .from("users")
         .select("roles!inner(name)")
@@ -88,7 +90,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE !== "true") {
+  if (user && !mockSupabaseEnabled) {
     try {
       const { data: resident } = await supabase
         .from("residents")

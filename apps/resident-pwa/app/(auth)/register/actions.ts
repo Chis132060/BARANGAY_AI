@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 import { v4 as uuidv4 } from "uuid";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -32,6 +33,13 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
 
     if (idBlob.size > MAX_FILE_SIZE) {
       return { error: "Image size exceeds 5MB limit." };
+    }
+
+    // Local development uses a placeholder Supabase URL. Keep the full form
+    // validation above, but do not attempt a network call until real Supabase
+    // credentials are configured.
+    if (isMockSupabaseEnabled()) {
+      return { success: true };
     }
 
     const supabase = createAdminClient();

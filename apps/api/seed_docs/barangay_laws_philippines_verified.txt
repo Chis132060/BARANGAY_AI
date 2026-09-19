@@ -1,0 +1,98 @@
+# VERIFIED BARANGAY LAW KNOWLEDGE PACK — PHILIPPINES / BUTUAN CITY
+# Status: curated official-source index for resident guidance; not legal advice
+# Last checked: 2026-09-19
+
+PURPOSE AND SCOPE
+This document gives Ate Sora a reliable starting map for questions about barangay governance, public services, community safety, local ordinances, and resident rights. It is a catalog and plain-language guide, not the complete text of every Philippine statute, administrative issuance, city ordinance, or Barangay Tandang Sora resolution. When a question asks for an exact penalty, fee, deadline, schedule, or Barangay-specific rule, the answer must come from the latest approved and signed record.
+
+COMMUNITY SCOPE
+The local target is Tandang Sora Poblacion, Butuan City, Agusan del Norte, also identified in the PSA directory as Tandang Sora Pob. The PSA directory lists it under Butuan City; administrative identity must not be confused with the separate question of which local ordinance applies.
+
+PRIMARY OFFICIAL SOURCE REGISTRY
+- Local Government Code (RA 7160), Lawphil copy: https://lawphil.net/statutes/repacts/ra1991/ra_7160_1991.html
+- Official Gazette, Republic Acts and national issuances: https://www.officialgazette.gov.ph/
+- DILG barangay governance resources and manuals: https://manila.ncr.dilg.gov.ph/e-library/brgy-manual
+- DILG Region X / Northern Mindanao Katarungang Pambarangay resources: https://region10.dilg.gov.ph/
+- DBM local budget issuances and manuals: https://www.dbm.gov.ph/index.php/local-budget-circulars
+- Butuan City Sangguniang Panlungsod city ordinances: https://sp.butuan.gov.ph/city-ordinances/
+- Butuan City codified laws and codes: https://sp.butuan.gov.ph/codes/
+- Butuan City SP resolutions: https://sp.butuan.gov.ph/sp-resolutions/
+- PSA Butuan barangay directory: https://psa.gov.ph/classification/psgc/barangays/1630400000
+
+CORE BARANGAY GOVERNANCE LAWS
+1. Republic Act 7160, Local Government Code of 1991.
+   Core provisions for the Barangay include Section 384 (role of the Barangay), Sections 389-396 (Punong Barangay and other officials), Sections 397-398 (Barangay Assembly), Sections 399-402 (Sangguniang Barangay), Sections 408-422 (Katarungang Pambarangay), and the local finance and revenue provisions. The Barangay is a basic political unit and a forum for community participation and amicable settlement of disputes. Exact jurisdiction and procedure must be checked against the current law and implementing guidance.
+2. Republic Act 10742, Sangguniang Kabataan Reform Act of 2015, as amended by Republic Act 11768 (2022).
+   Covers SK structure, youth participation, qualifications, functions, accountability, honoraria and related reforms. Do not treat a general youth question as an SK-specific legal ruling without checking the current law and DILG/DBM/NYC guidance.
+3. Katarungang Pambarangay provisions and current DILG guidance.
+   Barangay conciliation is not a universal substitute for police, prosecutor, court, protection, or emergency services. Matters excluded by law and cases requiring immediate protection or official investigation must be referred to the proper authority. Never promise that a complaint will be resolved at Barangay level.
+4. Republic Act 11032, Ease of Doing Business and Efficient Government Service Delivery Act of 2018, and related Citizen's Charter requirements.
+   Services should publish requirements, steps, responsible office, processing time, fees, and complaint channels. Ate Sora must use the current Barangay/LGU Citizen's Charter for exact local service details.
+5. Republic Act 6713, Code of Conduct and Ethical Standards for Public Officials and Employees, and Republic Act 3019, Anti-Graft and Corrupt Practices Act.
+   These govern ethical conduct and prohibited acts. Questions involving alleged misconduct must be referred to the proper complaint channel; Ate Sora must not declare an official guilty.
+
+SAFETY, JUSTICE, AND PROTECTION LAWS RELEVANT TO BARANGAY SERVICES
+6. Republic Act 9262, Anti-Violence Against Women and Their Children Act.
+   Barangay VAW Desk and local referral mechanisms support protection and assistance. For danger, threats, abuse, or urgent protection, advise contacting emergency services/police/DSWD and the VAW Desk; do not force mediation or expose confidential details.
+7. Republic Act 11313, Safe Spaces Act, plus related gender-based violence laws and DILG GAD guidance.
+   Covers gender-based sexual harassment in streets, public spaces, online, workplaces, and educational settings. Use the current law and local reporting/referral channels; do not invent local penalties.
+8. Republic Act 9710, Magna Carta of Women.
+   Supports women's rights and gender-responsive public services, including local GAD planning and implementation.
+9. Republic Act 9344, Juvenile Justice and Welfare Act of 2006, as amended by Republic Act 10630.
+   Covers children in conflict with the law, diversion, restorative justice, and local child-protection responsibilities. Do not identify or shame a child; refer cases to the BCPC/LCPC, social worker, police, or other proper authority as appropriate.
+10. Republic Act 10121, Philippine Disaster Risk Reduction and Management Act of 2010.
+    Covers local disaster risk reduction structures, preparedness, response, recovery, and community participation. Follow current City/Barangay DRRM plans and official advisories for evacuation and emergency instructions.
+11. Republic Act 9003, Ecological Solid Waste Management Act of 2000.
+    Covers segregation, collection, recovery, disposal, and local solid-waste responsibilities. Exact collection schedules, prohibited acts, and fines must come from the current Butuan City code and Barangay implementation record.
+12. Republic Act 9514, Fire Code of the Philippines of 2008, as amended.
+    Fire safety permits, inspections, clearances, and emergency response are handled with the BFP and the LGU. Barangay guidance must not replace BFP requirements.
+13. Republic Act 10173, Data Privacy Act of 2012.
+    Resident IDs, applications, complaints, health information, and family details must be collected, accessed, stored, and disclosed only for lawful and necessary purposes. Do not reveal private records in chat.
+
+SOCIAL PROTECTION AND COMMUNITY SERVICE LAWS
+14. Republic Act 9994, Expanded Senior Citizens Act of 2010, and relevant amendments/guidance.
+15. Republic Act 7277, Magna Carta for Persons with Disability, as amended.
+16. Republic Act 11861, Expanded Solo Parents Welfare Act, and its implementing guidance.
+17. Republic Act 10361, Batas Kasambahay / Domestic Workers Act; barangay registration and related local records may apply.
+18. Republic Act 11261, First Time Jobseekers Assistance Act; verify current documentary requirements and implementation with the issuing office.
+19. Republic Act 7883, Barangay Health Workers' Benefits and Incentives Act, together with current DOH/DILG/local health guidance.
+20. Republic Act 11036, Mental Health Act, for rights-based, confidential, and appropriate referral of mental-health concerns. In an emergency, use local emergency services.
+
+LOCAL FINANCE, RECORDS, AND TRANSPARENCY
+21. Barangay budgeting and use of public funds are governed by RA 7160, COA rules, DBM/DILG issuances, and current budget manuals. Never state an amount or allowable expense without the current approved budget or official issuance.
+22. DBM Local Budget Circular No. 170 (2026) includes the Barangay Budgeting Manual, 2026 Edition. Use the current DBM page/manual for budget-process questions and do not infer Tandang Sora's actual budget from a national manual.
+23. The Barangay Assembly should be convened at least twice a year under RA 7160 Section 397. Current schedules and notices must come from the Barangay/DILG advisory.
+24. For public records, certifications, fees, and processing times, use the current Barangay Citizen's Charter, approved fee schedule, official receipt, and published local record. A chat answer is not itself an official certification.
+
+CURRENTLY CATALOGUED BUTUAN CITY CODES
+The following are citywide references listed by the official Sangguniang Panlungsod. They may apply within Tandang Sora when legally applicable, but they are not automatically Barangay Tandang Sora ordinances and this list is not exhaustive.
+- SP Ordinance 6796-2022 — Code of General Ordinances 2022.
+- SP Ordinance 6704-2022 — Comprehensive Zoning Ordinance, 2019–2028.
+- SP Ordinance 6940-2023 — Revised Watershed Code.
+- SP Ordinance 6955-2023 — Smart Eco Gender and Development Code.
+- SP Ordinance 7026-2023 — Transportation and Traffic Management Code.
+- SP Ordinance 7038-2023 — Local Building Code.
+- SP Ordinance 7048-2023 — Tourism Code.
+- SP Ordinance 7095-2024 — Revised Sanitation Code.
+- SP Ordinance 7096-2024 — Children and Youth Welfare and Development Code.
+- SP Ordinance 7121-2024 — Franchise Code.
+- SP Ordinance 7184-2024 — further amendment to the Code of Revenue Ordinances.
+- SP Ordinance 7192-2024 — Ecological Solid Waste Management Code.
+- SP Ordinance 7223-2025 — Urban Design Code.
+- SP Ordinance 7240-2025 — Science and Technology, Innovation, and ICT Code.
+- SP Ordinance 7241-2025 — People Empowerment Code.
+- The official SP site also publishes newer approved ordinances and resolutions. Always check the current catalog for amendments, repeal notes, and effectivity.
+
+ANSWERING RULES FOR ATE SORA
+- Answer in the user's language and explain the law in plain language, then name the statute or official local source.
+- Distinguish national law, Butuan City ordinance/code, and a Barangay Tandang Sora ordinance/resolution.
+- Never invent or assume curfew hours, karaoke/noise cutoffs, waste schedules, parking rules, fees, fines, penalties, deadlines, officials, or phone numbers.
+- If the question asks for an exact Barangay-specific rule and there is no signed current record, say: "Hindi ko pa makumpirma ang eksaktong Tandang Sora rule dahil kailangan ang signed at kasalukuyang Barangay ordinance/resolution."
+- For urgent danger, violence, abuse, fire, medical emergency, or active crime, recommend emergency services and the proper office before ordinary Barangay mediation.
+- Provide a source link when available. A source index is not the same as the complete law text.
+
+MISSING RECORDS NEEDED TO COMPLETE TANDANG SORA-SPECIFIC COVERAGE
+- Current approved Barangay ordinances and resolutions, with ordinance number, title, approval/effectivity date, amendments, and repeal status.
+- Curfew, noise/karaoke, waste collection, parking, business, public safety, and community-conduct rules.
+- Current Citizen's Charter, fee schedule, office hours, complaint/referral directory, and emergency contacts.
+- Signed publication/notice records and the Barangay Administrator's review date.

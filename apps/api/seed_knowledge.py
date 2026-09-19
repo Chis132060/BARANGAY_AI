@@ -26,7 +26,10 @@ async def ingest_all():
         metadata = {
             "title": title,
             "source": file_path.name,
-            "type": "document"
+            "type": "document",
+            "source_type": "LOCAL",
+            "trust_level": "VERIFIED",
+            "source_domain": "barangay-ai-seed",
         }
         
         # Insert into knowledge_docs first to satisfy the foreign key constraint
@@ -47,6 +50,18 @@ async def ingest_all():
             print(f"Successfully ingested {file_path.name}: created {chunks} chunks.")
         except Exception as e:
             print(f"Failed to ingest {file_path.name}: {e}")
+
+    # Ingestion queues embeddings after chunks are stored. Process them after
+    # all local documents are present so the provider can batch requests.
+    try:
+        from services.ai.embeddings import embedding_manager
+        from services.ai.embeddings.queue import EmbeddingQueue
+
+        print("Processing queued embeddings...")
+        EmbeddingQueue(embedding_manager).process_queue()
+        print("Embedding queue complete.")
+    except Exception as e:
+        print(f"Embedding queue did not complete: {e}")
             
     print("Ingestion complete.")
 

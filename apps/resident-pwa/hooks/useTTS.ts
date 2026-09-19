@@ -47,30 +47,6 @@ function segmentSentences(text: string): string[] {
   return merged.length > 0 ? merged : [clean.trim()];
 }
 
-// ── Best Available Browser Voice ──────────────────────────────────────────────
-// Prefers language-specific voices, degrades gracefully down to en-US.
-function selectVoice(language: TTSLanguage): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
-
-  // Ordered preference lists per language
-  const preferences: Record<TTSLanguage, string[]> = {
-    ceb: ["ceb", "ceb-PH", "fil", "fil-PH", "tl", "tl-PH", "en-PH", "en-US", "en"],
-    tgl: ["tl", "tl-PH", "fil", "fil-PH", "en-PH", "en-US", "en"],
-    en:  ["en-US", "en-GB", "en-AU", "en-PH", "en"],
-  };
-
-  for (const pref of preferences[language]) {
-    const found = voices.find((v) =>
-      v.lang.toLowerCase().startsWith(pref.toLowerCase())
-    );
-    if (found) return found;
-  }
-  return null;
-}
-
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export function useTTS(): UseTTSReturn {
   const [ttsState, setTtsState] = useState<TTSState>("IDLE");
@@ -95,10 +71,6 @@ export function useTTS(): UseTTSReturn {
       audioRef.current = null;
     }
 
-    // Stop browser speech
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
   }, []);
 
   // ── Public Stop ─────────────────────────────────────────────────────────────
@@ -110,52 +82,11 @@ export function useTTS(): UseTTSReturn {
     setTtsState("IDLE");
   }, [stopInternal]);
 
-  // ── Browser Fallback for ONE sentence ──────────────────────────────────────
-  const speakSentenceWithBrowser = useCallback(
-    (
-      sentence: string,
-      language: TTSLanguage,
-      generation: number,
-      messageId: string
-    ): Promise<void> =>
-      new Promise((resolve) => {
-        if (generationRef.current !== generation) { resolve(); return; }
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) { resolve(); return; }
-
-        const utterance = new SpeechSynthesisUtterance(sentence);
-        const voice = selectVoice(language);
-        if (voice) utterance.voice = voice;
-
-        // Language BCP-47 fallback
-        utterance.lang =
-          language === "ceb" ? (voice?.lang ?? "fil-PH") :
-          language === "tgl" ? (voice?.lang ?? "tl-PH") :
-          "en-US";
-
-        utterance.onstart = () => {
-          if (generationRef.current !== generation) {
-            window.speechSynthesis.cancel();
-            resolve();
-            return;
-          }
-          setLoadingId(null);
-          setSpeakingId(messageId);
-          setTtsState("PLAYING");
-        };
-
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve(); // continue queue even on error
-
-        window.speechSynthesis.speak(utterance);
-      }),
-    []
-  );
-
   // ── Play ONE audio URL from the TTS service ─────────────────────────────────
   const playSentenceAudio = useCallback(
-    (audioUrl: string, messageId: string, generation: number): Promise<void> =>
+    (audioUrl: string, messageId: string, generation: number): Promise<boolean> =>
       new Promise((resolve) => {
-        if (generationRef.current !== generation) { resolve(); return; }
+        if (generationRef.current !== generation) { resolve(false); return; }
 
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
@@ -163,17 +94,17 @@ export function useTTS(): UseTTSReturn {
         audio.onplay = () => {
           if (generationRef.current !== generation) {
             audio.pause();
-            resolve();
+            resolve(false);
             return;
           }
           setLoadingId(null);
           setSpeakingId(messageId);
           setTtsState("PLAYING");
         };
-        audio.onended = () => { audioRef.current = null; resolve(); };
-        audio.onerror = () => { audioRef.current = null; resolve(); }; // let caller fallback
+        audio.onended = () => { audioRef.current = null; resolve(true); };
+        audio.onerror = () => { audioRef.current = null; resolve(false); };
 
-        audio.play().catch(() => { audioRef.current = null; resolve(); });
+        audio.play().catch(() => { audioRef.current = null; resolve(false); });
       }),
     []
   );
@@ -195,42 +126,40 @@ export function useTTS(): UseTTSReturn {
       setLoadingId(messageId);
       setTtsState("LOADING");
 
-      const sentences = segmentSentences(text);
+      const completeText = segmentSentences(text).join(" ").trim() || text.trim();
 
       // Run asynchronously but don't make speak() itself async
       (async () => {
-        for (const sentence of sentences) {
-          if (generationRef.current !== generation) break; // cancelled
+        let playedGeneratedAudio = false;
 
-          try {
-            const controller = new AbortController();
-            abortRef.current = controller;
+        try {
+          const controller = new AbortController();
+          abortRef.current = controller;
 
-            const res = await fetch("/api/tts", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: sentence, language }),
-              signal: controller.signal,
-            });
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: completeText, language }),
+            signal: controller.signal,
+          });
 
-            if (generationRef.current !== generation) break;
+          if (generationRef.current !== generation) return;
 
-            if (res.ok) {
-              const data = await res.json();
-              if (data?.data?.audio_url) {
-                await playSentenceAudio(data.data.audio_url, messageId, generation);
-                if (generationRef.current !== generation) break;
-                continue; // next sentence
-              }
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.data?.audio_url) {
+              playedGeneratedAudio = await playSentenceAudio(data.data.audio_url, messageId, generation);
             }
-          } catch (err: any) {
-            if (err?.name === "AbortError") break; // user stopped
-            // fall through to browser fallback for this sentence
           }
+        } catch (err: any) {
+          if (err?.name === "AbortError") return;
+        }
 
-          // Browser fallback for this sentence
-          await speakSentenceWithBrowser(sentence, language, generation, messageId);
-          if (generationRef.current !== generation) break;
+        if (generationRef.current !== generation) return;
+
+        if (!playedGeneratedAudio && generationRef.current === generation) {
+          console.warn("[TTS] Gemini Umbriel did not return playable audio.");
+          setTtsState("ERROR");
         }
 
         // Only clean up if this generation is still active
@@ -242,7 +171,7 @@ export function useTTS(): UseTTSReturn {
         }
       })();
     },
-    [speakingId, loadingId, stop, stopInternal, playSentenceAudio, speakSentenceWithBrowser]
+    [speakingId, loadingId, stop, stopInternal, playSentenceAudio]
   );
 
   return { speak, stop, speakingId, loadingId };

@@ -26,11 +26,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from routers import rag_router
+from routers import rag_router, tts_router
 
 graphql_app = GraphQLRouter(schema, context_getter=get_context)
 app.include_router(graphql_app, prefix="/graphql")
 app.include_router(rag_router.router, prefix="/api/v1")
+app.include_router(tts_router.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
