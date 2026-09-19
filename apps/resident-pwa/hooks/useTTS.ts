@@ -47,58 +47,6 @@ function segmentSentences(text: string): string[] {
   return merged.length > 0 ? merged : [clean.trim()];
 }
 
-// ── Best Available Browser Voice ──────────────────────────────────────────────
-// Prefers language-specific voices, degrades gracefully down to en-US.
-function selectVoice(language: TTSLanguage): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
-
-  // Prefer a natural-sounding female voice for Ate Sora when the browser
-  // exposes one. Voice names vary by device and operating system, so this is
-  // intentionally a preference list rather than a hard-coded voice choice.
-  const femaleVoiceHints = [
-    "samantha",
-    "zira",
-    "jenny",
-    "aria",
-    "susan",
-    "karen",
-    "moira",
-    "tessa",
-    "victoria",
-    "google us english",
-    "google uk english female",
-    "female",
-  ];
-
-  const isFemaleVoice = (voice: SpeechSynthesisVoice) => {
-    const name = voice.name.toLowerCase();
-    return femaleVoiceHints.some((hint) => name.includes(hint));
-  };
-
-  // Ordered preference lists per language
-  const preferences: Record<TTSLanguage, string[]> = {
-    ceb: ["ceb", "ceb-PH", "fil", "fil-PH", "tl", "tl-PH", "en-PH", "en-US", "en"],
-    tgl: ["tl", "tl-PH", "fil", "fil-PH", "en-PH", "en-US", "en"],
-    en:  ["en-US", "en-GB", "en-AU", "en-PH", "en"],
-  };
-
-  for (const pref of preferences[language]) {
-    const matches = voices.filter((voice) =>
-      voice.lang.toLowerCase().startsWith(pref.toLowerCase())
-    );
-    const female = matches.find(isFemaleVoice);
-    if (female) return female;
-    if (matches[0]) return matches[0];
-  }
-
-  // If the device has no voice for the requested language, a clear female
-  // English voice is a better fallback than an arbitrary system voice.
-  return voices.find(isFemaleVoice) ?? null;
-}
-
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export function useTTS(): UseTTSReturn {
   const [ttsState, setTtsState] = useState<TTSState>("IDLE");
@@ -123,10 +71,6 @@ export function useTTS(): UseTTSReturn {
       audioRef.current = null;
     }
 
-    // Stop browser speech
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
   }, []);
 
   // ── Public Stop ─────────────────────────────────────────────────────────────
@@ -137,47 +81,6 @@ export function useTTS(): UseTTSReturn {
     setLoadingId(null);
     setTtsState("IDLE");
   }, [stopInternal]);
-
-  // ── Browser Fallback for ONE sentence ──────────────────────────────────────
-  const speakSentenceWithBrowser = useCallback(
-    (
-      sentence: string,
-      language: TTSLanguage,
-      generation: number,
-      messageId: string
-    ): Promise<void> =>
-      new Promise((resolve) => {
-        if (generationRef.current !== generation) { resolve(); return; }
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) { resolve(); return; }
-
-        const utterance = new SpeechSynthesisUtterance(sentence);
-        const voice = selectVoice(language);
-        if (voice) utterance.voice = voice;
-
-        // Language BCP-47 fallback
-        utterance.lang =
-          language === "ceb" ? (voice?.lang ?? "fil-PH") :
-          language === "tgl" ? (voice?.lang ?? "tl-PH") :
-          "en-US";
-
-        utterance.onstart = () => {
-          if (generationRef.current !== generation) {
-            window.speechSynthesis.cancel();
-            resolve();
-            return;
-          }
-          setLoadingId(null);
-          setSpeakingId(messageId);
-          setTtsState("PLAYING");
-        };
-
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve(); // continue queue even on error
-
-        window.speechSynthesis.speak(utterance);
-      }),
-    []
-  );
 
   // ── Play ONE audio URL from the TTS service ─────────────────────────────────
   const playSentenceAudio = useCallback(
@@ -254,10 +157,9 @@ export function useTTS(): UseTTSReturn {
 
         if (generationRef.current !== generation) return;
 
-        // Speak the complete answer as one browser utterance if server audio
-        // is unavailable. This avoids pauses between sentence queues.
-        if (!playedGeneratedAudio) {
-          await speakSentenceWithBrowser(completeText, language, generation, messageId);
+        if (!playedGeneratedAudio && generationRef.current === generation) {
+          console.warn("[TTS] Gemini Umbriel did not return playable audio.");
+          setTtsState("ERROR");
         }
 
         // Only clean up if this generation is still active
@@ -269,7 +171,7 @@ export function useTTS(): UseTTSReturn {
         }
       })();
     },
-    [speakingId, loadingId, stop, stopInternal, playSentenceAudio, speakSentenceWithBrowser]
+    [speakingId, loadingId, stop, stopInternal, playSentenceAudio]
   );
 
   return { speak, stop, speakingId, loadingId };

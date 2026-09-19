@@ -8,6 +8,8 @@ class Settings:
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_TTS_MODEL: str = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-pro-preview-tts")
+    GEMINI_TTS_VOICE: str = os.getenv("GEMINI_TTS_VOICE", "Umbriel")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
     OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
