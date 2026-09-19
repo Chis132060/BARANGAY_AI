@@ -5,6 +5,7 @@ Generation 2 AI Brain - Bounded Agentic DAG
 import time
 import json
 import logging
+import hashlib
 from typing import List, Dict, Any, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -64,6 +65,77 @@ class BoundedOrchestrator:
         self.supabase = get_supabase_client()
         self.query_normalizer = QueryNormalizer(self.provider_manager)
         self.MAX_ITERATIONS = 3 # Bounded DAG constraint
+
+    @staticmethod
+    def _chunk_document(text: str, chunk_size: int = 1800, overlap: int = 220) -> List[str]:
+        """Split a document into deterministic, overlapping chunks for RAG."""
+        normalized = "\n".join(line.rstrip() for line in text.splitlines()).strip()
+        if not normalized:
+            return []
+
+        chunks: List[str] = []
+        start = 0
+        while start < len(normalized):
+            end = min(start + chunk_size, len(normalized))
+            if end < len(normalized):
+                paragraph_break = normalized.rfind("\n\n", start, end)
+                if paragraph_break > start + (chunk_size // 2):
+                    end = paragraph_break
+            chunks.append(normalized[start:end].strip())
+            if end >= len(normalized):
+                break
+            start = max(end - overlap, start + 1)
+        return [chunk for chunk in chunks if chunk]
+
+    async def ingest_document(self, doc_id: str, text: str, metadata: Optional[dict] = None) -> int:
+        """Store idempotent knowledge chunks and queue them for embeddings."""
+        document_chunks = self._chunk_document(text)
+        if not document_chunks:
+            return 0
+
+        metadata = metadata or {}
+        stored_chunks: List[Dict[str, Any]] = []
+        for chunk_index, content in enumerate(document_chunks):
+            content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            row = {
+                "doc_id": doc_id,
+                "chunk_index": chunk_index,
+                "content": content,
+                "metadata": metadata,
+                "content_hash": content_hash,
+                "source_type": metadata.get("source_type", "LOCAL"),
+                "source_domain": metadata.get("source_domain"),
+                "trust_level": metadata.get("trust_level", "VERIFIED"),
+            }
+
+            existing = (
+                self.supabase.table("knowledge_chunks")
+                .select("id")
+                .eq("doc_id", doc_id)
+                .eq("chunk_index", chunk_index)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                chunk_id = existing.data[0]["id"]
+                self.supabase.table("knowledge_chunks").update(row).eq("id", chunk_id).execute()
+            else:
+                inserted = self.supabase.table("knowledge_chunks").insert(row).execute()
+                if not inserted.data:
+                    raise RuntimeError(f"Knowledge chunk insert returned no row for document {doc_id}")
+                chunk_id = inserted.data[0]["id"]
+
+            stored_chunks.append({"id": chunk_id})
+
+        try:
+            from services.ai.embeddings import embedding_manager
+            from services.ai.embeddings.queue import EmbeddingQueue
+
+            EmbeddingQueue(embedding_manager).add_jobs(doc_id, stored_chunks)
+        except Exception as error:
+            logger.warning("Knowledge chunks stored but embedding jobs were not queued: %s", error)
+
+        return len(stored_chunks)
 
     async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None, language: str = "tgl") -> dict:
         start = time.time()
