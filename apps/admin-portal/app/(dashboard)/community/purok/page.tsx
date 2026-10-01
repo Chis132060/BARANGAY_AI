@@ -8,7 +8,7 @@ export default function PurokPage() {
   const [puroks, setPuroks] = useState<PurokStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-  const [current, setCurrent] = useState<{ id?: string; name: string; leaderId: string }>({ name: "", leaderId: "" });
+  const [current, setCurrent] = useState<{ id?: string; name: string; leaderId: string; president: string }>({ name: "", leaderId: "", president: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { load(); }, []);
@@ -24,7 +24,7 @@ export default function PurokPage() {
     if (!current.name) return alert("Purok name is required.");
     setSaving(true);
     try {
-      await savePurok(current.id || null, current.name, current.leaderId || null);
+      await savePurok(current.id || null, current.name, current.leaderId || null, current.president || null);
       setIsOpen(false);
       load();
     } catch (err: any) {
@@ -35,12 +35,12 @@ export default function PurokPage() {
   };
 
   const openNew = () => {
-    setCurrent({ name: "", leaderId: "" });
+    setCurrent({ name: "", leaderId: "", president: "" });
     setIsOpen(true);
   };
 
   const openEdit = (p: PurokStats) => {
-    setCurrent({ id: p.purok_id, name: p.name, leaderId: "" });
+    setCurrent({ id: p.purok_id, name: p.name, leaderId: "", president: p.president_name || "" });
     setIsOpen(true);
   };
 
@@ -122,12 +122,20 @@ export default function PurokPage() {
                 </button>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                Leader:{" "}
-                <span className="font-semibold text-foreground">
-                  {purok.leader_name || "— Unassigned —"}
-                </span>
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Leader:{" "}
+                  <span className="font-semibold text-foreground">
+                    {purok.leader_name || "— Unassigned —"}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  President:{" "}
+                  <span className="font-semibold text-foreground">
+                    {(purok as any).president_name || "— Unassigned —"}
+                  </span>
+                </p>
+              </div>
 
               <div className="pt-3 border-t grid grid-cols-2 gap-3">
                 <div className="bg-blue-50 rounded-xl p-3 text-center">
@@ -166,8 +174,18 @@ export default function PurokPage() {
                 />
               </div>
               <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Purok President <span className="font-normal text-gray-400">(Full name)</span></label>
+                <input
+                  type="text"
+                  value={current.president}
+                  onChange={(e) => setCurrent({ ...current, president: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Maria Santos"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Leader Resident ID <span className="font-normal text-gray-400">(optional — paste from Residents list)</span>
+                  Leader Resident ID <span className="font-normal text-gray-400">(Optional — paste from Residents list)</span>
                 </label>
                 <input
                   type="text"

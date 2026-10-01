@@ -7,6 +7,7 @@ export interface PurokStats {
   purok_id: string;
   name: string;
   leader_name: string | null;
+  president_name: string | null;
   household_count: number;
   resident_count: number;
 }
@@ -155,7 +156,7 @@ export async function fetchPurokStats(): Promise<PurokStats[]> {
   // Fetch puroks with leader info
   const { data: puroks, error: purokErr } = await supabase
     .from("puroks")
-    .select(`id, name, leader_id, leader:residents(first_name, last_name)`);
+    .select(`id, name, leader_id, president_name, leader:residents(first_name, last_name)`);
 
   if (purokErr || !puroks) return [];
 
@@ -180,6 +181,7 @@ export async function fetchPurokStats(): Promise<PurokStats[]> {
         purok_id: p.id,
         name: p.name,
         leader_name: leaderName,
+        president_name: p.president_name || null,
         household_count: householdCount || 0,
         resident_count: residentCount || 0,
       } as PurokStats;
@@ -192,7 +194,8 @@ export async function fetchPurokStats(): Promise<PurokStats[]> {
 export async function savePurok(
   id: string | null,
   name: string,
-  leaderId?: string | null
+  leaderId?: string | null,
+  presidentName?: string | null
 ) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -201,13 +204,13 @@ export async function savePurok(
   if (id) {
     const { error } = await supabase
       .from("puroks")
-      .update({ name, leader_id: leaderId || null })
+      .update({ name, leader_id: leaderId || null, president_name: presidentName || null })
       .eq("id", id);
     if (error) throw new Error(error.message);
   } else {
     const { error } = await supabase
       .from("puroks")
-      .insert({ name, leader_id: leaderId || null });
+      .insert({ name, leader_id: leaderId || null, president_name: presidentName || null });
     if (error) throw new Error(error.message);
   }
 

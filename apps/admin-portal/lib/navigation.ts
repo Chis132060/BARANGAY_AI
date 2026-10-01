@@ -6,6 +6,9 @@ import {
   Briefcase,
   Megaphone,
   Settings,
+  Home,
+  BookOpen,
+  Handshake,
   LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +51,24 @@ export const navigationConfig: NavigationModule[] = [
       { title: "PWD", href: "/residents/pwd", module: "residents" },
       { title: "4Ps Records", href: "/residents/4ps", module: "residents" },
     ],
+  },
+  {
+    title: "Boarders Profile",
+    icon: Home,
+    href: "/boarders",
+    module: "boarders",
+  },
+  {
+    title: "Programs & Councils",
+    icon: BookOpen,
+    href: "/programs",
+    module: "programs",
+  },
+  {
+    title: "Organizations",
+    icon: Handshake,
+    href: "/organizations",
+    module: "organizations",
   },
   {
     title: "Documents & Services",
