@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock, Camera } from "lucide-react";
+import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock, Camera, Home, AlertTriangle, Users, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { registerResidentAction } from "@/app/(auth)/register/actions";
 import CameraCapture from "../camera/CameraCapture";
@@ -36,10 +36,13 @@ export function RegisterForm() {
     email: "",
     password: "",
     idType: ID_TYPE_OPTIONS[0],
+    isBoarder: false,
+    boarderCount: "",
   });
 
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [rbiFile, setRbiFile] = useState<File | null>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -62,10 +65,13 @@ export function RegisterForm() {
     try {
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        payload.append(key, value);
+        payload.append(key, String(value));
       });
       if (capturedBlob) {
         payload.append("idBlob", capturedBlob, "id_capture.jpg");
+      }
+      if (rbiFile) {
+        payload.append("rbiFile", rbiFile, rbiFile.name);
       }
 
       const res = await registerResidentAction(payload);
@@ -229,6 +235,14 @@ export function RegisterForm() {
         <div className="space-y-3.5 animate-in fade-in duration-200">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Barangay Address</h3>
 
+          {/* 6-month residency notice */}
+          <div className="flex items-start gap-2.5 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <AlertTriangle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-blue-700 leading-relaxed">
+              <span className="font-bold">Residency Requirement:</span> You must have resided in this barangay for at least <strong>6 months</strong> to be eligible for resident registration. Your submitted ID and profiling information will be verified by the Barangay.
+            </p>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">Purok / Zone *</label>
             <select
@@ -263,6 +277,69 @@ export function RegisterForm() {
               onChange={(e) => handleInputChange("houseNumber", e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          {/* Boarder Profiling */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isBoarder}
+                onChange={(e) => handleInputChange("isBoarder", String(e.target.checked))}
+                className="h-4 w-4 rounded accent-blue-600"
+              />
+              <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                <Home className="h-3.5 w-3.5 text-gray-500" /> I am a boarder / renter in this barangay
+              </span>
+            </label>
+
+            {formData.isBoarder === "true" || formData.isBoarder === true ? (
+              <div className="space-y-3 pt-1 animate-in fade-in duration-200">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-[11px] text-amber-700 leading-relaxed">
+                    <span className="font-bold">Boarder Profiling Required:</span> The barangay requires a profiling of all individuals residing in a boarding house. Please provide the total number of boarders and attach your RBI (Record of Barangay Inhabitants).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" /> Total Boarders in Boarding House *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 5"
+                    value={formData.boarderCount}
+                    onChange={(e) => handleInputChange("boarderCount", e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Count yourself and all co-boarders individually.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
+                    <Paperclip className="h-3.5 w-3.5" /> Attach RBI (Record of Barangay Inhabitants) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf,image/jpeg,image/png"
+                      onChange={(e) => setRbiFile(e.target.files?.[0] || null)}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className={`flex items-center gap-2 p-2.5 rounded-xl border border-dashed transition-colors ${
+                      rbiFile ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-blue-400 bg-white'
+                    }`}>
+                      <Paperclip className={`h-4 w-4 shrink-0 ${rbiFile ? 'text-emerald-600' : 'text-gray-400'}`} />
+                      <span className={`text-[11px] truncate flex-1 ${rbiFile ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
+                        {rbiFile ? rbiFile.name : "Tap to attach RBI document…"}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">Accepted: PDF, JPG, PNG. Max 5MB.</p>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2 pt-3">
