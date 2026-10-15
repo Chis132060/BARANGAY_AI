@@ -16,7 +16,7 @@ import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
-const SORA_AVATAR = "/ate-sora.svg";
+const SORA_AVATAR = "/ate-sora.jpg";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

@@ -37,7 +37,7 @@ export default function LoginPage() {
             className="mt-5 w-full flex items-center justify-center gap-3 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-left transition-all hover:border-blue-400 hover:bg-blue-50/40"
           >
             <img
-              src="/ate-sora.svg"
+              src="/ate-sora.jpg"
               alt="Ate Sora"
               className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-blue-100"
             />
