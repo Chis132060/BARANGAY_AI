@@ -285,7 +285,12 @@ export function RegisterForm() {
               <input
                 type="checkbox"
                 checked={formData.isBoarder}
-                onChange={(e) => handleInputChange("isBoarder", String(e.target.checked))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    isBoarder: e.target.checked,
+                  }))
+                }
                 className="h-4 w-4 rounded accent-blue-600"
               />
               <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
@@ -293,7 +298,7 @@ export function RegisterForm() {
               </span>
             </label>
 
-            {formData.isBoarder === "true" || formData.isBoarder === true ? (
+            {formData.isBoarder ? (
               <div className="space-y-3 pt-1 animate-in fade-in duration-200">
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-[11px] text-amber-700 leading-relaxed">
