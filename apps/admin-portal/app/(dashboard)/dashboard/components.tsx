@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  Users, Home, Award, HelpCircle, FileText, Briefcase,
-  TrendingUp, TrendingDown, Sparkles, UserCheck, DollarSign, CheckCircle2,
+  Users, Home, BadgeCheck, Accessibility, FileText, Building2,
+  TrendingUp, TrendingDown, UserPlus, Receipt, PackageCheck, UserRound,
   type LucideIcon
 } from "lucide-react";
 import Link from "next/link";
@@ -13,14 +13,14 @@ interface MetricCardProps {
   icon: LucideIcon;
   description: string;
   href: string;
+  colorClass: string;
   trend?: {
     value: string;
     isPositive: boolean;
   };
-  colorClass: string;
 }
 
-export function MetricCard({ title, value, icon: Icon, description, href, trend, colorClass }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, description, href, colorClass, trend }: MetricCardProps) {
   return (
     <Link
       href={href}
@@ -29,8 +29,8 @@ export function MetricCard({ title, value, icon: Icon, description, href, trend,
     >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</span>
-        <div className={`p-2.5 rounded-xl ${colorClass} transition-transform group-hover:scale-110`}>
-          <Icon className="h-4.5 w-4.5" />
+        <div className={`p-2.5 rounded-xl transition-transform group-hover:scale-110 ${colorClass}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
 
@@ -47,8 +47,8 @@ export function MetricCard({ title, value, icon: Icon, description, href, trend,
         <p className="text-[11px] text-muted-foreground mt-1 leading-normal">{description}</p>
       </div>
 
-      <div className="w-full bg-muted/50 h-1.5 rounded-full overflow-hidden">
-        <div className="bg-primary h-full rounded-full w-2/3 opacity-75" />
+      <div className="w-full bg-muted/50 h-1 rounded-full overflow-hidden">
+        <div className="bg-primary/40 h-full rounded-full w-2/3" />
       </div>
     </Link>
   );
@@ -65,7 +65,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "Pending Registrations",
       value: metrics.pendingRegistrations,
-      icon: UserCheck,
+      icon: UserPlus,
       description: "Self-registered residents awaiting verification",
       href: "/residents/verification",
       trend: { value: "Live queue", isPositive: true },
@@ -83,7 +83,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "Ready for Pickup",
       value: metrics.readyForPickupRequests ?? 0,
-      icon: CheckCircle2,
+      icon: PackageCheck,
       description: "Processed certificates ready for release",
       href: "/documents/requests",
       trend: { value: "Notified", isPositive: true },
@@ -92,7 +92,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "Document Fees Revenue",
       value: `₱${(metrics.totalRevenue ?? 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: Receipt,
       description: "Total fees collected from issued documents",
       href: "/documents/requests",
       trend: { value: "+14.2%", isPositive: true },
@@ -119,7 +119,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "Registered Voters",
       value: metrics.registeredVoters.toLocaleString(),
-      icon: Award,
+      icon: BadgeCheck,
       description: "COMELEC registered voters in precinct",
       href: "/community/precinct",
       trend: { value: "+8.4%", isPositive: true },
@@ -128,7 +128,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "Senior Citizens",
       value: metrics.seniorCitizens.toLocaleString(),
-      icon: Sparkles,
+      icon: UserRound,
       description: "OSCA registered senior pensioners",
       href: "/residents/senior",
       trend: { value: "+1.5%", isPositive: true },
@@ -137,7 +137,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "PWD Members",
       value: metrics.pwdResidents.toLocaleString(),
-      icon: HelpCircle,
+      icon: Accessibility,
       description: "Persons with Disability registered",
       href: "/residents/pwd",
       trend: { value: "0%", isPositive: true },
@@ -146,7 +146,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     {
       title: "Local Businesses",
       value: metrics.registeredBusinesses,
-      icon: Briefcase,
+      icon: Building2,
       description: "Permitted commercial establishments",
       href: "/business/registry",
       trend: { value: "+4.0%", isPositive: true },
@@ -156,7 +156,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
 
   return (
     <div className="space-y-6">
-      {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card, i) => (
           <MetricCard key={i} {...card} />

@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
-  User, Send, Lock, ArrowRight,
+  User, Send, Lock, ArrowRight, RotateCcw,
   FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff, Check,
-  ChevronRight, Sparkles, HelpCircle,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InChatFormCard } from "./InChatFormCard";
@@ -16,7 +16,7 @@ import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
-const SORA_AVATAR = "/ate-sora.svg";
+const SORA_AVATAR = "/ate-sora.jpg";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -72,6 +72,7 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userInitials, setUserInitials] = useState<string>("");
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [sessionId] = useState<string>(() => uuidv4());
@@ -87,10 +88,7 @@ export function ChatInterface() {
   const supabase = createClient();
   const soraIsSpeaking = Boolean(speakingId || loadingId);
 
-  // Load verified suggestions for the active language
   const verifiedSuggestions = getVerifiedQuestionSuggestions(ttsLang);
-
-  // true only on first load before any user message
   const isWelcomeOnly = messages.length === 1 && messages[0].id === "welcome";
 
   useEffect(() => {
@@ -103,6 +101,20 @@ export function ChatInterface() {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       setIsLoggedIn(!!user);
+      if (user) {
+        const rawName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split("@")[0] ||
+          "";
+        const initials = rawName
+          .split(/[\s._-]+/)
+          .map((w: string) => w[0] || "")
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+        setUserInitials(initials || "U");
+      }
     }
     checkAuth();
   }, [supabase]);
@@ -155,6 +167,12 @@ export function ChatInterface() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  function resetChat() {
+    setMessages([{ id: "welcome", sender: "ai", text: welcomeByLanguage[ttsLang], timestamp: Date.now() }]);
+    setInput("");
+    setRateLimited(false);
+  }
 
   const handleSend = useCallback(async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
@@ -284,17 +302,29 @@ export function ChatInterface() {
           <img src={SORA_AVATAR} alt="Ate Sora" className="h-9 w-9 rounded-full object-cover object-top shrink-0 ring-2 ring-blue-100" />
           <div className="flex flex-col">
             <h1 className="text-sm font-bold text-gray-900 leading-tight">{AI_NAME}</h1>
-            <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+            <p className="text-[10px] font-medium flex items-center gap-1 mt-0.5">
               {isLoggedIn ? (
-                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" />Resident Mode</>
+                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" /><span className="text-green-600">Resident Mode</span></>
               ) : (
-                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-300 mr-0.5" />Guest Mode</>
+                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-300 mr-0.5" /><span className="text-gray-400">Guest Mode</span></>
               )}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* New chat button — only visible during a conversation */}
+          {!isWelcomeOnly && (
+            <button
+              type="button"
+              onClick={resetChat}
+              title="New conversation"
+              aria-label="New conversation"
+              className="h-8 w-8 rounded-full bg-gray-50 border border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex items-center justify-center transition-colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowLanguagePicker(true)}
@@ -333,12 +363,12 @@ export function ChatInterface() {
 
       {/* Guest info strip */}
       {!isLoggedIn && (
-        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2 text-[11px] text-gray-500 shrink-0">
-          <Globe className="h-3 w-3 text-gray-400 shrink-0" />
+        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2 text-[11px] text-gray-400 shrink-0">
+          <Globe className="h-3 w-3 shrink-0" />
           <span>
             Browsing as guest.{" "}
             <Link href="/login" className="text-blue-600 font-semibold">Sign in</Link>
-            {" "}to track requests &amp; submit applications.
+            {" "}to track requests & submit applications.
           </span>
         </div>
       )}
@@ -355,15 +385,14 @@ export function ChatInterface() {
       <div className="flex-1 overflow-y-auto bg-white no-scrollbar">
         <div className="p-4 space-y-4">
 
-          {/* Welcome hero card - shown only before first user message */}
+          {/* Welcome hero — shown only before first user message */}
           {isWelcomeOnly && (
-            <div className="flex flex-col items-center text-center pt-4 pb-2">
-              <img src={SORA_AVATAR} alt="Ate Sora" className="h-14 w-14 rounded-full object-cover object-top mb-3 ring-4 ring-blue-50" />
-              <div className="space-y-1">
+            <div className="flex flex-col items-center text-center pt-6 pb-2">
+              <div className="mb-4">
                 <h2 className="text-base font-bold text-gray-900">{AI_NAME}</h2>
-                <p className="text-xs text-gray-500">Official Multilingual Assistant</p>
+                <p className="text-xs text-gray-400 mt-0.5">Official Multilingual Assistant</p>
               </div>
-              <p className="text-xs text-gray-500 mt-1 max-w-[280px] leading-relaxed">
+              <p className="text-xs text-gray-400 max-w-[280px] leading-relaxed mb-6">
                 {ttsLang === "tgl"
                   ? "Pumili sa mga opisyal na katanungan sa ibaba para sa agarang sagot at application form:"
                   : ttsLang === "ceb"
@@ -371,24 +400,23 @@ export function ChatInterface() {
                   : "Select an official question below for instant verified answers and application forms:"}
               </p>
 
-              {/* Predefined Clickable Questions (Verified Answers Only) */}
-              <div className="mt-5 w-full max-w-sm space-y-2">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-blue-900 mb-1 px-1">
-                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-                  <span>Available Official Topics</span>
-                </div>
+              {/* Topic list */}
+              <div className="w-full max-w-sm space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3 px-1">
+                  Official Topics
+                </p>
                 {verifiedSuggestions.map((s) => (
                   <button
                     key={s.topicId}
                     type="button"
                     onClick={() => handleSuggestion(s.query)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 text-left text-xs font-medium text-gray-800 hover:text-blue-700 transition-all group shadow-2xs"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-left transition-all group shadow-2xs"
                   >
                     <div>
-                      <span className="block font-bold text-[11px] text-blue-900 group-hover:text-blue-700">{s.label}</span>
-                      <span className="block text-[10px] text-gray-500">{s.query}</span>
+                      <span className="block font-semibold text-[11px] text-gray-800 group-hover:text-gray-900">{s.label}</span>
+                      <span className="block text-[10px] text-gray-400 mt-0.5">{s.query}</span>
                     </div>
-                    <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0 ml-2" />
+                    <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0 ml-2" />
                   </button>
                 ))}
               </div>
@@ -398,15 +426,14 @@ export function ChatInterface() {
           {/* Message bubbles */}
           {messages.map((m) => {
             const isUser = m.sender === "user";
-            // Hide the welcome text bubble when hero is shown
             if (m.id === "welcome" && isWelcomeOnly) return null;
             return (
               <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
                 {/* AI avatar */}
                 {!isUser && (
                   m.isError ? (
-                    <div className="h-7 w-7 bg-red-50 rounded-full flex items-center justify-center shrink-0 mt-0.5 border border-red-100">
-                      <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+                    <div className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center shrink-0 mt-0.5 border border-gray-200">
+                      <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
                     </div>
                   ) : (
                     <img src={SORA_AVATAR} alt="Ate Sora" className="h-7 w-7 rounded-full object-cover object-top shrink-0 mt-0.5 ring-1 ring-blue-100" />
@@ -419,7 +446,7 @@ export function ChatInterface() {
                     isUser
                       ? "bg-blue-600 text-white rounded-2xl rounded-br-sm font-medium shadow-2xs"
                       : m.isError
-                      ? "bg-red-50 text-red-700 rounded-2xl rounded-bl-sm border border-red-100"
+                      ? "bg-gray-50 text-gray-600 rounded-2xl rounded-bl-sm border border-gray-200"
                       : "bg-gray-50 text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100"
                   }`}>
                     <p className="whitespace-pre-line">{m.text}</p>
@@ -427,19 +454,19 @@ export function ChatInterface() {
 
                   {/* Timestamp */}
                   {m.timestamp && (
-                    <span className="text-[9px] text-gray-400 px-1">{formatTime(m.timestamp)}</span>
+                    <span className="text-[9px] text-gray-300 px-1">{formatTime(m.timestamp)}</span>
                   )}
 
-                  {/* TTS Controls */}
+                  {/* TTS Controls — no language select, just the listen button */}
                   {!isUser && !m.isError && (
                     <div className="flex items-center gap-1.5 px-1">
                       <button
                         type="button"
                         onClick={() => speak(m.id, m.text, ttsLang)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-all ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded-full border transition-all ${
                           speakingId === m.id
-                            ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
-                            : "bg-white text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
+                            ? "bg-gray-100 text-gray-600 border-gray-200"
+                            : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50 hover:text-gray-600"
                         }`}
                       >
                         {loadingId === m.id ? (
@@ -451,35 +478,26 @@ export function ChatInterface() {
                         )}
                         <span>{loadingId === m.id ? "Loading..." : speakingId === m.id ? "Stop" : "Listen"}</span>
                       </button>
-                      <select
-                        value={ttsLang}
-                        onChange={(e) => selectLanguage(e.target.value as TTSLanguage)}
-                        className="text-[10px] bg-white border border-gray-200 text-gray-500 rounded-full px-2 py-0.5 outline-none font-medium cursor-pointer hover:border-gray-300 transition-colors"
-                      >
-                        <option value="tgl">Tagalog</option>
-                        <option value="ceb">Cebuano</option>
-                        <option value="en">English</option>
-                      </select>
                     </div>
                   )}
 
-                  {/* Citation badges */}
+                  {/* Citation badges — neutral style */}
                   {!isUser && m.citations && m.citations.length > 0 && (
                     <div className="flex flex-wrap gap-1 px-1">
-                      {m.citations.slice(0, 3).map((cid, i) => (
-                        <span key={cid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-medium rounded-full border border-blue-100">
+                      {m.citations.slice(0, 3).map((cid) => (
+                        <span key={cid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] font-medium rounded-full border border-gray-200">
                           <FileText className="h-2.5 w-2.5" />{cid.startsWith("policy") ? "Official Policy" : cid}
                         </span>
                       ))}
                       {!m.contextUsed && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-full border border-amber-100">
-                          <AlertCircle className="h-2.5 w-2.5" /> Official Barangay Record
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] font-medium rounded-full border border-gray-200">
+                          <AlertCircle className="h-2.5 w-2.5" /> Official Record
                         </span>
                       )}
                     </div>
                   )}
 
-                  {/* Dynamic In-Chat Multi-Document Form */}
+                  {/* Dynamic In-Chat Form */}
                   {m.formType && m.formTitle && (
                     <div className="w-full">
                       <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} formSchema={m.formSchema} />
@@ -497,10 +515,14 @@ export function ChatInterface() {
                   )}
                 </div>
 
-                {/* User avatar */}
+                {/* User avatar — initials when logged in, icon when guest */}
                 {isUser && (
-                  <div className="h-7 w-7 bg-gray-100 rounded-full flex items-center justify-center shrink-0 mt-0.5 border border-gray-200">
-                    <User className="h-3.5 w-3.5 text-gray-500" />
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold ${
+                    isLoggedIn && userInitials
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-500 border border-gray-200"
+                  }`}>
+                    {isLoggedIn && userInitials ? userInitials : <User className="h-3.5 w-3.5" />}
                   </div>
                 )}
               </div>
@@ -512,9 +534,9 @@ export function ChatInterface() {
             <div className="flex gap-2.5 items-end">
               <img src={SORA_AVATAR} alt="Ate Sora" className="h-7 w-7 rounded-full object-cover object-top shrink-0 ring-1 ring-blue-100" />
               <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:300ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-bounce [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-bounce [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-bounce [animation-delay:300ms]" />
               </div>
             </div>
           )}
@@ -523,7 +545,7 @@ export function ChatInterface() {
         </div>
       </div>
 
-      {/* Speaking presence */}
+      {/* Speaking presence overlay */}
       {soraIsSpeaking && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-[2px]" aria-hidden="true">
           <div className="relative h-48 w-48">
@@ -537,19 +559,23 @@ export function ChatInterface() {
         </div>
       )}
 
-      {/* Persistent Clickable Question Chips during conversation */}
+      {/* Persistent topic chips during conversation — with right fade */}
       {!isWelcomeOnly && (
-        <div className="px-3 py-1.5 bg-gray-50/80 border-t border-gray-100 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-          {verifiedSuggestions.slice(0, 5).map((s) => (
-            <button
-              key={s.topicId}
-              type="button"
-              onClick={() => handleSuggestion(s.query)}
-              className="shrink-0 px-3 py-1 rounded-full bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 text-[10px] font-semibold transition-all shadow-2xs"
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="relative border-t border-gray-100 shrink-0">
+          <div className="px-3 py-1.5 bg-gray-50/80 flex gap-1.5 overflow-x-auto no-scrollbar">
+            {verifiedSuggestions.slice(0, 5).map((s) => (
+              <button
+                key={s.topicId}
+                type="button"
+                onClick={() => handleSuggestion(s.query)}
+                className="shrink-0 px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 text-[10px] font-medium transition-all shadow-2xs"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {/* Fade-out gradient on the right */}
+          <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none" />
         </div>
       )}
 
@@ -621,7 +647,7 @@ export function ChatInterface() {
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-2xl flex items-center justify-center transition-all shrink-0"
+            className="h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-300 text-white rounded-2xl flex items-center justify-center transition-all shrink-0"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>

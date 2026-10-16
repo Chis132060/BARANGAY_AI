@@ -1,17 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Search, LogOut, Command, Sparkles, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Bell, Search, LogOut, Command, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../auth-provider";
+import { createClient } from "@/lib/supabase/client";
 
 interface HeaderNotification {
-  id: number;
+  id: string;
   title: string;
   desc: string;
   time: string;
+  rawDate: string;
   isRead: boolean;
+  href: string;
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Math.max(1, Math.round((Date.now() - new Date(dateStr).getTime()) / 60000));
+  if (diff < 60) return `${diff}m ago`;
+  if (diff < 1440) return `${Math.round(diff / 60)}h ago`;
+  return `${Math.round(diff / 1440)}d ago`;
 }
 
 export function Header() {
@@ -22,17 +32,100 @@ export function Header() {
   const [quickSearch, setQuickSearch] = useState("");
   const quickSearchRef = useRef<HTMLInputElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const displayName = user?.email?.split("@")[0] || "Staff";
-  const userInitials = displayName.charAt(0).toUpperCase();
 
-  const [notifications, setNotifications] = useState<HeaderNotification[]>([
-    { id: 1, title: "New Document Request", desc: "Juan Dela Cruz requested Barangay Clearance", time: "5m ago", isRead: false },
-    { id: 2, title: "New Resident Registered", desc: "Maria Santos submitted resident record", time: "25m ago", isRead: false },
-    { id: 3, title: "Community Announcement Published", desc: "A new barangay announcement is available to residents", time: "2h ago", isRead: true },
-  ]);
+  // Derive best available display name
+  const rawName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "Staff";
+  const displayName = rawName
+    .split(/[\s._-]+/)
+    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+  const userInitials = displayName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
+
+  const loadNotifications = useCallback(async () => {
+    const supabase = createClient();
+    try {
+      const [{ data: docRequests }, { data: pendingResidents }] = await Promise.all([
+        supabase
+          .from("document_requests")
+          .select("id, status, requested_date, document_type:document_types(name), resident:residents(first_name, last_name)")
+          .eq("status", "Pending")
+          .order("requested_date", { ascending: false })
+          .limit(4),
+        supabase
+          .from("residents")
+          .select("id, first_name, last_name, created_at")
+          .eq("verification_status", "Pending")
+          .order("created_at", { ascending: false })
+          .limit(3),
+      ]);
+
+      const notifs: HeaderNotification[] = [];
+
+      for (const doc of docRequests || []) {
+        const resident = Array.isArray(doc.resident) ? doc.resident[0] : doc.resident;
+        const docType = Array.isArray(doc.document_type) ? doc.document_type[0] : doc.document_type;
+        notifs.push({
+          id: `doc-${doc.id}`,
+          title: "New Document Request",
+          desc: `${resident ? `${resident.first_name} ${resident.last_name}` : "A resident"} requested ${docType?.name || "a document"}`,
+          time: formatRelativeTime(doc.requested_date),
+          rawDate: doc.requested_date,
+          isRead: false,
+          href: "/documents/requests",
+        });
+      }
+
+      for (const resident of pendingResidents || []) {
+        notifs.push({
+          id: `resident-${resident.id}`,
+          title: "New Resident Registration",
+          desc: `${resident.first_name} ${resident.last_name} submitted a resident record`,
+          time: formatRelativeTime(resident.created_at),
+          rawDate: resident.created_at,
+          isRead: false,
+          href: "/residents/verification",
+        });
+      }
+
+      notifs.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
+      setNotifications(notifs.slice(0, 6));
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel("header-notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "document_requests" }, () => {
+        loadNotifications();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "residents" }, () => {
+        loadNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadNotifications]);
 
   const unreadCount = useMemo(
-    () => notifications.filter((notification) => !notification.isRead).length,
+    () => notifications.filter((n) => !n.isRead).length,
     [notifications]
   );
 
@@ -49,6 +142,7 @@ export function Header() {
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsNotificationOpen(false);
+        setShowUserMenu(false);
       }
     }
 
@@ -70,21 +164,20 @@ export function Header() {
     };
   }, []);
 
-  function markNotificationAsRead(notificationId: number) {
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === notificationId
-          ? { ...notification, isRead: true }
-          : notification
-      )
+  function markAsRead(id: string) {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
+  }
+
+  function markAllAsRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   }
 
   function handleQuickSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedSearch = quickSearch.trim();
     const query = normalizedSearch ? `?search=${encodeURIComponent(normalizedSearch)}` : "";
-
     router.push(`/residents${query}`);
   }
 
@@ -133,22 +226,42 @@ export function Header() {
                 : "pointer-events-none opacity-0 scale-95 duration-150"
             }`}
           >
-              <div className="flex items-center justify-between border-b pb-2.5">
-                <div className="flex items-center gap-2 font-semibold text-xs text-foreground uppercase tracking-wider">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  Notifications
-                </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                  {unreadCount} New
-                </span>
+            <div className="flex items-center justify-between border-b pb-2.5">
+              <div className="flex items-center gap-2 font-semibold text-xs text-foreground">
+                <Bell className="h-3.5 w-3.5 text-primary" />
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {notifications.map((notification) => (
-                  <button
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={markAllAsRead}
+                  className="text-[10px] text-muted-foreground hover:text-primary font-medium transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {notifications.length === 0 ? (
+                <p className="text-center text-xs text-muted-foreground py-6">
+                  No pending activity
+                </p>
+              ) : (
+                notifications.map((notification) => (
+                  <Link
                     key={notification.id}
-                    type="button"
-                    onClick={() => markNotificationAsRead(notification.id)}
-                    className={`w-full p-2.5 rounded-xl text-left text-xs space-y-1 transition-colors ${
+                    href={notification.href}
+                    onClick={() => {
+                      markAsRead(notification.id);
+                      setIsNotificationOpen(false);
+                    }}
+                    className={`w-full p-2.5 rounded-xl text-left text-xs space-y-1 transition-colors block ${
                       !notification.isRead
                         ? "bg-primary/5 border border-primary/10"
                         : "hover:bg-accent border border-transparent"
@@ -159,17 +272,19 @@ export function Header() {
                       <span className="text-[10px] text-muted-foreground font-mono">{notification.time}</span>
                     </div>
                     <p className="text-muted-foreground leading-relaxed">{notification.desc}</p>
-                  </button>
-                ))}
-              </div>
-              <Link
-                href="/communication/notifications"
-                onClick={() => setIsNotificationOpen(false)}
-                className="block text-center text-xs font-semibold text-primary hover:underline pt-1"
-              >
-                View all notifications →
-              </Link>
+                  </Link>
+                ))
+              )}
             </div>
+
+            <Link
+              href="/communication/notifications"
+              onClick={() => setIsNotificationOpen(false)}
+              className="block text-center text-xs font-semibold text-primary hover:underline pt-1"
+            >
+              View all notifications →
+            </Link>
+          </div>
         </div>
 
         {/* User Info & Menu */}
