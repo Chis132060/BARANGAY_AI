@@ -1,4 +1,4 @@
-import { fetchBoarders } from "./actions";
+import { BoarderListItem, fetchBoarders } from "./actions";
 import { BoardersClient } from "./components/BoardersClient";
 
 export const metadata = {
@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function BoardersPage() {
-  let boarders = [];
+  let boarders: BoarderListItem[] = [];
   try {
     boarders = await fetchBoarders();
   } catch (err) {

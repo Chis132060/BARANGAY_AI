@@ -1,4 +1,4 @@
-import { fetchOrganizations } from "./actions";
+import { BarangayOrganization, fetchOrganizations } from "./actions";
 import { OrganizationsClient } from "./components/OrganizationsClient";
 
 export const metadata = {
@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function OrganizationsPage() {
-  let organizations = [];
+  let organizations: BarangayOrganization[] = [];
   try {
     organizations = await fetchOrganizations();
   } catch (err) {

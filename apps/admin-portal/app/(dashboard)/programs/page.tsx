@@ -1,4 +1,4 @@
-import { fetchPrograms } from "./actions";
+import { BarangayProgram, fetchPrograms } from "./actions";
 import { ProgramsClient } from "./components/ProgramsClient";
 
 export const metadata = {
@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function ProgramsPage() {
-  let programs = [];
+  let programs: BarangayProgram[] = [];
   try {
     programs = await fetchPrograms();
   } catch (err) {
