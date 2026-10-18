@@ -182,11 +182,11 @@ export function Header() {
   }
 
   return (
-    <header className="h-16 shrink-0 border-b bg-card/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between transition-all">
+    <header className="h-16 shrink-0 bg-card/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between transition-all">
       {/* Quick Search Bar */}
       <form
         onSubmit={handleQuickSearch}
-        className="flex items-center gap-2.5 text-muted-foreground border rounded-xl px-3.5 py-2 bg-muted/40 hover:bg-muted/60 focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-background focus-within:border-primary transition-all w-72 md:w-96 shadow-inner"
+        className="flex items-center gap-2.5 text-muted-foreground border rounded-xl px-3.5 py-2 bg-muted/40 hover:bg-muted/60 focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-background focus-within:border-primary transition-all w-72 md:w-96"
       >
         <Search className="h-4 w-4 text-muted-foreground shrink-0" />
         <input
@@ -211,9 +211,9 @@ export function Header() {
             aria-label="Notifications"
             aria-expanded={isNotificationOpen}
             aria-haspopup="true"
-            className="relative p-2.5 rounded-xl hover:bg-accent text-muted-foreground hover:text-foreground transition-all flex items-center justify-center border border-transparent hover:border-border"
+            className="relative p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all flex items-center justify-center border border-transparent hover:border-border"
           >
-            <Bell className="h-4.5 w-4.5" />
+            <Bell className="h-3.5 w-3.5" />
             {unreadCount > 0 && (
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background animate-pulse" />
             )}
@@ -298,10 +298,6 @@ export function Header() {
               <span className="text-[10px] font-mono text-primary font-semibold leading-none mt-1 uppercase">
                 {role}
               </span>
-            </div>
-
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-primary-foreground text-xs font-extrabold shadow-sm">
-              {userInitials}
             </div>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </button>

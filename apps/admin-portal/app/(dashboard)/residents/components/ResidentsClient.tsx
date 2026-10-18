@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Filter, X } from "lucide-react";
+import { Plus, Search, Filter, X, Users } from "lucide-react";
 import { ResidentTable } from "./ResidentTable";
 import { ResidentForm } from "../forms/ResidentForm";
 import type { ResidentListItem } from "../actions";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type ClassificationFilter = "All" | "Voter" | "Senior" | "PWD" | "4Ps";
 
@@ -109,12 +110,19 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
   if (showForm) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between border-b pb-4">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Register Resident</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Add a new verified resident record to the barangay database.</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Register Resident"
+          subtitle="Add a new verified resident record to the barangay database."
+          icon={Users}
+          actions={
+            <button
+              onClick={() => setShowForm(false)}
+              className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-2 rounded-xl hover:bg-accent transition-all"
+            >
+              <X className="h-4 w-4" /> Cancel
+            </button>
+          }
+        />
         <ResidentForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
       </div>
     );
@@ -122,43 +130,49 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Residents Registry</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage, search, and filter Barangay resident demographics and records.</p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md shadow-primary/20"
-        >
-          <Plus className="h-4 w-4" />
-          Add Resident
-        </button>
-      </div>
+      <PageHeader
+        title="Residents Registry"
+        subtitle="Manage, search, and filter Barangay resident demographics and records."
+        icon={Users}
+        actions={
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md shadow-primary/20"
+          >
+            <Plus className="h-4 w-4" />
+            Add Resident
+          </button>
+        }
+      />
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <form onSubmit={handleSearch} className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            type="search"
-            value={filters.search}
-            onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-            placeholder="Search name, address, purok, contact, or ID..."
-            className="w-full pl-9 pr-8 py-2 text-xs font-medium bg-card border border-input rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-2xs"
-          />
-          {filters.search && (
-            <button
-              type="button"
-              onClick={() => setFilters((current) => ({ ...current, search: "" }))}
-              aria-label="Clear resident search"
-              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </form>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <form onSubmit={handleSearch} className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              type="search"
+              value={filters.search}
+              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+              placeholder="Search name, address, purok, contact…"
+              className="w-full pl-9 pr-8 py-2 text-xs font-medium bg-card border border-input rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-2xs"
+            />
+            {filters.search && (
+              <button
+                type="button"
+                onClick={() => setFilters((current) => ({ ...current, search: "" }))}
+                aria-label="Clear resident search"
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </form>
+          {/* Result count */}
+          <span className="shrink-0 text-[11px] font-semibold text-muted-foreground bg-muted/60 border rounded-xl px-2.5 py-1.5 tabular-nums">
+            {displayedResidents.length} / {residents.length}
+          </span>
+        </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
