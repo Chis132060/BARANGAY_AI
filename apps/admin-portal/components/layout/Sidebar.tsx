@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../auth-provider";
 import { navigationConfig, NavigationModule } from "../../lib/navigation";
@@ -130,15 +130,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer System Status */}
-      <div className="p-3 m-3 rounded-xl bg-muted/40 border text-xs text-muted-foreground space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> System Online
-          </span>
-          <span className="text-[10px] font-mono text-muted-foreground">v0.2.0</span>
-        </div>
-      </div>
+
     </aside>
   );
 }

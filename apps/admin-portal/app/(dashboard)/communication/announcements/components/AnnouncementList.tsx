@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AnnouncementItem } from "../../actions";
-import { Plus, Megaphone, X, Sparkles, Loader2, Check, ImagePlus } from "lucide-react";
+import { Plus, Megaphone, X, Loader2, Check, ImagePlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface AnnouncementListProps {
@@ -172,7 +172,7 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
           <div className="bg-card w-full max-w-lg rounded-2xl p-6 space-y-4 shadow-2xl border">
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2 font-bold text-base text-foreground">
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Megaphone className="h-5 w-5 text-primary" />
                 Publish Barangay Announcement
               </div>
               <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-accent rounded-full text-muted-foreground">
