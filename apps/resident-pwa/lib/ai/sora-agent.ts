@@ -8,6 +8,7 @@ export interface SoraAgentRequest {
   userId?: string | null;
   language: SupportedLanguage;
   apiBaseUrl: string;
+  accessToken?: string;
 }
 
 export interface SoraAgentResult {
@@ -59,12 +60,14 @@ function createGroundingTool(request: SoraAgentRequest, grounding: { value?: Gro
       try {
         const response = await fetch(`${request.apiBaseUrl}/api/v1/chat`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(request.accessToken ? { Authorization: `Bearer ${request.accessToken}` } : {}),
+          },
           signal: controller.signal,
           body: JSON.stringify({
             query,
             session_id: request.sessionId ?? null,
-            user_id: request.userId ?? null,
             language,
           }),
         });
