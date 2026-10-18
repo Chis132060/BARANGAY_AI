@@ -58,8 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           setUser(session.user);
-          const userRole = session.user.user_metadata?.role || "Staff";
-          setRole(userRole);
+          setRole(null);
+          setRoleId(null);
+          setPermissions({});
 
           // Fetch role_id from the users table
           const { data: userProfile } = await supabase
@@ -70,10 +71,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (userProfile) {
             const rid = userProfile.role_id;
-            const roleName = (userProfile as any).role?.name || userRole;
+            const roleName = (userProfile as any).role?.name || null;
             setRoleId(rid);
             setRole(roleName);
             if (rid) await loadPermissions(rid);
+          } else if (process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+            setRole(session.user.user_metadata?.role || "Staff");
           }
         }
       } catch (err) {
@@ -89,8 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (_event: AuthChangeEvent, session: Session | null) => {
         if (session) {
           setUser(session.user);
-          const userRole = session.user.user_metadata?.role || "Staff";
-          setRole(userRole);
+          setRole(null);
+          setRoleId(null);
+          setPermissions({});
 
           const { data: userProfile } = await supabase
             .from("users")
@@ -100,10 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (userProfile) {
             const rid = userProfile.role_id;
-            const roleName = (userProfile as any).role?.name || userRole;
+            const roleName = (userProfile as any).role?.name || null;
             setRoleId(rid);
             setRole(roleName);
             if (rid) await loadPermissions(rid);
+          } else if (process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+            setRole(session.user.user_metadata?.role || "Staff");
           }
         } else {
           setUser(null);
@@ -127,8 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (role === "Super Admin") return true;
     // Super Admin wildcard from permissions
     if (permissions["*"]) return permissions["*"][action];
-    // Fallback if permissions table is empty or loading
-    if (Object.keys(permissions).length === 0) return true;
     return permissions[module]?.[action] ?? false;
   }
 

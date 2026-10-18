@@ -81,13 +81,7 @@ export function checkPermissions(
   // Use provided permissions map (from auth context) or cached
   const permsMap = permissions || cachedPermissions;
   if (!permsMap || Object.keys(permsMap).length === 0) {
-    return {
-      canView: true,
-      canCreate: true,
-      canEdit: true,
-      canDelete: true,
-      canApprove: true,
-    };
+    return DEFAULT_DENY;
   }
 
   // Super Admin wildcard
