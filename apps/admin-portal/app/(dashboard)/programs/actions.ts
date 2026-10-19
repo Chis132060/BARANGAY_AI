@@ -14,6 +14,9 @@ export interface ProgramEnrollee {
   date_enrolled: string;
   status: string;
   notes?: string;
+  rejection_reason?: string;
+  attended?: boolean;
+  reviewed_at?: string;
   created_at: string;
 }
 
@@ -34,6 +37,11 @@ export interface BarangayProgram {
   is_public?: boolean;
   registration_open?: boolean;
   requirements?: string;
+  registration_deadline?: string | null;
+  max_participants?: number | null;
+  min_age?: number | null;
+  max_age?: number | null;
+  archived_at?: string | null;
   enrollee_count?: number;
   created_at: string;
 }
@@ -101,6 +109,10 @@ export async function createProgram(
       is_public: false,
       registration_open: false,
       requirements: formData.requirements || null,
+      registration_deadline: formData.registration_deadline || null,
+      max_participants: formData.max_participants || null,
+      min_age: formData.min_age ?? null,
+      max_age: formData.max_age ?? null,
     })
     .select("id")
     .single();
@@ -160,11 +172,11 @@ export async function setProgramPublication(programId: string, publish: boolean)
   return { success: true };
 }
 
-export async function reviewProgramApplication(enrolleeId: string, decision: "Approved" | "Rejected") {
+export async function reviewProgramApplication(enrolleeId: string, decision: "Approved" | "Rejected", reason = "") {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
-  const { error } = await supabase.rpc("review_barangay_program_application", { p_enrollee_id: enrolleeId, p_decision: decision });
+  const { error } = await supabase.rpc("review_barangay_program_application", { p_enrollee_id: enrolleeId, p_decision: decision, p_reason: reason });
   if (error) throw new Error(error.message);
   revalidatePath("/programs");
   return { success: true };
@@ -178,4 +190,43 @@ export async function updateProgramRegistration(programId: string, registrationO
   if (error) throw new Error(error.message);
   revalidatePath("/programs");
   return { success: true };
+}
+
+export async function editProgram(programId: string, updates: Partial<BarangayProgram>) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const allowed = ["name","description","category","purok","venue","schedule_details","requirements","chairperson","contact","status","registration_deadline","max_participants","min_age","max_age"] as const;
+  const payload: Record<string, unknown> = {};
+  for (const key of allowed) if (Object.prototype.hasOwnProperty.call(updates,key)) payload[key] = updates[key] === "" ? null : updates[key];
+  if (updates.status && updates.status !== "Active") { payload.registration_open = false; payload.is_public = false; }
+  const { error } = await supabase.from("barangay_programs").update(payload).eq("id",programId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/programs");
+  return { success:true };
+}
+export async function archiveProgram(programId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { error } = await supabase.from("barangay_programs").update({status:"Archived",archived_at:new Date().toISOString(),registration_open:false,is_public:false}).eq("id",programId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/programs");
+  return { success:true };
+}
+export async function setProgramAttendance(enrolleeId: string, attended: boolean) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { data, error } = await supabase.from("program_enrollees").update({attended,attended_at:attended?new Date().toISOString():null}).eq("id",enrolleeId).in("status",["Approved","Active"]).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Only approved participants can be marked present");
+  revalidatePath("/programs");
+  return {success:true};
+}
+export async function fetchProgramAudit(programId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("program_activity_logs").select("action,details,created_at,actor_id").eq("program_id",programId).order("created_at",{ascending:false}).limit(100);
+  if (error) throw new Error(error.message);
+  return data || [];
 }
