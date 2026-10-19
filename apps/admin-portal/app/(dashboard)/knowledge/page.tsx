@@ -129,9 +129,13 @@ export default function KnowledgePage() {
       if (docError) throw new Error(docError.message);
 
       // 2. Send to FastAPI for chunking + embedding
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${apiBase}/api/v1/ingest`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           doc_id: docData.id,
           text: textContent,
