@@ -54,6 +54,7 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     const supabase = createClient();
     let active = true;
+
     async function load(force = false) {
       if (inFlight.current) {
         reloadRequested.current = true;
@@ -62,36 +63,34 @@ export default function AnnouncementsPage() {
       if (!force && Date.now() - lastLoadAt.current < 30_000) return;
       inFlight.current = true;
       setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
+
       try {
-      const [ann, prog] = await Promise.all([
-        supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
-        supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open,registration_deadline,max_participants,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
-      ]);
-      if (!active) return;
-      if (!ann.error) {
-        announcementsRef.current = (ann.data || []) as Announcement[];
-        setAnnouncements(announcementsRef.current);
-      }
-      if (!prog.error) {
-        programsRef.current = (prog.data || []) as Program[];
-        setPrograms(programsRef.current);
-      }
-      setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
-      // Render the public updates before waiting for the user-specific application status.
-      setLoading(false);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!active) return;
-      if (user) {
-        const { data: resident, error: residentError } = await supabase.from("residents").select("id").eq("user_id", user.id).maybeSingle();
-        if (!residentError && resident) {
-          const { data: existing, error: applicationsError } = await supabase.from("program_enrollees").select("program_id,status,rejection_reason,created_at").eq("resident_id", resident.id);
-          if (active && !applicationsError && existing) {
-            setApplications(Object.fromEntries(existing.map((item: { program_id: string; status: string }) => [item.program_id, item.status])));
-            setApplicationDetails(existing as Array<{program_id:string;status:string;rejection_reason:string|null;created_at:string}>);
-          }
+        const [ann, prog] = await Promise.all([
+          supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
+          supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open,registration_deadline,max_participants,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
+        ]);
+        if (!active) return;
+        if (!ann.error) {
+          announcementsRef.current = (ann.data || []) as Announcement[];
+          setAnnouncements(announcementsRef.current);
         }
-      }
-      lastLoadAt.current = Date.now();
+        if (!prog.error) {
+          programsRef.current = (prog.data || []) as Program[];
+          setPrograms(programsRef.current);
+        }
+        setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
+        setLoading(false);
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!active || !user) return;
+        const { data: resident, error: residentError } = await supabase.from("residents").select("id").eq("user_id", user.id).maybeSingle();
+        if (residentError || !resident || !active) return;
+        const { data: existing, error: applicationsError } = await supabase.from("program_enrollees").select("program_id,status,rejection_reason,created_at").eq("resident_id", resident.id);
+        if (active && !applicationsError && existing) {
+          setApplications(Object.fromEntries(existing.map((item: { program_id: string; status: string }) => [item.program_id, item.status])));
+          setApplicationDetails(existing as Array<{ program_id: string; status: string; rejection_reason: string | null; created_at: string }>);
+        }
+        lastLoadAt.current = Date.now();
       } catch (error) {
         if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
       } finally {
@@ -105,12 +104,16 @@ export default function AnnouncementsPage() {
         }
       }
     }
+
     void load(true);
     const channel = supabase.channel("resident-updates-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
       .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   }, [refresh]);
 
   return (
