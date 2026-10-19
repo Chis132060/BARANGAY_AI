@@ -75,15 +75,23 @@ export async function POST(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
   const authorization = session?.access_token ? `Bearer ${session.access_token}` : undefined;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON request." }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
   const { message, sessionId, language = "tgl" } = body as {
     message: string;
     sessionId?: string;
     language?: "tgl" | "ceb" | "en";
   };
 
-  if (!message?.trim()) {
-    return NextResponse.json({ error: "Message is required" }, { status: 400 });
+  if (typeof message !== "string" || !message.trim() || message.length > 4000 || !["tgl", "ceb", "en"].includes(language)) {
+    return NextResponse.json({ error: "Provide a message of 1–4000 characters and a supported language." }, { status: 400 });
   }
 
   // Rate limiting
