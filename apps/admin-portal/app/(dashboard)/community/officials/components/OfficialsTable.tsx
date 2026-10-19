@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { OfficialItem } from "../../actions";
 
 interface OfficialsTableProps {
@@ -9,7 +10,7 @@ interface OfficialsTableProps {
 export function OfficialsTable({ officials }: OfficialsTableProps) {
   return (
     <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-      <table className="w-full text-left border-collapse">
+      <AdminTable className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <th className="px-6 py-4">Official Name</th>
@@ -48,7 +49,7 @@ export function OfficialsTable({ officials }: OfficialsTableProps) {
             ))
           )}
         </tbody>
-      </table>
+      </AdminTable>
     </div>
   );
 }

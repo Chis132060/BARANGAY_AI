@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState } from "react";
 import { Plus, Edit2, Trash2, CheckCircle, BookOpen, AlertCircle, FileText } from "lucide-react";
 import { fetchPolicies, savePolicy, BarangayPolicy } from "./actions";
@@ -73,7 +74,7 @@ export default function PoliciesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <AdminTable className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   <th className="px-6 py-4">Title</th>
@@ -114,7 +115,7 @@ export default function PoliciesPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </AdminTable>
           </div>
         )}
       </div>

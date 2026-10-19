@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState, useTransition } from "react";
 import {
   Users,
@@ -165,7 +166,7 @@ export function BoardersClient({ initialBoarders }: Props) {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <AdminTable className="w-full min-w-[900px] text-left text-sm">
             <thead className="border-b bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-6 py-3">Boarder</th>
@@ -228,7 +229,7 @@ export function BoardersClient({ initialBoarders }: Props) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
       </div>
 

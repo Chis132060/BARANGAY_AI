@@ -1,3 +1,4 @@
+import { AdminTable } from "@/components/ui/AdminTable";
 import { Download, FileSpreadsheet, Users, Receipt, Building2 } from "lucide-react";
 import { fetchAgeDistribution, fetchDashboardMetrics, fetchMonthlyTransactions } from "../../dashboard/actions";
 
@@ -51,17 +52,17 @@ export default async function ReportsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card overflow-hidden">
           <div className="border-b px-5 py-4"><h2 className="font-bold">Requests by Month</h2><p className="text-xs text-muted-foreground">Last 12 months from document request records</p></div>
-          <table className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-5 py-3 text-left">Month</th><th className="px-5 py-3 text-right">Requests</th></tr></thead><tbody className="divide-y">{monthly.map((row) => <tr key={row.month}><td className="px-5 py-3">{row.month}</td><td className="px-5 py-3 text-right font-semibold">{row.transactions}</td></tr>)}</tbody></table>
+          <AdminTable className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-5 py-3 text-left">Month</th><th className="px-5 py-3 text-right">Requests</th></tr></thead><tbody className="divide-y">{monthly.map((row) => <tr key={row.month}><td className="px-5 py-3">{row.month}</td><td className="px-5 py-3 text-right font-semibold">{row.transactions}</td></tr>)}</tbody></AdminTable>
         </section>
         <section className="rounded-xl border bg-card overflow-hidden">
           <div className="border-b px-5 py-4"><h2 className="font-bold">Resident Age Distribution</h2><p className="text-xs text-muted-foreground">Calculated from resident birth dates</p></div>
-          <table className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-5 py-3 text-left">Age range</th><th className="px-5 py-3 text-right">Residents</th></tr></thead><tbody className="divide-y">{ages.map((row) => <tr key={row.range}><td className="px-5 py-3">{row.range}</td><td className="px-5 py-3 text-right font-semibold">{row.count}</td></tr>)}</tbody></table>
+          <AdminTable className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-5 py-3 text-left">Age range</th><th className="px-5 py-3 text-right">Residents</th></tr></thead><tbody className="divide-y">{ages.map((row) => <tr key={row.range}><td className="px-5 py-3">{row.range}</td><td className="px-5 py-3 text-right font-semibold">{row.count}</td></tr>)}</tbody></AdminTable>
         </section>
       </div>
 
       <section className="rounded-xl border bg-card overflow-hidden">
         <div className="border-b px-5 py-4"><h2 className="font-bold">Generated Report</h2><p className="text-xs text-muted-foreground">Generated {generatedDate} from live database records</p></div>
-        <table className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-5 py-3 text-left">Report</th><th className="px-5 py-3 text-left">Source</th><th className="px-5 py-3 text-left">Date</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody><tr><td className="px-5 py-4 font-medium">Barangay Operations Summary</td><td className="px-5 py-4 text-muted-foreground">Residents, documents, businesses, payments</td><td className="px-5 py-4 font-mono text-xs">{generatedDate}</td><td className="px-5 py-4 text-right"><a href={csvHref(reportRows)} download={`barangay-report-${generatedDate}.csv`} className="inline-flex items-center gap-1 text-primary text-xs font-semibold hover:underline"><Download className="h-3.5 w-3.5" /> Download</a></td></tr></tbody></table>
+        <AdminTable className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-5 py-3 text-left">Report</th><th className="px-5 py-3 text-left">Source</th><th className="px-5 py-3 text-left">Date</th><th className="px-5 py-3 text-right">Action</th></tr></thead><tbody><tr><td className="px-5 py-4 font-medium">Barangay Operations Summary</td><td className="px-5 py-4 text-muted-foreground">Residents, documents, businesses, payments</td><td className="px-5 py-4 font-mono text-xs">{generatedDate}</td><td className="px-5 py-4 text-right"><a href={csvHref(reportRows)} download={`barangay-report-${generatedDate}.csv`} className="inline-flex items-center gap-1 text-primary text-xs font-semibold hover:underline"><Download className="h-3.5 w-3.5" /> Download</a></td></tr></tbody></AdminTable>
       </section>
     </div>
   );

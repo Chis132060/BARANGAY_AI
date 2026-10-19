@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState } from "react";
 import { Plus, Megaphone, Globe, Edit2, CheckCircle } from "lucide-react";
 import { fetchAnnouncements, publishAnnouncement, Announcement } from "./actions";
@@ -78,7 +79,7 @@ export default function AnnouncementsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <AdminTable className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   <th className="px-6 py-4">Title</th>
@@ -122,7 +123,7 @@ export default function AnnouncementsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </AdminTable>
           </div>
         )}
       </div>

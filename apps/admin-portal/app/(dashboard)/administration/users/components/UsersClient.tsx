@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState } from "react";
 import { Loader2, Search, Plus, Pencil, Trash2, X, ShieldCheck, Users as UsersIcon } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
@@ -102,7 +103,7 @@ export function UsersClient({ initialUsers, initialRoles }: UsersClientProps) {
       {/* Table */}
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <AdminTable className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <th className="px-6 py-4">User</th>
@@ -168,7 +169,7 @@ export function UsersClient({ initialUsers, initialRoles }: UsersClientProps) {
                 ))
               )}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
       </div>
 

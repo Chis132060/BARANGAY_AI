@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState, useEffect } from "react";
 import {
   UserCheck,
@@ -233,7 +234,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <AdminTable className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-5 py-3 font-bold">Resident applicant</th>
@@ -267,7 +268,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </AdminTable>
           </div>
         </div>
       )}
