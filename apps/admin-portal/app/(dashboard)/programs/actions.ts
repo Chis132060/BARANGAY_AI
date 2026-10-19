@@ -157,6 +157,8 @@ export async function setProgramPublication(programId: string, publish: boolean)
 }
 
 export async function reviewProgramApplication(enrolleeId: string, decision: "Approved" | "Rejected") {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(enrolleeId)) throw new Error("Invalid application ID");
+  if (decision !== "Approved" && decision !== "Rejected") throw new Error("Invalid review decision");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
