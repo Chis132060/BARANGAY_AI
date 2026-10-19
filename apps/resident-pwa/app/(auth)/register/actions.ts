@@ -9,7 +9,7 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function registerResidentAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   try {
-    const email = formData.get("email") as string;
+    const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
     const password = formData.get("password") as string;
     const firstName = formData.get("firstName") as string;
     const middleName = formData.get("middleName") as string;
@@ -67,126 +67,73 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     }
     const authUserId = authData.user.id;
 
-    // 2. Upload ID Blob securely
-    const fileName = `id_capture_${uuidv4()}.jpg`;
-    const storagePath = `${authUserId}/${fileName}`;
-    const arrayBuffer = await idBlob.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Every resource below belongs to this newly-created auth user.
+    // Compensate for partial failures so registration can be safely retried.
+    let uploadedPath: string | null = null;
+    try {
+      const fileName = `id_capture_${uuidv4()}.jpg`;
+      const storagePath = `${authUserId}/${fileName}`;
+      const buffer = Buffer.from(await idBlob.arrayBuffer());
+      const { error: uploadError } = await supabase.storage
+        .from("resident-ids")
+        .upload(storagePath, buffer, { contentType: idBlob.type, upsert: false });
+      if (uploadError) throw new Error("Unable to upload identification document.");
+      uploadedPath = storagePath;
 
-    const { error: uploadError } = await supabase.storage
-      .from("resident-ids")
-      .upload(storagePath, buffer, {
-        contentType: idBlob.type,
-        upsert: false,
-      });
+      const { data: residentRole, error: roleError } = await supabase
+        .from("roles").select("id").eq("name", "Resident").single();
+      if (roleError || !residentRole) throw new Error("Resident role is not configured.");
 
-    if (uploadError) {
-      return { error: `Failed to secure upload ID: ${uploadError.message}` };
-    }
-
-    // 3. Lookup Resident role
-    const { data: residentRole } = await supabase
-      .from("roles")
-      .select("id")
-      .eq("name", "Resident")
-      .maybeSingle();
-
-    const roleId = residentRole?.id;
-
-    // 4. Upsert user in public.users table
-    const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
-    const { data: existingUserRow } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", authUserId)
-      .maybeSingle();
-
-    if (existingUserRow) {
-      await supabase
-        .from("users")
-        .update({
-          name: fullName,
-          email,
-          role_id: roleId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", authUserId);
-    } else {
-      await supabase.from("users").insert({
+      const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
+      const { error: userError } = await supabase.from("users").insert({
         id: authUserId,
         name: fullName,
         email,
-        role_id: roleId,
+        role_id: residentRole.id,
         updated_at: new Date().toISOString(),
       });
-    }
+      if (userError) throw new Error("Unable to create user profile.");
 
-    // 5. Safe insert or update in residents table
-    const { data: existingResident } = await supabase
-      .from("residents")
-      .select("id")
-      .or(`user_id.eq.${authUserId},email.eq.${email}`)
-      .maybeSingle();
-
-    let residentId: string;
-    const residentPayload = {
-      user_id: authUserId,
-      email,
-      first_name: firstName,
-      middle_name: middleName || null,
-      last_name: lastName,
-      birth_date: birthDate,
-      gender: gender,
-      contact_number: contactNumber || null,
-      civil_status: "Single",
-      verification_status: "Pending",
-      id_type: idType,
-      id_photo_url: storagePath, // We now store the private storage path here.
-      updated_at: new Date().toISOString(),
-    };
-
-    if (existingResident) {
-      const { error: updateError } = await supabase
+      const { data: resident, error: residentError } = await supabase
         .from("residents")
-        .update(residentPayload)
-        .eq("id", existingResident.id);
+        .insert({
+          user_id: authUserId,
+          email,
+          first_name: firstName,
+          middle_name: middleName || null,
+          last_name: lastName,
+          birth_date: birthDate,
+          gender,
+          contact_number: contactNumber || null,
+          civil_status: "Single",
+          verification_status: "Pending",
+          id_type: idType,
+          id_photo_url: storagePath,
+          updated_at: new Date().toISOString(),
+        })
+        .select("id").single();
+      if (residentError || !resident) throw new Error("Unable to create resident profile.");
 
-      if (updateError) return { error: updateError.message };
-      residentId = existingResident.id;
-    } else {
-      const { data: newResident, error: insertError } = await supabase
-        .from("residents")
-        .insert(residentPayload)
-        .select("id")
-        .single();
-
-      if (insertError) return { error: insertError.message };
-      residentId = newResident.id;
-    }
-
-    // 6. Safe insert or update address
-    const { data: existingAddress } = await supabase
-      .from("addresses")
-      .select("id")
-      .eq("resident_id", residentId)
-      .maybeSingle();
-
-    const addressPayload = {
-      resident_id: residentId,
-      house_number: houseNumber || null,
-      street: street || null,
-      purok: purok || "Purok 1",
-    };
-
-    if (existingAddress) {
-      await supabase
-        .from("addresses")
-        .update(addressPayload)
-        .eq("id", existingAddress.id);
-    } else {
-      await supabase
-        .from("addresses")
-        .insert(addressPayload);
+      const { error: addressError } = await supabase.from("addresses").insert({
+        resident_id: resident.id,
+        house_number: houseNumber || null,
+        street: street || null,
+        purok: purok || "Purok 1",
+      });
+      if (addressError) throw new Error("Unable to save residential address.");
+    } catch (registrationError) {
+      if (uploadedPath) {
+        await supabase.storage.from("resident-ids").remove([uploadedPath]);
+      }
+      // residents.user_id is ON DELETE CASCADE; deleting the new auth identity
+      // rolls back dependent profiles in schemas with cascading foreign keys.
+      const { error: cleanupError } = await supabase.auth.admin.deleteUser(authUserId);
+      if (cleanupError) {
+        console.error("Registration cleanup failed; manual review required", { authUserId, cleanupError });
+        return { error: "Registration could not finish. Please contact support before retrying." };
+      }
+      console.error("Resident registration failed", registrationError);
+      return { error: "Registration could not be completed. Please try again." };
     }
 
     return { success: true };
