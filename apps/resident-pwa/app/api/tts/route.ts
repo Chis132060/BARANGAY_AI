@@ -6,9 +6,9 @@ export async function POST(req: Request) {
   try {
     const { text, language } = await req.json();
 
-    if (!text || typeof text !== "string") {
+    if (typeof text !== "string" || !text.trim() || text.length > 1500 || !["tgl", "ceb", "en", undefined].includes(language)) {
       return NextResponse.json(
-        { success: false, error: "Text prompt is required." },
+        { success: false, error: "Provide text of 1–1500 characters and a supported language." },
         { status: 400 }
       );
     }
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { success: false, error: data?.detail || data?.error || "Gemini Umbriel voice is unavailable." },
+        { success: false, error: "Voice service is temporarily unavailable." },
         { status: response.status }
       );
     }
