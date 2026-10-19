@@ -101,6 +101,8 @@ export async function fetchRolesWithPermissions(): Promise<RoleWithPermissions[]
 
 export async function createRole(name: string): Promise<RoleRecord> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canCreate"))) throw new Error("Unauthorized.");
   const { data, error } = await supabase
     .from("roles")
     .insert({ name })
@@ -117,6 +119,8 @@ export async function createRole(name: string): Promise<RoleRecord> {
 
 export async function updateRole(id: string, name: string): Promise<void> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canEdit"))) throw new Error("Unauthorized.");
   const { error } = await supabase
     .from("roles")
     .update({ name })
@@ -128,8 +132,11 @@ export async function updateRole(id: string, name: string): Promise<void> {
 
 export async function deleteRole(id: string): Promise<void> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canDelete"))) throw new Error("Unauthorized.");
   // Delete associated permissions first
-  await supabase.from("permissions").delete().eq("role_id", id);
+  const { error: permissionsError } = await supabase.from("permissions").delete().eq("role_id", id);
+  if (permissionsError) throw new Error("Unable to delete role permissions.");
   const { error } = await supabase.from("roles").delete().eq("id", id);
   if (error) throw new Error(error.message);
   await writeAuditLog("DELETE", "administration", `Deleted role ${id}`);
@@ -150,9 +157,12 @@ export async function fetchPermissionsByRole(roleId: string): Promise<Permission
 
 export async function upsertPermissions(roleId: string, permissions: Omit<PermissionRecord, "id" | "role_id">[]): Promise<void> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canEdit"))) throw new Error("Unauthorized.");
 
   // Delete existing permissions for this role, then insert new ones
-  await supabase.from("permissions").delete().eq("role_id", roleId);
+  const { error: deleteError } = await supabase.from("permissions").delete().eq("role_id", roleId);
+  if (deleteError) throw new Error("Unable to update permissions.");
 
   const rows = permissions.map((p) => ({
     role_id: roleId,
@@ -213,6 +223,8 @@ export async function fetchSystemUser(id: string): Promise<SystemUser | null> {
 
 export async function updateSystemUser(id: string, updates: { name?: string; email?: string; role_id?: string }): Promise<void> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canEdit"))) throw new Error("Unauthorized.");
   const { error } = await supabase
     .from("users")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -224,6 +236,8 @@ export async function updateSystemUser(id: string, updates: { name?: string; ema
 
 export async function deleteSystemUser(id: string): Promise<void> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canDelete"))) throw new Error("Unauthorized.");
   const { error } = await supabase.from("users").delete().eq("id", id);
   if (error) throw new Error(error.message);
   await writeAuditLog("DELETE", "administration", `Deleted user ${id}`);

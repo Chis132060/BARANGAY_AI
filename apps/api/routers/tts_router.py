@@ -4,7 +4,7 @@ import wave
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.config import settings
 
@@ -12,8 +12,8 @@ router = APIRouter()
 
 
 class TTSRequest(BaseModel):
-    text: str
-    language: str = "tgl"
+    text: str = Field(min_length=1, max_length=1500)
+    language: str = Field(default="tgl", pattern="^(tgl|ceb|en)$")
 
 
 def pcm_to_wav_data_url(base64_pcm: str, sample_rate: int = 24000) -> str:
@@ -64,7 +64,7 @@ async def generate_tts(request: TTSRequest):
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, params={"key": settings.GEMINI_API_KEY}, json=payload)
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Gemini TTS request failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail="Voice service is temporarily unavailable.") from exc
 
     if response.status_code >= 400:
         try:
@@ -73,7 +73,7 @@ async def generate_tts(request: TTSRequest):
             provider_error = None
         raise HTTPException(
             status_code=502,
-            detail=provider_error or f"Gemini TTS returned HTTP {response.status_code}.",
+            detail="Voice service is temporarily unavailable.",
         )
 
     data = response.json()

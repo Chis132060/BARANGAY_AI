@@ -4,11 +4,20 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { text, language } = await req.json();
+    let payload: unknown;
+    try {
+      payload = await req.json();
+    } catch {
+      return NextResponse.json({ success: false, error: "Invalid JSON request." }, { status: 400 });
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ success: false, error: "Invalid request body." }, { status: 400 });
+    }
+    const { text, language } = payload as { text?: unknown; language?: unknown };
 
-    if (!text || typeof text !== "string") {
+    if (typeof text !== "string" || !text.trim() || text.length > 1500 || !["tgl", "ceb", "en", undefined].includes(language)) {
       return NextResponse.json(
-        { success: false, error: "Text prompt is required." },
+        { success: false, error: "Provide text of 1–1500 characters and a supported language." },
         { status: 400 }
       );
     }
@@ -28,7 +37,7 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { success: false, error: data?.detail || data?.error || "Gemini Umbriel voice is unavailable." },
+        { success: false, error: "Voice service is temporarily unavailable." },
         { status: response.status }
       );
     }
