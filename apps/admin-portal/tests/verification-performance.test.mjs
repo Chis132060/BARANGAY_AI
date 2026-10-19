@@ -24,3 +24,14 @@ test("verification permission checks execute concurrently", () => {
   const queue = actions.split("export async function fetchPendingVerifications")[1].split("export async function fetchResidentIdPhotoUrl")[0];
   assert.match(queue, /Promise\.all\(\[/);
 });
+
+test("verification actions only transition pending self-registered residents", () => {
+  for (const name of ["approveResident", "rejectResident"]) {
+    const section = actions.split("export async function " + name)[1];
+    assert.ok(section, name + " must exist");
+    const update = section.split(".update(")[1]?.split(".select(\"id, verification_status\")")[0];
+    assert.ok(update, name + " must update resident");
+    assert.match(update, /\.eq\("verification_status", "Pending"\)/);
+    assert.match(update, /\.not\("user_id", "is", null\)/);
+  }
+});
