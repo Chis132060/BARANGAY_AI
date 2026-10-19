@@ -39,5 +39,5 @@ BEGIN
     can_create boolean, can_edit boolean, can_delete boolean, can_approve boolean);
 END;
 $$;
-REVOKE ALL ON FUNCTION public.replace_role_permissions(uuid,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.replace_role_permissions(uuid,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.replace_role_permissions(uuid,jsonb) TO authenticated;
