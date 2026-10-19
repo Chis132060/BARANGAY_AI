@@ -26,6 +26,7 @@ import {
   addEnrollee,
   removeEnrollee,
   setProgramPublication,
+  updateProgramRegistration,
   reviewProgramApplication,
 } from "../actions";
 
@@ -284,6 +285,8 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
     purok: "Purok 3",
     venue: "",
     schedule_details: "",
+    requirements: "",
+    registration_open: false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -358,6 +361,10 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
                 <input value={form.schedule_details} onChange={(e) => setForm((f) => ({ ...f, schedule_details: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
               </div>
               <div className="col-span-2">
+                <label className="mb-1 block text-xs font-semibold">Requirements / Eligibility</label>
+                <textarea value={form.requirements} onChange={(e) => setForm((f) => ({ ...f, requirements: e.target.value }))} rows={2} placeholder="Who can join and what to bring" className="w-full rounded-lg border px-3 py-2 text-sm" />
+              </div>
+              <div className="col-span-2">
                 <label className="mb-1 block text-xs font-semibold">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={2} placeholder="Brief program description…"
@@ -424,6 +431,13 @@ export function ProgramsClient({ initialPrograms }: Props) {
       await setProgramPublication(program.id, !program.is_public);
       setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, is_public: !p.is_public } : p));
     } catch (err: any) { alert(err.message || "Failed to change publication status"); }
+  }
+
+  async function handleRegistration(program: BarangayProgram) {
+    try {
+      await updateProgramRegistration(program.id, !program.registration_open);
+      setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, registration_open: !p.registration_open } : p));
+    } catch (err: any) { alert(err.message || "Failed to update registration"); }
   }
 
   function handleDelete(id: string, isCustom: boolean) {
@@ -524,6 +538,7 @@ export function ProgramsClient({ initialPrograms }: Props) {
 
               <div className="mt-3 flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">{program.purok || "All Puroks"}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); handleRegistration(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.registration_open ? "Close Registration" : "Open Registration"}</button>
                 <button type="button" onClick={(e) => { e.stopPropagation(); handlePublication(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.is_public ? "Unpublish" : "Publish to PWA"}</button>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
