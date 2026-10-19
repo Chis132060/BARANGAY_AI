@@ -128,7 +128,10 @@ export function Sidebar() {
                 {isOpen && (
                   <div className="pl-4 pr-2 py-1 space-y-0.5 ml-4 my-1 border-l-2 border-primary/15 animate-in fade-in duration-200">
                     {allowedChildren.map((child) => {
-                      const isActive = pathname === child.href || pathname.startsWith(child.href + "/");
+                      const hasSiblingWithLongerPath = allowedChildren.some(
+                        (sibling) => sibling.href !== child.href && sibling.href.startsWith(child.href + "/")
+                      );
+                      const isActive = pathname === child.href || (!hasSiblingWithLongerPath && pathname.startsWith(child.href + "/"));
                       return (
                         <Link
                           key={child.href}
