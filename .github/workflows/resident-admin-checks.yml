@@ -1,0 +1,33 @@
+name: Resident and Admin Checks
+on:
+  pull_request:
+    paths:
+      - 'apps/resident-pwa/**'
+      - 'apps/admin-portal/**'
+      - 'packages/**'
+      - 'package*.json'
+      - '.github/workflows/resident-admin-checks.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Resident unit tests
+        run: npm test --workspace=apps/resident-pwa
+      - name: TypeScript checks
+        run: npm run type-check --workspaces --if-present
+      - name: Resident build
+        run: npm run build:pwa
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+      - name: Admin build
+        run: npm run build:admin
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'

@@ -227,8 +227,9 @@ export async function fetchResidentIdPhotoUrl(residentId: string): Promise<strin
   if (error) throw new Error(error.message);
   const photo = resident?.id_photo_url;
   if (!photo) return null;
-  if (photo.startsWith("http")) return photo;
-  const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 3600);
+  // IDs must be stored as private storage paths, never public HTTP URLs.
+  if (/^https?:\/\//i.test(photo) || photo.includes("..") || photo.startsWith("/")) throw new Error("Invalid private ID storage path");
+  const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 300);
   if (signError) throw new Error(signError.message);
   return data?.signedUrl ?? null;
 }
@@ -247,6 +248,8 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .select("user_id, first_name, last_name, email")
     .eq("id", residentId)
     .maybeSingle();
+
+  if (!target?.user_id || target.user_id === user.id) throw new Error("Cannot review your own account or an unlinked resident");
 
   const { data: updatedResident, error } = await supabase
     .from("residents")
@@ -305,11 +308,15 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     .eq("id", residentId)
     .maybeSingle();
 
+  if (reason.trim().length < 10 || reason.trim().length > 500) throw new Error("Rejection reason must be 10–500 characters");
+
   const updateData: Record<string, any> = {
     verification_status: "Rejected",
     rejection_reason: reason.trim(),
     updated_at: new Date().toISOString(),
   };
+
+  if (!target?.user_id || target.user_id === user.id) throw new Error("Cannot review your own account or an unlinked resident");
 
   const { data: updatedResident, error } = await supabase
     .from("residents")
