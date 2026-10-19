@@ -1,7 +1,7 @@
 "use client";
 
 import { AdminTable } from "@/components/ui/AdminTable";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   BookOpen,
   Plus,
@@ -26,6 +26,7 @@ import {
   addEnrollee,
   removeEnrollee,
   setProgramPublication,
+  reviewProgramApplication,
 } from "../actions";
 
 // ─── Program Icon Map ─────────────────────────────────────────────────────────
@@ -77,12 +78,12 @@ function EnrolleesPanel({
   const [formError, setFormError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  useState(() => {
+  useEffect(() => {
     fetchEnrollees(program.id)
       .then(setEnrollees)
       .catch(() => {})
       .finally(() => setLoading(false));
-  });
+  }, [program.id]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -116,6 +117,14 @@ function EnrolleesPanel({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleReview(id: string, decision: "Approved" | "Rejected") {
+    setFormError("");
+    try {
+      await reviewProgramApplication(id, decision);
+      setEnrollees((prev) => prev.map((e) => e.id === id ? { ...e, status: decision } : e));
+    } catch (err: any) { setFormError(err.message || "Unable to review application"); }
   }
 
   function handleRemove(id: string) {
@@ -196,6 +205,7 @@ function EnrolleesPanel({
           </form>
         )}
 
+        {!showAdd && formError && <p role="alert" className="px-6 py-2 text-xs text-red-700">{formError}</p>}
         {/* Enrollee List */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b">
@@ -237,6 +247,8 @@ function EnrolleesPanel({
                     <td className="px-6 py-3 text-muted-foreground">{e.purok || "—"}</td>
                     <td className="px-6 py-3 text-muted-foreground text-xs">{e.date_enrolled}</td>
                     <td className="px-6 py-3 text-right">
+                      <span className="mr-2 text-xs font-semibold">{e.status}</span>
+                      {e.status === "Pending" && <span className="mr-2 inline-flex gap-1"><button onClick={() => handleReview(e.id, "Approved")} className="rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Approve</button><button onClick={() => handleReview(e.id, "Rejected")} className="rounded bg-red-100 px-2 py-1 text-xs text-red-800">Reject</button></span>}
                       <button onClick={() => handleRemove(e.id)} disabled={isPending}
                         className="rounded-lg p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />
