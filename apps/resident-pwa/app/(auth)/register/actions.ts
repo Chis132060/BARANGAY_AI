@@ -44,12 +44,12 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
 
     const supabase = createAdminClient();
 
-    // 1. Create or retrieve auth user with auto-confirmation
-    let authUserId: string;
+    // 1. Create a new account only. Existing accounts must authenticate through
+    // the normal login/recovery flow; public registration must never adopt them.
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: {
         role: "Resident",
         full_name: `${firstName} ${lastName}`.trim(),
@@ -57,23 +57,15 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     });
 
     if (authError) {
-      if (
-        authError.message.toLowerCase().includes("already registered") ||
-        authError.message.toLowerCase().includes("already been registered")
-      ) {
-        const { data: usersPage } = await supabase.auth.admin.listUsers({ page: 1, perPage: 100 });
-        const existingUser = usersPage?.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
-        if (existingUser) {
-          authUserId = existingUser.id;
-        } else {
-          return { error: "An account with this email already exists. Please log in or use another email." };
-        }
-      } else {
-        return { error: authError.message };
+      if (/already (been )?registered|already exists/i.test(authError.message)) {
+        return { error: "An account with this email already exists. Please log in or recover your account." };
       }
-    } else {
-      authUserId = authData.user.id;
+      return { error: "Unable to create account. Please try again." };
     }
+    if (!authData?.user?.id) {
+      return { error: "Unable to create account. Please try again." };
+    }
+    const authUserId = authData.user.id;
 
     // 2. Upload ID Blob securely
     const fileName = `id_capture_${uuidv4()}.jpg`;
