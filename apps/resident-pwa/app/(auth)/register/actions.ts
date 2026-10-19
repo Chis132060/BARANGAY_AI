@@ -39,6 +39,9 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     // validation above, but do not attempt a network call until real Supabase
     // credentials are configured.
     if (isMockSupabaseEnabled()) {
+      if (process.env.NODE_ENV === "production") {
+        return { error: "Registration is temporarily unavailable. Please contact support." };
+      }
       return { success: true };
     }
 
