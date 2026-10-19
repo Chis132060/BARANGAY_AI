@@ -1,7 +1,7 @@
 from typing import Optional
 
-from fastapi import HTTPException, Request
-from starlette.websockets import WebSocket
+from fastapi import HTTPException
+from starlette.requests import HTTPConnection
 from strawberry.fastapi import BaseContext
 from strawberry.types import Info
 
@@ -15,18 +15,24 @@ class AuthenticatedUser:
 
 
 class CustomContext(BaseContext):
-    def __init__(self, request: Optional[Request] = None, websocket: Optional[WebSocket] = None,
+    def __init__(self, connection: HTTPConnection,
                  current_user: Optional[AuthenticatedUser] = None):
         super().__init__()
-        self.request = request
-        self.websocket = websocket
+        # HTTPConnection is the common base for HTTP requests and WebSockets.
+        # Preserve Strawberry's request/websocket context attributes.
+        from starlette.requests import Request
+        from starlette.websockets import WebSocket
+        self.request = connection if isinstance(connection, Request) else None
+        self.websocket = connection if isinstance(connection, WebSocket) else None
         self.current_user = current_user
 
 
-async def get_context(request: Optional[Request] = None, websocket: Optional[WebSocket] = None) -> CustomContext:
-    headers = request.headers if request else websocket.headers if websocket else {}
-    user = await authenticated_user(headers.get("Authorization"))
-    return CustomContext(request, websocket, AuthenticatedUser(user["id"]) if user else None)
+async def get_context(connection: HTTPConnection) -> CustomContext:
+    user = await authenticated_user(connection.headers.get("Authorization"))
+    return CustomContext(
+        connection,
+        AuthenticatedUser(user["id"]) if user else None,
+    )
 
 
 def require_auth(info: Info) -> str:
