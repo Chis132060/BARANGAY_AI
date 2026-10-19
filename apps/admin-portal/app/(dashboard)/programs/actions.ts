@@ -32,6 +32,8 @@ export interface BarangayProgram {
   venue?: string;
   schedule_details?: string;
   is_public?: boolean;
+  registration_open?: boolean;
+  requirements?: string;
   enrollee_count?: number;
   created_at: string;
 }
@@ -97,6 +99,8 @@ export async function createProgram(
       venue: formData.venue || null,
       schedule_details: formData.schedule_details || null,
       is_public: false,
+      registration_open: false,
+      requirements: formData.requirements || null,
     })
     .select("id")
     .single();
@@ -161,6 +165,16 @@ export async function reviewProgramApplication(enrolleeId: string, decision: "Ap
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
   const { error } = await supabase.rpc("review_barangay_program_application", { p_enrollee_id: enrolleeId, p_decision: decision });
+  if (error) throw new Error(error.message);
+  revalidatePath("/programs");
+  return { success: true };
+}
+
+export async function updateProgramRegistration(programId: string, registrationOpen: boolean) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { error } = await supabase.from("barangay_programs").update({ registration_open: registrationOpen }).eq("id", programId);
   if (error) throw new Error(error.message);
   revalidatePath("/programs");
   return { success: true };

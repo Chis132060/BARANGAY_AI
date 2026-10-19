@@ -227,7 +227,7 @@ export async function fetchResidentIdPhotoUrl(residentId: string): Promise<strin
   if (error) throw new Error(error.message);
   const photo = resident?.id_photo_url;
   if (!photo) return null;
-  // Never return arbitrary/public URLs for identity documents.
+  // IDs must be stored as private storage paths, never public HTTP URLs.
   if (/^https?:\/\//i.test(photo) || photo.includes("..") || photo.startsWith("/")) throw new Error("Invalid private ID storage path");
   const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 300);
   if (signError) throw new Error(signError.message);
@@ -256,6 +256,7 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .update({ verification_status: "Verified", updated_at: new Date().toISOString() })
     .eq("id", residentId)
     .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .select("id, verification_status")
     .maybeSingle();
 
@@ -307,7 +308,6 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     .eq("id", residentId)
     .maybeSingle();
 
-  if (!target?.user_id || target.user_id === user.id) throw new Error("Cannot review your own account or an unlinked resident");
   if (reason.trim().length < 10 || reason.trim().length > 500) throw new Error("Rejection reason must be 10–500 characters");
 
   const updateData: Record<string, any> = {
@@ -316,11 +316,14 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     updated_at: new Date().toISOString(),
   };
 
+  if (!target?.user_id || target.user_id === user.id) throw new Error("Cannot review your own account or an unlinked resident");
+
   const { data: updatedResident, error } = await supabase
     .from("residents")
     .update(updateData)
     .eq("id", residentId)
     .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .select("id, verification_status")
     .maybeSingle();
 
