@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState } from "react";
 import { FileText, Printer, CheckCircle, Clock, MapPin, DollarSign, Eye } from "lucide-react";
 import type { DocumentRequestItem } from "../../actions";
@@ -85,7 +86,7 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
     <>
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <AdminTable className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <th className="px-6 py-4">Resident / Applicant</th>
@@ -266,7 +267,7 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
                 })
               )}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState } from "react";
 import {
   Loader2,
@@ -339,7 +340,7 @@ export function RolesClient({ initialRoles }: RolesClientProps) {
             </div>
 
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left border-collapse text-xs">
+              <AdminTable className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b bg-muted/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                     <th className="px-4 py-3 sticky left-0 bg-card">Module</th>
@@ -387,7 +388,7 @@ export function RolesClient({ initialRoles }: RolesClientProps) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </AdminTable>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t shrink-0">

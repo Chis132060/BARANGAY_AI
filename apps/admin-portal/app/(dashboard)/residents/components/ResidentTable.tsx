@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import type { ResidentListItem } from "../actions";
 import { MapPin, Phone, Eye, UserX } from "lucide-react";
 
@@ -11,7 +12,7 @@ export function ResidentTable({ residents }: ResidentTableProps) {
   return (
     <div className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <AdminTable className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b bg-muted/40 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               <th className="px-6 py-3.5">Resident Name</th>
@@ -113,7 +114,7 @@ export function ResidentTable({ residents }: ResidentTableProps) {
               })
             )}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
     </div>
   );

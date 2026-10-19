@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   BookOpen, Plus, Search, Eye, Pencil, Trash2, X, FileText,
@@ -694,7 +695,7 @@ export default function PoliciesPage() {
             <p className="text-xs">Try adjusting your search or filters.</p>
           </div>
         ) : (
-          <table className="w-full text-sm text-left">
+          <AdminTable className="w-full text-sm text-left">
             <thead className="bg-muted/50 border-b text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               <tr>
                 <th className="px-5 py-3">Policy No.</th>
@@ -740,7 +741,7 @@ export default function PoliciesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </AdminTable>
         )}
       </div>
 

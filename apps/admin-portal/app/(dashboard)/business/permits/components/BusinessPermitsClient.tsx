@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState } from "react";
 import { Briefcase, Check, Loader2, Plus, X } from "lucide-react";
 import type { BusinessItem, BusinessPermitItem } from "../../actions";
@@ -98,7 +99,7 @@ export function BusinessPermitsClient({ initialPermits, businesses, initialError
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left text-sm">
+          <AdminTable className="w-full min-w-[850px] text-left text-sm">
             <thead className="border-b bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <tr><th className="px-6 py-3">Permit No.</th><th className="px-6 py-3">Business</th><th className="px-6 py-3">Permit Type</th><th className="px-6 py-3">Issue / Expiry</th><th className="px-6 py-3">Fee / OR No.</th><th className="px-6 py-3">Status</th></tr>
             </thead>
@@ -112,7 +113,7 @@ export function BusinessPermitsClient({ initialPermits, businesses, initialError
                 <td className="px-6 py-4"><select value={permit.status} disabled={loading} onChange={(event) => changeStatus(permit.id, event.target.value as PermitStatus)} className="rounded-full border bg-background px-2.5 py-1 text-xs font-semibold"><option>Active</option><option>Expired</option><option>Revoked</option></select></td>
               </tr>)}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
         {permits.length === 0 && <p className="p-10 text-center text-sm text-muted-foreground"><Briefcase className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />No business permits recorded.</p>}
       </div>

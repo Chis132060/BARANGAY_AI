@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { useState, useTransition } from "react";
 import {
   Handshake,
@@ -178,7 +179,7 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
               <button onClick={() => setShowAdd(true)} className="mt-3 text-xs text-primary underline">Add the first member</button>
             </div>
           ) : (
-            <table className="w-full text-sm text-left">
+            <AdminTable className="w-full text-sm text-left">
               <thead className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-6 py-2.5">Name</th>
@@ -208,7 +209,7 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </AdminTable>
           )}
         </div>
       </div>

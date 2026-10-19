@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { BusinessItem } from "../../actions";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -18,7 +19,7 @@ export function BusinessTable({ businesses, onUpdateStatus }: BusinessTableProps
   return (
     <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <AdminTable className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="px-6 py-4">Business Name</th>
@@ -80,7 +81,7 @@ export function BusinessTable({ businesses, onUpdateStatus }: BusinessTableProps
               ))
             )}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminTable } from "@/components/ui/AdminTable";
 import { FormEvent, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { AuditLogItem } from "../../actions";
@@ -88,7 +89,7 @@ export function AuditTable({ logs }: AuditTableProps) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <AdminTable className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="px-6 py-4">Timestamp</th>
@@ -128,7 +129,7 @@ export function AuditTable({ logs }: AuditTableProps) {
               ))
             )}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
     </div>
   );

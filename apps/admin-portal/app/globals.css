@@ -90,6 +90,32 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+@layer components {
+  .admin-table-frame {
+    max-height: min(70vh, 44rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .admin-table-frame thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: hsl(var(--card));
+  }
+
+  .admin-table-frame thead > tr {
+    background-color: inherit;
+  }
+
+  .admin-table-frame thead th {
+    position: sticky;
+    top: 0;
+    z-index: 21;
+    background-color: inherit;
+  }
+}
+
 /* Thin sidebar scrollbar */
 .sidebar-scroll {
   scrollbar-width: thin;
