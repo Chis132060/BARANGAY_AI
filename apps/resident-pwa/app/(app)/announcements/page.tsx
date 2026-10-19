@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 interface Announcement {
   id: string;
   title: string;
-  body: string;
-  target_audience: string;
+  description: string;
+  category: string;
   created_at: string;
 }
 
@@ -28,7 +28,7 @@ export default function AnnouncementsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("announcements")
-      .select("id, title, body, target_audience, created_at")
+      .select("id, title, description, category, created_at")
       .eq("status", "Published")
       .order("created_at", { ascending: false });
 
@@ -84,8 +84,8 @@ export default function AnnouncementsPage() {
           {announcements.map((ann) => (
             <article key={ann.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${AUDIENCE_COLOR[ann.target_audience] ?? "bg-gray-100 text-gray-700"}`}>
-                  {ann.target_audience}
+                <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${AUDIENCE_COLOR[ann.category] ?? "bg-gray-100 text-gray-700"}`}>
+                  {ann.category}
                 </span>
                 <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
@@ -93,7 +93,7 @@ export default function AnnouncementsPage() {
                 </span>
               </div>
               <h2 className="text-sm font-bold text-gray-900 leading-snug">{ann.title}</h2>
-              <p className="text-xs text-gray-600 leading-relaxed">{ann.body}</p>
+              <p className="text-xs text-gray-600 leading-relaxed">{ann.description}</p>
             </article>
           ))}
         </div>
