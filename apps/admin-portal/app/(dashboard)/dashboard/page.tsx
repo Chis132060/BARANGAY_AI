@@ -46,11 +46,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Barangay Operations Overview</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Real-time demographic statistics, document requests, and community records.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-muted-foreground px-3 py-1 bg-muted rounded-full font-medium border flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-primary" /> Updated just now
-          </span>
-        </div>
+
       </div>
 
       {errorMsg && (
