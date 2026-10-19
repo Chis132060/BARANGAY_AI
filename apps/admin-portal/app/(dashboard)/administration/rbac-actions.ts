@@ -135,7 +135,8 @@ export async function deleteRole(id: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !(await checkUserPermission(user.id, "administration", "canDelete"))) throw new Error("Unauthorized.");
   // Delete associated permissions first
-  await supabase.from("permissions").delete().eq("role_id", id);
+  const { error: permissionsError } = await supabase.from("permissions").delete().eq("role_id", id);
+  if (permissionsError) throw new Error("Unable to delete role permissions.");
   const { error } = await supabase.from("roles").delete().eq("id", id);
   if (error) throw new Error(error.message);
   await writeAuditLog("DELETE", "administration", `Deleted role ${id}`);
@@ -160,7 +161,8 @@ export async function upsertPermissions(roleId: string, permissions: Omit<Permis
   if (!user || !(await checkUserPermission(user.id, "administration", "canEdit"))) throw new Error("Unauthorized.");
 
   // Delete existing permissions for this role, then insert new ones
-  await supabase.from("permissions").delete().eq("role_id", roleId);
+  const { error: deleteError } = await supabase.from("permissions").delete().eq("role_id", roleId);
+  if (deleteError) throw new Error("Unable to update permissions.");
 
   const rows = permissions.map((p) => ({
     role_id: roleId,
