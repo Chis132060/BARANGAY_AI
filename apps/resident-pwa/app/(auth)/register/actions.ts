@@ -16,7 +16,7 @@ function detectedImageExtension(bytes: Buffer): "jpg" | "png" | "webp" | null {
   return null;
 }
 
-export async function registerResidentAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+export async function registerResidentAction(formData: FormData): Promise<{ success?: boolean; error?: string; emailWarning?: string }> {
   try {
     const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
     const password = formData.get("password") as string;
@@ -159,6 +159,13 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       return { error: "Registration could not be completed. Please try again." };
     }
 
+    // Admin-created accounts do not automatically send a signup confirmation.
+    // Request one only after the resident profile and ID upload are committed.
+    const { error: confirmationError } = await supabase.auth.resend({ type: "signup", email });
+    if (confirmationError) {
+      console.error("Resident confirmation email could not be sent", { authUserId, message: confirmationError.message });
+      return { success: true, emailWarning: "Your registration was saved, but we could not send the confirmation email. Please contact barangay support before trying to register again." };
+    }
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Failed to register resident" };

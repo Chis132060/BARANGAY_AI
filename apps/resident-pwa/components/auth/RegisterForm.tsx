@@ -20,6 +20,7 @@ export function RegisterForm() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form State
@@ -81,7 +82,11 @@ export function RegisterForm() {
       }
 
       setSubmitted(true);
-      window.location.href = "/pending-approval";
+      if (res.emailWarning) {
+        setEmailWarning(res.emailWarning);
+      } else {
+        window.location.href = "/pending-approval";
+      }
     } catch (err: any) {
       setErrorMsg(err.message || "Registration failed. Please try again.");
     } finally {
@@ -96,6 +101,7 @@ export function RegisterForm() {
           <CheckCircle2 className="h-10 w-10" />
         </div>
         <h2 className="text-xl font-bold text-gray-900">Registration Submitted!</h2>
+        {emailWarning && <p role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">{emailWarning}</p>}
         <p className="text-xs text-gray-600 leading-relaxed max-w-xs mx-auto">
           Your resident account registration for <strong className="text-gray-900">{formData.firstName} {formData.lastName}</strong> has been submitted.
         </p>
