@@ -76,7 +76,7 @@ function EnrolleesPanel({
     purok: "",
     role: "Member",
     date_enrolled: new Date().toISOString().slice(0, 10),
-    status: editing?.status || "Active",
+    status: "Active",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
