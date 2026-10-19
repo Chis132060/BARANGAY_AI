@@ -16,3 +16,14 @@ test("realtime refresh coalesces requests and retains prior results on query err
   assert.match(page, /if \(!ann\.error\)/);
   assert.match(page, /if \(!prog\.error\)/);
 });
+
+test("public updates render before user-specific application status finishes", () => {
+  const renderReady = page.indexOf("setLoading(false);", page.indexOf("async function load"));
+  const authLookup = page.indexOf("await supabase.auth.getUser();", page.indexOf("async function load"));
+  assert.ok(renderReady !== -1 && authLookup !== -1 && renderReady < authLookup);
+});
+
+test("realtime changes during an in-flight request queue a follow-up reload", () => {
+  assert.match(page, /reloadRequested\.current = true/);
+  assert.match(page, /if \(reloadRequested\.current\)/);
+});
