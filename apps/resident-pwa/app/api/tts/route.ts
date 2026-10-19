@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     }
     const { text, language } = payload as { text?: unknown; language?: unknown };
 
-    if (typeof text !== "string" || !text.trim() || text.length > 1500 || !["tgl", "ceb", "en", undefined].includes(language)) {
+    if (typeof text !== "string" || !text.trim() || text.length > 1500 || (language !== undefined && language !== "tgl" && language !== "ceb" && language !== "en")) {
       return NextResponse.json(
         { success: false, error: "Provide text of 1–1500 characters and a supported language." },
         { status: 400 }
