@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Filter } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Filter, FileText, AlertCircle, X } from "lucide-react";
 import { RequestsTable } from "./RequestsTable";
 import type { DocumentRequestItem } from "../../actions";
 import { createClient } from "@/lib/supabase/client";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 interface RequestsClientProps {
   initialRequests: DocumentRequestItem[];
@@ -28,31 +29,47 @@ interface RequestsClientProps {
   ) => Promise<{ success: boolean }>;
 }
 
+const STATUS_TABS = ["All", "Pending", "Approved", "Ready for Pickup", "Released", "Completed", "Rejected"] as const;
+
+const STAT_CONFIG: { status: string; label: string; color: string; dot: string }[] = [
+  { status: "Pending",        label: "Pending",       color: "bg-amber-100 text-amber-800 border-amber-200",   dot: "bg-amber-400" },
+  { status: "Approved",       label: "Approved",      color: "bg-indigo-100 text-indigo-800 border-indigo-200", dot: "bg-indigo-400" },
+  { status: "Ready for Pickup", label: "Ready",       color: "bg-emerald-100 text-emerald-800 border-emerald-200", dot: "bg-emerald-400" },
+  { status: "Released",       label: "Released",      color: "bg-purple-100 text-purple-800 border-purple-200", dot: "bg-purple-400" },
+];
+
 export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onVerifyPayment }: RequestsClientProps) {
   const [requests, setRequests] = useState<DocumentRequestItem[]>(initialRequests);
   const [filter, setFilter] = useState("All");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Live counts per status from all requests (always use "All" base for counts)
+  const [allRequests, setAllRequests] = useState<DocumentRequestItem[]>(initialRequests);
 
   useEffect(() => {
     const supabase = createClient();
-    
-    // Subscribe to changes on document_requests table
     const channel = supabase
-      .channel('admin-document-requests')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'document_requests' }, async (payload: any) => {
-        // Targeted state update: Fetch the latest list when a record changes
-        // For production, we can inject the specific row into state, but triggering a targeted refresh ensures joined data is fresh.
-        const updated = await onRefresh(filter);
-        setRequests(updated);
+      .channel("admin-document-requests")
+      .on("postgres_changes", { event: "*", schema: "public", table: "document_requests" }, async () => {
+        const [filtered, all] = await Promise.all([onRefresh(filter), onRefresh("All")]);
+        setRequests(filtered);
+        setAllRequests(all);
       })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [filter, onRefresh]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const req of allRequests) {
+      counts[req.status] = (counts[req.status] ?? 0) + 1;
+    }
+    return counts;
+  }, [allRequests]);
 
   async function handleFilterChange(newFilter: string) {
     setFilter(newFilter);
+    setErrorMsg(null);
     const updated = await onRefresh(newFilter);
     setRequests(updated);
   }
@@ -68,57 +85,92 @@ export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onV
     paymentReference?: string,
     paymentNotes?: string
   ) {
+    setErrorMsg(null);
     try {
       await onUpdateStatus(requestId, status, remarks, customFee, paymentStatus, pickupInstructions, paymentDueDate, paymentReference, paymentNotes);
       const updated = await onRefresh(filter);
       setRequests(updated);
     } catch (err: any) {
-      alert("Failed to update status: " + (err.message || "Please confirm database setup."));
+      setErrorMsg(err.message || "Failed to update request status. Please confirm database setup.");
     }
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-5">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Document Requests Queue</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Review, generate printable certificates, and notify residents for pickup.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Document Requests Queue"
+        subtitle="Review, generate printable certificates, and notify residents for pickup."
+        icon={FileText}
+      />
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-        {["All", "Pending", "Approved", "Ready for Pickup", "Released", "Completed", "Rejected"].map((tab) => (
+      {/* Inline error banner */}
+      {errorMsg && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-xs font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span className="flex-1">{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="shrink-0 hover:opacity-70 transition-opacity">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Status Summary Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {STAT_CONFIG.map(({ status, label, color, dot }) => (
           <button
-            key={tab}
-            onClick={() => handleFilterChange(tab)}
-            className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              filter === tab
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "bg-muted hover:bg-accent text-muted-foreground"
+            key={status}
+            onClick={() => handleFilterChange(status)}
+            className={`flex items-center justify-between p-3 rounded-xl border text-xs font-semibold transition-all hover:shadow-sm ${
+              filter === status ? `${color} shadow-xs` : "bg-card border-border text-muted-foreground hover:bg-muted/40"
             }`}
           >
-            {tab}
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${dot}`} />
+              {label}
+            </div>
+            <span className="font-extrabold text-sm tabular-nums">{statusCounts[status] ?? 0}</span>
           </button>
         ))}
       </div>
 
-      <RequestsTable 
-        requests={requests} 
-        onAction={handleAction} 
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => handleFilterChange(tab)}
+            className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              filter === tab
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-muted/60 hover:bg-muted text-muted-foreground border border-transparent hover:border-border"
+            }`}
+          >
+            {tab}
+            {tab !== "All" && (statusCounts[tab] ?? 0) > 0 && (
+              <span className="ml-1.5 text-[10px] font-extrabold opacity-70">
+                {statusCounts[tab]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <RequestsTable
+        requests={requests}
+        onAction={handleAction}
         onVerifyPayment={async (pid, rid, stat, rem) => {
+          setErrorMsg(null);
           try {
             await onVerifyPayment(pid, rid, stat, rem);
             const updated = await onRefresh(filter);
             setRequests(updated);
           } catch (err: any) {
-            alert("Failed to verify payment: " + err.message);
+            setErrorMsg("Failed to verify payment: " + err.message);
           }
         }}
       />
     </div>
   );
 }
+

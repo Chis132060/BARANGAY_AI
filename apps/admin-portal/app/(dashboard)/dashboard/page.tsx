@@ -40,7 +40,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header Title */}
+      {/* Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Barangay Operations Overview</h1>
@@ -79,25 +79,32 @@ export default async function DashboardPage() {
           </div>
 
           <div className="divide-y divide-border/60">
-            {(recentActivities as { id: string; title: string; subtitle: string; status: string; time: string }[]).map((act) => (
-              <div key={act.id} className="py-3 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl border text-blue-600 bg-blue-50`}>
-                    <FileCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">{act.title}</p>
-                    <p className="text-[11px] text-muted-foreground">{act.subtitle}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border">
-                    {act.status}
-                  </span>
-                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{act.time}</p>
-                </div>
+            {recentActivities.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <FileCheck className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                <p className="text-xs text-muted-foreground font-medium">No recent activity yet</p>
               </div>
-            ))}
+            ) : (
+              (recentActivities as { id: string; title: string; subtitle: string; status: string; time: string }[]).map((act) => (
+                <div key={act.id} className="py-3 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl border text-blue-600 bg-blue-50`}>
+                      <FileCheck className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{act.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{act.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border">
+                      {act.status}
+                    </span>
+                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{act.time}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -108,45 +115,25 @@ export default async function DashboardPage() {
           </h3>
 
           <div className="space-y-3 text-xs">
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-muted-foreground">Registered Voters</span>
-                <span className="text-foreground">{Math.round((metrics.registeredVoters / populationBase) * 100)}%</span>
+            {[
+              { label: "Registered Voters", value: metrics.registeredVoters, color: "bg-purple-600", pct: Math.round((metrics.registeredVoters / populationBase) * 100) },
+              { label: "Senior Citizens", value: metrics.seniorCitizens, color: "bg-amber-500", pct: Math.round((metrics.seniorCitizens / populationBase) * 100) },
+              { label: "4Ps Beneficiaries", value: metrics.fourPsMembers, color: "bg-emerald-500", pct: Math.round((metrics.fourPsMembers / populationBase) * 100) },
+              { label: "PWD Residents", value: metrics.pwdResidents, color: "bg-indigo-500", pct: Math.round((metrics.pwdResidents / populationBase) * 100) },
+            ].map(({ label, value, color, pct }) => (
+              <div key={label}>
+                <div className="flex justify-between font-semibold mb-1">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="text-foreground tabular-nums">{pct}%</span>
+                </div>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${color} rounded-full transition-all duration-700`}
+                    style={{ width: pct > 0 ? `${pct}%` : "2%" }}
+                  />
+                </div>
               </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-purple-600 rounded-full" style={{ width: `${Math.round((metrics.registeredVoters / populationBase) * 100)}%` }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-muted-foreground">Senior Citizens</span>
-                <span className="text-foreground">{Math.round((metrics.seniorCitizens / populationBase) * 100)}%</span>
-              </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.round((metrics.seniorCitizens / populationBase) * 100)}%` }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-muted-foreground">4Ps Beneficiaries</span>
-                <span className="text-foreground">{Math.round((metrics.fourPsMembers / populationBase) * 100)}%</span>
-              </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((metrics.fourPsMembers / populationBase) * 100)}%` }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between font-semibold mb-1">
-                <span className="text-muted-foreground">PWD Residents</span>
-                <span className="text-foreground">{Math.round((metrics.pwdResidents / populationBase) * 100)}%</span>
-              </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.round((metrics.pwdResidents / populationBase) * 100)}%` }} />
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
