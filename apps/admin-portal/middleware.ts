@@ -11,8 +11,13 @@ export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  const mockMode = !url || !anonKey || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true";
+  if (mockMode && process.env.NODE_ENV === "production") {
+    return new NextResponse("Authentication is unavailable.", { status: 503 });
+  }
+
   let supabase: any;
-  if (!url || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+  if (mockMode) {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
       set: (name: string, value: string, options: any) => {
@@ -58,11 +63,11 @@ export async function middleware(request: NextRequest) {
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
-    if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+    if (user && mockMode) {
       userRole = user.user_metadata?.role || "Staff";
     }
     
-    if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE !== "true") {
+    if (user && !mockMode) {
       const { data: userData, error } = await supabase
         .from("users")
         .select("roles!inner(name)")
