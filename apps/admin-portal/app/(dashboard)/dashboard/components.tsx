@@ -14,68 +14,41 @@ interface ActionCardProps {
   icon: LucideIcon;
   description: string;
   href: string;
-  accentColor: "amber" | "sky" | "emerald";
   badge?: string;
 }
 
-const accentMap = {
-  amber: {
-    border: "border-l-amber-400",
-    icon: "bg-amber-50 text-amber-600 border border-amber-200",
-    pulse: "bg-amber-400",
-    badge: "bg-amber-100 text-amber-700",
-    value: "text-amber-700",
-  },
-  sky: {
-    border: "border-l-sky-400",
-    icon: "bg-sky-50 text-sky-600 border border-sky-200",
-    pulse: "bg-sky-400",
-    badge: "bg-sky-100 text-sky-700",
-    value: "text-sky-700",
-  },
-  emerald: {
-    border: "border-l-emerald-400",
-    icon: "bg-emerald-50 text-emerald-600 border border-emerald-200",
-    pulse: "bg-emerald-400",
-    badge: "bg-emerald-100 text-emerald-700",
-    value: "text-emerald-700",
-  },
-};
-
-export function ActionCard({ title, value, icon: Icon, description, href, accentColor, badge }: ActionCardProps) {
-  const colors = accentMap[accentColor];
+export function ActionCard({ title, value, icon: Icon, description, href, badge }: ActionCardProps) {
   const isUrgent = value > 0;
 
   return (
     <Link
       href={href}
       aria-label={`Open ${title}`}
-      className={`block bg-card rounded-2xl p-5 border border-border border-l-4 ${colors.border} shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group`}
+      className={`block bg-card rounded-2xl p-5 border border-border shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</span>
           {isUrgent && (
             <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colors.pulse} opacity-75`} />
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${colors.pulse}`} />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-muted-foreground" />
             </span>
           )}
         </div>
-        <div className={`p-2.5 rounded-xl transition-transform group-hover:scale-110 ${colors.icon}`}>
+        <div className="p-2.5 rounded-xl bg-muted text-muted-foreground transition-transform group-hover:scale-110">
           <Icon className="h-4 w-4" />
         </div>
       </div>
 
       <div>
-        <h3 className={`text-3xl font-extrabold tracking-tight ${isUrgent ? colors.value : "text-foreground"}`}>
+        <h3 className="text-3xl font-extrabold tracking-tight text-foreground">
           {value}
         </h3>
         <p className="text-[11px] text-muted-foreground mt-1 leading-normal">{description}</p>
       </div>
 
       {badge && (
-        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
           <AlertCircle className="h-2.5 w-2.5" />
           {badge}
         </span>
@@ -97,20 +70,18 @@ export function RevenueCard({ value, icon: Icon, description, href }: RevenueCar
     <Link
       href={href}
       aria-label="Document Fees Revenue"
-      className="block bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-5 shadow-xs hover:shadow-lg transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group"
+      className="block bg-card border border-border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Document Fees Revenue</span>
-        <div className="p-2.5 rounded-xl bg-white/20 text-white transition-transform group-hover:scale-110">
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Document Fees Revenue</span>
+        <div className="p-2.5 rounded-xl bg-muted text-muted-foreground transition-transform group-hover:scale-110">
           <Icon className="h-4 w-4" />
         </div>
       </div>
       <div>
-        <h3 className="text-3xl font-extrabold tracking-tight text-white">{value}</h3>
-        <p className="text-[11px] text-emerald-100/80 mt-1 leading-normal">{description}</p>
+        <h3 className="text-3xl font-extrabold tracking-tight text-foreground">{value}</h3>
+        <p className="text-[11px] text-muted-foreground mt-1 leading-normal">{description}</p>
       </div>
-      <div className="absolute -bottom-4 -right-4 h-24 w-24 rounded-full bg-white/5" />
-      <div className="absolute -bottom-8 -right-8 h-32 w-32 rounded-full bg-white/5" />
     </Link>
   );
 }
@@ -182,7 +153,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
             icon={UserPlus}
             description="Self-registered residents awaiting verification"
             href="/residents/verification"
-            accentColor="amber"
             badge={metrics.pendingRegistrations > 0 ? "Needs review" : undefined}
           />
           <ActionCard
@@ -191,7 +161,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
             icon={FileText}
             description="Applications awaiting staff review & approval"
             href="/documents/requests"
-            accentColor="sky"
             badge={metrics.pendingRequests > 0 ? "Queue active" : undefined}
           />
           <ActionCard
@@ -200,7 +169,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
             icon={PackageCheck}
             description="Processed certificates ready for release"
             href="/documents/requests"
-            accentColor="emerald"
             badge={(metrics.readyForPickupRequests ?? 0) > 0 ? "Awaiting resident" : undefined}
           />
           <RevenueCard
