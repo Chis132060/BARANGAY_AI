@@ -1,103 +1,80 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Megaphone, Calendar, RefreshCw } from "lucide-react";
+import { Calendar, Megaphone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Announcement {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  created_at: string;
+  id: string; title: string; description: string; category: string; created_at: string;
 }
-
-const AUDIENCE_COLOR: Record<string, string> = {
-  All:       "bg-blue-100 text-blue-800",
-  Senior:    "bg-amber-100 text-amber-800",
-  "4Ps":     "bg-purple-100 text-purple-800",
-  Residents: "bg-green-100 text-green-800",
-};
+interface Program {
+  id: string; name: string; description: string | null; category: string;
+  purok: string | null; venue: string | null; schedule_details: string | null;
+}
 
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-
-  async function loadAnnouncements() {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("announcements")
-      .select("id, title, description, category, created_at")
-      .eq("status", "Published")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) setAnnouncements(data as Announcement[]);
-    setLoading(false);
-  }
+  const [errorMessage, setErrorMessage] = useState("");
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    loadAnnouncements();
-
-    const channel = supabase
-      .channel("resident-announcements")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "announcements" }, () => {
-        loadAnnouncements();
-      })
+    const supabase = createClient();
+    let active = true;
+    async function load() {
+      setLoading(true);
+      const [ann, prog] = await Promise.all([
+        supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
+        supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
+      ]);
+      if (!active) return;
+      setAnnouncements((ann.data || []) as Announcement[]);
+      setPrograms((prog.data || []) as Program[]);
+      setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
+      setLoading(false);
+    }
+    load();
+    const channel = supabase.channel("resident-updates-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, load)
       .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [refresh]);
 
   return (
-    <div className="p-4 space-y-4 pb-20">
+    <div className="p-4 space-y-5 pb-20">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-gray-900">Barangay Updates</h1>
-          <p className="text-xs text-gray-500">Official news and announcements from Barangay Hall</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            Live
-          </span>
-          <button onClick={loadAnnouncements} className="p-2 rounded-full hover:bg-gray-100 text-gray-500">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-blue-600" : ""}`} />
-          </button>
-        </div>
+        <div><h1 className="text-xl font-extrabold text-gray-900">Barangay Programs & Updates</h1>
+          <p className="text-xs text-gray-500">Official programs and announcements from Barangay Hall</p></div>
+        <button aria-label="Refresh updates" onClick={() => setRefresh((v) => v + 1)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>
       </div>
-
-      {loading ? (
-        <div className="p-8 text-center text-xs text-gray-400">Loading announcements...</div>
-      ) : announcements.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 p-10 text-center bg-gray-50/50">
-          <Megaphone className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm font-semibold text-gray-600">No announcements yet</p>
-          <p className="text-xs text-gray-400 mt-1">Check back soon for updates from Barangay Hall.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {announcements.map((ann) => (
-            <article key={ann.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${AUDIENCE_COLOR[ann.category] ?? "bg-gray-100 text-gray-700"}`}>
-                  {ann.category}
-                </span>
-                <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(ann.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              <h2 className="text-sm font-bold text-gray-900 leading-snug">{ann.title}</h2>
-              <p className="text-xs text-gray-600 leading-relaxed">{ann.description}</p>
-            </article>
-          ))}
-        </div>
-      )}
+      {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
+      <section className="space-y-3">
+        <h2 className="text-base font-bold">Barangay Programs</h2>
+        {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published barangay programs yet.</p> : programs.map((p) => (
+          <article key={p.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
+            <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{p.category}</span>
+            <h3 className="text-sm font-bold text-gray-900">{p.name}</h3>
+            {p.description && <p className="whitespace-pre-line text-xs text-gray-600">{p.description}</p>}
+            <div className="space-y-1 text-xs text-gray-500">
+              <p>Area: {p.purok || "All Puroks"}</p>
+              {p.venue && <p>Venue: {p.venue}</p>}
+              {p.schedule_details && <p>Schedule: {p.schedule_details}</p>}
+            </div>
+          </article>
+        ))}
+      </section>
+      <section className="space-y-3">
+        <h2 className="text-base font-bold">Barangay Announcements</h2>
+        {!loading && announcements.length === 0 && <div className="rounded-xl border border-dashed p-8 text-center"><Megaphone className="mx-auto mb-2 h-6 w-6 text-gray-300" /><p className="text-sm text-gray-500">No announcements yet.</p></div>}
+        {announcements.map((a) => (
+          <article key={a.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase text-blue-700">{a.category}</span><span className="flex items-center gap-1 text-[10px] text-gray-400"><Calendar className="h-3 w-3" />{new Date(a.created_at).toLocaleDateString()}</span></div>
+            <h3 className="text-sm font-bold">{a.title}</h3><p className="whitespace-pre-line text-xs text-gray-600">{a.description}</p>
+          </article>
+        ))}
+      </section>
     </div>
   );
 }
