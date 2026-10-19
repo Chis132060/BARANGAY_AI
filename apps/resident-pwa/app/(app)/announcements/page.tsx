@@ -18,10 +18,32 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [applications, setApplications] = useState<Record<string, string>>({});
+  const [applying, setApplying] = useState<string | null>(null);
+  const [applyMessage, setApplyMessage] = useState("");
   const lastLoadAt = useRef(0);
   const inFlight = useRef(false);
   const announcementsRef = useRef<Announcement[]>([]);
   const programsRef = useRef<Program[]>([]);
+
+  async function joinProgram(programId: string) {
+    if (applying || applications[programId]) return;
+    setApplying(programId);
+    setApplyMessage("");
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Please sign in before applying.");
+      const { error } = await supabase.rpc("apply_to_barangay_program", { p_program_id: programId });
+      if (error) throw error;
+      setApplications((prev) => ({ ...prev, [programId]: "Pending" }));
+      setApplyMessage("Application submitted. Await barangay review.");
+    } catch (error) {
+      setApplyMessage(error instanceof Error ? error.message : "Unable to submit application.");
+    } finally {
+      setApplying(null);
+    }
+  }
 
   useEffect(() => {
     const supabase = createClient();
@@ -45,6 +67,16 @@ export default function AnnouncementsPage() {
         setPrograms(programsRef.current);
       }
       setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: resident, error: residentError } = await supabase.from("residents").select("id").eq("user_id", user.id).maybeSingle();
+        if (!residentError && resident) {
+          const { data: existing, error: applicationsError } = await supabase.from("program_enrollees").select("program_id,status").eq("resident_id", resident.id);
+          if (active && !applicationsError && existing) {
+            setApplications(Object.fromEntries(existing.map((item: { program_id: string; status: string }) => [item.program_id, item.status])));
+          }
+        }
+      }
       lastLoadAt.current = Date.now();
       } catch (error) {
         if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
@@ -69,6 +101,7 @@ export default function AnnouncementsPage() {
         <button aria-label="Refresh updates" onClick={() => setRefresh((v) => v + 1)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>
       </div>
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
+      {applyMessage && <p role="status" className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">{applyMessage}</p>}
       <section className="space-y-3">
         <h2 className="text-base font-bold">Barangay Programs</h2>
         {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published barangay programs yet.</p> : programs.map((p) => (
@@ -81,6 +114,7 @@ export default function AnnouncementsPage() {
               {p.venue && <p>Venue: {p.venue}</p>}
               {p.schedule_details && <p>Schedule: {p.schedule_details}</p>}
             </div>
+            <button type="button" disabled={!!applications[p.id] || applying !== null} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : applying === p.id ? "Submitting..." : "Join Program"}</button>
           </article>
         ))}
       </section>
