@@ -21,6 +21,7 @@ export default function AnnouncementsPage() {
   const [applications, setApplications] = useState<Record<string, string>>({});
   const [applying, setApplying] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
 
   async function joinProgram(programId: string) {
     setApplying(programId);
@@ -37,6 +38,7 @@ export default function AnnouncementsPage() {
     let active = true;
     async function load() {
       setLoading(true);
+      setErrorMessage("");
       const [ann, prog] = await Promise.all([
         supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
         supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
@@ -52,6 +54,7 @@ export default function AnnouncementsPage() {
           if (active && existing) setApplications(Object.fromEntries(existing.map((a: { program_id: string; status: string }) => [a.program_id, a.status])));
         }
       }
+      if (!active) return;
       setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
       setLoading(false);
     }
@@ -73,8 +76,9 @@ export default function AnnouncementsPage() {
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
       {applyMessage && <p role="status" className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">{applyMessage}</p>}
       <section className="space-y-3">
-        <h2 className="text-base font-bold">Barangay Programs</h2>
-        {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published barangay programs yet.</p> : programs.map((p) => (
+        <div className="flex items-center justify-between gap-2"><h2 className="text-base font-bold">Barangay Programs</h2><span className="text-xs text-gray-500">{programs.length} available</span></div>
+        {programs.length > 0 && <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filter programs by category">{["All", ...Array.from(new Set(programs.map((p) => p.category)))].map((category) => <button type="button" key={category} onClick={() => setCategoryFilter(category)} aria-pressed={categoryFilter === category} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${categoryFilter === category ? "border-blue-600 bg-blue-600 text-white" : "bg-white text-gray-600"}`}>{category}</button>)}</div>}
+        {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published barangay programs yet.</p> : programs.filter((p) => categoryFilter === "All" || p.category === categoryFilter).map((p) => (
           <article key={p.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
             <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{p.category}</span>
             <h3 className="text-sm font-bold text-gray-900">{p.name}</h3>
