@@ -160,22 +160,16 @@ export async function upsertPermissions(roleId: string, permissions: Omit<Permis
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !(await checkUserPermission(user.id, "administration", "canEdit"))) throw new Error("Unauthorized.");
 
-  // Delete existing permissions for this role, then insert new ones
-  const { error: deleteError } = await supabase.from("permissions").delete().eq("role_id", roleId);
-  if (deleteError) throw new Error("Unable to update permissions.");
-
-  const rows = permissions.map((p) => ({
-    role_id: roleId,
-    module: p.module,
-    can_view: p.can_view,
-    can_create: p.can_create,
-    can_edit: p.can_edit,
-    can_delete: p.can_delete,
-    can_approve: p.can_approve,
-  }));
-
-  const { error } = await supabase.from("permissions").insert(rows);
-  if (error) throw new Error(error.message);
+  if (!Array.isArray(permissions) || permissions.length > 100 ||
+      permissions.some(p => !p || typeof p.module !== "string" || !p.module.trim() ||
+        ["can_view", "can_create", "can_edit", "can_delete", "can_approve"].some(k => typeof p[k as keyof typeof p] !== "boolean"))) {
+    throw new Error("Invalid permission set.");
+  }
+  const { error } = await supabase.rpc("replace_role_permissions", {
+    p_role_id: roleId,
+    p_permissions: permissions,
+  });
+  if (error) throw new Error("Unable to update role permissions.");
 
   await writeAuditLog("UPDATE", "administration", `Updated permissions for role ${roleId}`);
 }
