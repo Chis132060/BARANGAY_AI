@@ -10,6 +10,7 @@ interface Announcement {
 interface Program {
   id: string; name: string; description: string | null; category: string;
   purok: string | null; venue: string | null; schedule_details: string | null;
+  requirements: string | null; registration_open: boolean;
 }
 
 export default function AnnouncementsPage() {
@@ -61,7 +62,7 @@ export default function AnnouncementsPage() {
       try {
       const [ann, prog] = await Promise.all([
         supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
-        supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
+        supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (!ann.error) {
@@ -129,8 +130,10 @@ export default function AnnouncementsPage() {
               <p>Area: {p.purok || "All Puroks"}</p>
               {p.venue && <p>Venue: {p.venue}</p>}
               {p.schedule_details && <p>Schedule: {p.schedule_details}</p>}
+              {p.requirements && <p className="whitespace-pre-line"><strong>Requirements:</strong> {p.requirements}</p>}
+              <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-            <button type="button" disabled={!!applications[p.id] || applying !== null} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : applying === p.id ? "Submitting..." : "Join Program"}</button>
+            <button type="button" disabled={!p.registration_open || !!applications[p.id] || applying !== null} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : !p.registration_open ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
           </article>
         ))}
       </section>
