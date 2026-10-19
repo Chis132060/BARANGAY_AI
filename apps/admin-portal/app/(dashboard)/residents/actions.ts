@@ -203,24 +203,32 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
 
   if (error) throw new Error(error.message);
 
-  return await Promise.all((data || []).map(async (res: any) => {
-    let signedUrl = res.id_photo_url;
-    // Generate signed URL if it's a private storage path
-    if (signedUrl && !signedUrl.startsWith("http")) {
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from("resident-ids")
-        .createSignedUrl(signedUrl, 3600); // 1 hour expiration
-      if (!urlError && urlData) {
-        signedUrl = urlData.signedUrl;
-      }
-    }
-
-    return {
-      ...res,
-      id_photo_url: signedUrl,
-      address: Array.isArray(res.address) ? res.address[0] : res.address,
-    };
+  return (data || []).map((res: any) => ({
+    ...res,
+    address: Array.isArray(res.address) ? res.address[0] : res.address,
   })) as PendingResident[];
+}
+
+/** Resolve a private ID image only when a reviewer opens the applicant. */
+export async function fetchResidentIdPhotoUrl(residentId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const [canView, canApprove] = await Promise.all([
+    checkUserPermission(user.id, "residents", "canView"),
+    checkUserPermission(user.id, "residents", "canApprove"),
+  ]);
+  if (!canView && !canApprove) throw new Error("Insufficient permissions");
+  const { data: resident, error } = await supabase.from("residents")
+    .select("id_photo_url").eq("id", residentId).eq("verification_status", "Pending")
+    .not("user_id", "is", null).maybeSingle();
+  if (error) throw new Error(error.message);
+  const photo = resident?.id_photo_url;
+  if (!photo) return null;
+  if (photo.startsWith("http")) return photo;
+  const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 3600);
+  if (signError) throw new Error(signError.message);
+  return data?.signedUrl ?? null;
 }
 
 export async function approveResident(residentId: string): Promise<{ success: boolean }> {
