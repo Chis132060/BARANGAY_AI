@@ -20,6 +20,8 @@ export default function AnnouncementsPage() {
   const [refresh, setRefresh] = useState(0);
   const lastLoadAt = useRef(0);
   const inFlight = useRef(false);
+  const announcementsRef = useRef<Announcement[]>([]);
+  const programsRef = useRef<Program[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -27,15 +29,21 @@ export default function AnnouncementsPage() {
     async function load(force = false) {
       if (inFlight.current || (!force && Date.now() - lastLoadAt.current < 30_000)) return;
       inFlight.current = true;
-      setLoading((previous) => previous && announcements.length === 0 && programs.length === 0);
+      setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
       try {
       const [ann, prog] = await Promise.all([
         supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
         supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
       ]);
       if (!active) return;
-      setAnnouncements((ann.data || []) as Announcement[]);
-      setPrograms((prog.data || []) as Program[]);
+      if (!ann.error) {
+        announcementsRef.current = (ann.data || []) as Announcement[];
+        setAnnouncements(announcementsRef.current);
+      }
+      if (!prog.error) {
+        programsRef.current = (prog.data || []) as Program[];
+        setPrograms(programsRef.current);
+      }
       setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
       lastLoadAt.current = Date.now();
       } catch (error) {
