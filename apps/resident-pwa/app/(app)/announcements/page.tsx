@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Calendar, Megaphone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -18,26 +18,45 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const lastLoadAt = useRef(0);
+  const inFlight = useRef(false);
+  const announcementsRef = useRef<Announcement[]>([]);
+  const programsRef = useRef<Program[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
     let active = true;
-    async function load() {
-      setLoading(true);
+    async function load(force = false) {
+      if (inFlight.current || (!force && Date.now() - lastLoadAt.current < 30_000)) return;
+      inFlight.current = true;
+      setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
+      try {
       const [ann, prog] = await Promise.all([
         supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
         supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
       ]);
       if (!active) return;
-      setAnnouncements((ann.data || []) as Announcement[]);
-      setPrograms((prog.data || []) as Program[]);
+      if (!ann.error) {
+        announcementsRef.current = (ann.data || []) as Announcement[];
+        setAnnouncements(announcementsRef.current);
+      }
+      if (!prog.error) {
+        programsRef.current = (prog.data || []) as Program[];
+        setPrograms(programsRef.current);
+      }
       setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
-      setLoading(false);
+      lastLoadAt.current = Date.now();
+      } catch (error) {
+        if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
+      } finally {
+        inFlight.current = false;
+        if (active) setLoading(false);
+      }
     }
-    load();
+    void load(true);
     const channel = supabase.channel("resident-updates-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
       .subscribe();
     return () => { active = false; supabase.removeChannel(channel); };
   }, [refresh]);
