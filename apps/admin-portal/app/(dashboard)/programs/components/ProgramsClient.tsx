@@ -538,6 +538,7 @@ export function ProgramsClient({ initialPrograms }: Props) {
 
               <div className="mt-3 flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">{program.purok || "All Puroks"}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); handleRegistration(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.registration_open ? "Close Registration" : "Open Registration"}</button>
                 <button type="button" onClick={(e) => { e.stopPropagation(); handlePublication(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.is_public ? "Unpublish" : "Publish to PWA"}</button>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
