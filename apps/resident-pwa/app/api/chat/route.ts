@@ -95,7 +95,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate limiting
-  const rateLimitKey = user?.id ?? (request.headers.get("x-forwarded-for") ?? "guest");
+  // Forwarded IP headers are client-controllable unless normalized by trusted infrastructure.
+  // Do not treat them as authenticated identities for quota decisions.
+  const rateLimitKey = user?.id ? `user:${user.id}` : "guest:anonymous";
   const limit = user ? RATE_LIMIT_AUTH : RATE_LIMIT_GUEST;
 
   if (!checkRateLimit(rateLimitKey, limit)) {
