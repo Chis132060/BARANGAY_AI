@@ -6,10 +6,11 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  cacheStartUrl: true,
-  dynamicStartUrl: true,
-  dynamicStartUrlRedirect: "/login",
-  cacheOnFrontEndNav: true,
+  // Keep authenticated and dynamic app pages fresh after deploys. The offline
+  // document fallback below handles navigation when the network is unavailable.
+  cacheStartUrl: false,
+  dynamicStartUrl: false,
+  cacheOnFrontEndNav: false,
   fallbacks: {
     document: "/~offline",
   },
