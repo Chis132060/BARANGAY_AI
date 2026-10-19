@@ -53,7 +53,7 @@ export function Sidebar() {
   useEffect(() => {
     filteredModules.forEach((module) => {
       if (module.children) {
-        const hasActiveChild = module.children.some((child) => pathname.startsWith(child.href));
+        const hasActiveChild = module.children.some((child) => (pathname === child.href || pathname.startsWith(child.href + "/")));
         if (hasActiveChild) {
           setOpenMenus((prev) => ({ ...prev, [module.title]: true }));
         }
