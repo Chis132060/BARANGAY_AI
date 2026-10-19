@@ -2,14 +2,27 @@
 
 import { AdminTable } from "@/components/ui/AdminTable";
 import type { ResidentListItem } from "../actions";
-import { MapPin, Phone, Eye, UserX } from "lucide-react";
+import { MapPin, Phone, Eye, UserX, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface ResidentTableProps {
   residents: ResidentListItem[];
 }
 
 export function ResidentTable({ residents }: ResidentTableProps) {
+  const [selectedResident, setSelectedResident] = useState<ResidentListItem | null>(null);
+
+  useEffect(() => {
+    if (!selectedResident) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setSelectedResident(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedResident]);
+
   return (
+    <>
     <div className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
         <AdminTable className="w-full text-left border-collapse">
@@ -102,6 +115,9 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
+                        type="button"
+                        onClick={() => setSelectedResident(res)}
+                        aria-label={`View profile of ${res.first_name} ${res.last_name}`}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-muted/60 hover:bg-primary hover:text-primary-foreground border border-transparent hover:border-primary/20 text-muted-foreground transition-all opacity-0 group-hover:opacity-100"
                         title={`View ${res.first_name} ${res.last_name}'s profile`}
                       >
@@ -117,5 +133,54 @@ export function ResidentTable({ residents }: ResidentTableProps) {
         </AdminTable>
       </div>
     </div>
+    {selectedResident && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSelectedResident(null);
+        }}
+      >
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resident-profile-title"
+          className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 id="resident-profile-title" className="text-lg font-bold text-foreground">
+                {selectedResident.last_name}, {selectedResident.first_name} {selectedResident.middle_name || ""}
+              </h2>
+              <p className="text-xs text-muted-foreground">Resident Profile</p>
+            </div>
+            <button type="button" aria-label="Close resident profile" onClick={() => setSelectedResident(null)} className="rounded-lg p-2 hover:bg-muted">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <dl className="mt-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+            {([
+              ["Gender", selectedResident.gender],
+              ["Date of birth", selectedResident.birth_date],
+              ["Civil status", selectedResident.civil_status],
+              ["Contact number", selectedResident.contact_number || "—"],
+              ["House number", selectedResident.address?.house_number || "—"],
+              ["Street", selectedResident.address?.street || "—"],
+              ["Purok", selectedResident.address?.purok || "—"],
+              ["Verification", selectedResident.verification_status || "—"],
+              ["Voter", selectedResident.voter_status ? "Yes" : "No"],
+              ["Senior", selectedResident.senior_status ? "Yes" : "No"],
+              ["PWD", selectedResident.pwd_status ? "Yes" : "No"],
+              ["4Ps", selectedResident.four_ps_status ? "Yes" : "No"],
+            ] as [string, string][]).map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+                <dd className="mt-1 break-words font-medium text-foreground">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
+    )}
+    </>
   );
 }
