@@ -171,8 +171,10 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const canView = await checkUserPermission(user.id, "residents", "canView");
-  const canApprove = await checkUserPermission(user.id, "residents", "canApprove");
+  const [canView, canApprove] = await Promise.all([
+    checkUserPermission(user.id, "residents", "canView"),
+    checkUserPermission(user.id, "residents", "canApprove"),
+  ]);
   if (!canView && !canApprove) throw new Error("Insufficient permissions: residents view permission required");
 
   const { data, error } = await supabase
