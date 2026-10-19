@@ -128,6 +128,8 @@ export async function updateRole(id: string, name: string): Promise<void> {
 
 export async function deleteRole(id: string): Promise<void> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "administration", "canDelete"))) throw new Error("Unauthorized.");
   // Delete associated permissions first
   await supabase.from("permissions").delete().eq("role_id", id);
   const { error } = await supabase.from("roles").delete().eq("id", id);
