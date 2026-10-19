@@ -5,6 +5,7 @@ import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 import { v4 as uuidv4 } from "uuid";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { validateRegistrationInput, validateIdFile } = require("../../../lib/registration-validation.cjs");
+const { inspectImage } = require("../../../lib/id-image-validation.cjs");
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
