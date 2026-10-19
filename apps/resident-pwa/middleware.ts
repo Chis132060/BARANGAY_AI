@@ -77,7 +77,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  // API routes perform their own authentication/rate limiting. Do not turn
+  // PWA precache assets (including hashed fallback-*.js) must never be redirected\n  // to HTML auth pages: importScripts rejects redirects and leaves a broken SW.\n  // Only bypass auth for public static files, not application routes.\n  if (/\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(pathname) || pathname === "/sw.js") return response;\n\n  // API routes perform their own authentication/rate limiting. Do not turn
   // guest API requests into an HTML login redirect (which breaks JSON clients).
   if (pathname.startsWith("/api/")) return response;
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
@@ -133,6 +133,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\\\.js|workbox-.*\\\\.js|.*\\\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
