@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === "/sw.js" ||
     pathname.startsWith("/_next/") ||
-    /\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$/i.test(pathname)
+    /\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$/i.test(pathname)
   ) {
     return NextResponse.next({ request });
   }
@@ -141,6 +141,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\\\.js|workbox-.*\\\\.js|.*\\\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
