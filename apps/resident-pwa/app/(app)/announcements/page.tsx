@@ -23,6 +23,7 @@ export default function AnnouncementsPage() {
   const [applyMessage, setApplyMessage] = useState("");
   const lastLoadAt = useRef(0);
   const inFlight = useRef(false);
+  const reloadRequested = useRef(false);
   const announcementsRef = useRef<Announcement[]>([]);
   const programsRef = useRef<Program[]>([]);
 
@@ -49,7 +50,11 @@ export default function AnnouncementsPage() {
     const supabase = createClient();
     let active = true;
     async function load(force = false) {
-      if (inFlight.current || (!force && Date.now() - lastLoadAt.current < 30_000)) return;
+      if (inFlight.current) {
+        reloadRequested.current = true;
+        return;
+      }
+      if (!force && Date.now() - lastLoadAt.current < 30_000) return;
       inFlight.current = true;
       setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
       try {
@@ -67,7 +72,10 @@ export default function AnnouncementsPage() {
         setPrograms(programsRef.current);
       }
       setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
+      // Render the public updates before waiting for the user-specific application status.
+      setLoading(false);
       const { data: { user } } = await supabase.auth.getUser();
+      if (!active) return;
       if (user) {
         const { data: resident, error: residentError } = await supabase.from("residents").select("id").eq("user_id", user.id).maybeSingle();
         if (!residentError && resident) {
@@ -82,7 +90,13 @@ export default function AnnouncementsPage() {
         if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
       } finally {
         inFlight.current = false;
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          if (reloadRequested.current) {
+            reloadRequested.current = false;
+            void load(true);
+          }
+        }
       }
     }
     void load(true);
