@@ -51,6 +51,11 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     }
 
     const idBytes = Buffer.from(await idBlob.arrayBuffer());
+    try {
+      inspectImage(idBytes, idBlob.type);
+    } catch (imageError) {
+      return { error: imageError instanceof Error ? imageError.message : "Invalid identification image." };
+    }
     const extension = detectedImageExtension(idBytes);
     const expectedExtension = idBlob.type === "image/jpeg" ? "jpg" : idBlob.type === "image/png" ? "png" : "webp";
     if (extension !== expectedExtension) {
