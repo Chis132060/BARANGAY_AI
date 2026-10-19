@@ -33,6 +33,12 @@
   }
 }
 
+.resident-onboarding-dialog::backdrop {
+  background-color: rgb(2 6 23 / 50%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
