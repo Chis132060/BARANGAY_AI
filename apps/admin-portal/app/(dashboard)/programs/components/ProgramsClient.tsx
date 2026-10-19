@@ -243,45 +243,37 @@ function EnrolleesPanel({
             </button>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">Loading…</div>
-          ) : enrollees.length === 0 ? (
+          {loading && <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">Loading…</div>}
+          {!loading && enrollees.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Users className="h-10 w-10 mb-2 opacity-20" />
               <p className="text-sm">No members enrolled yet.</p>
               <button onClick={() => setShowAdd(true)} className="mt-3 text-xs text-primary underline">Add the first member</button>
             </div>
-          ) : (
+          )}
+          {!loading && enrollees.length > 0 && (
             <AdminTable className="w-full text-sm text-left">
               <thead className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-2.5">Name</th>
-                  <th className="px-6 py-2.5">Role</th>
-                  <th className="px-6 py-2.5">Purok</th>
-                  <th className="px-6 py-2.5">Enrolled</th>
-                  <th className="px-6 py-2.5 text-right"></th>
-                </tr>
+                <tr><th className="px-6 py-2.5">Name</th><th className="px-6 py-2.5">Role</th><th className="px-6 py-2.5">Purok</th><th className="px-6 py-2.5">Enrolled</th><th className="px-6 py-2.5 text-right">Actions</th></tr>
               </thead>
               <tbody className="divide-y">
-                {enrollees.map((e) => (
-                  <tr key={e.id} className="hover:bg-muted/40">
-                    <td className="px-6 py-3 font-medium">{e.full_name}
-                      {e.contact_number && <div className="text-xs text-muted-foreground">{e.contact_number}</div>}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{e.role || "Member"}</span>
-                    </td>
-                    <td className="px-6 py-3 text-muted-foreground">{e.purok || "—"}</td>
-                    <td className="px-6 py-3 text-muted-foreground text-xs">{e.date_enrolled}</td>
+                {enrollees.map((enrollee) => (
+                  <tr key={enrollee.id} className="hover:bg-muted/40">
+                    <td className="px-6 py-3 font-medium">{enrollee.full_name}{enrollee.contact_number && <div className="text-xs text-muted-foreground">{enrollee.contact_number}</div>}</td>
+                    <td className="px-6 py-3">{enrollee.role || "Member"}</td>
+                    <td className="px-6 py-3">{enrollee.purok || "—"}</td>
+                    <td className="px-6 py-3 text-xs">{enrollee.date_enrolled}</td>
                     <td className="px-6 py-3 text-right">
-                      <span className="mr-2 text-xs font-semibold">{e.status}</span>
-                      {e.rejection_reason && <span title={e.rejection_reason} className="mr-2 text-xs text-red-700">Reason: {e.rejection_reason}</span>}
-                      {(e.status === "Approved" || e.status === "Active") && <label className="mr-2 text-xs"><input type="checkbox" checked={!!e.attended} onChange={(event) => void handleAttendance(e.id,event.target.checked)} /> Attended</label>
-                      {e.status === "Pending" && <span className="mr-2 inline-flex gap-1"><button disabled={reviewingId !== null} onClick={() => handleReview(e.id, "Approved")} className="rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Approve</button><button disabled={reviewingId !== null} onClick={() => handleReview(e.id, "Rejected")} className="rounded bg-red-100 px-2 py-1 text-xs text-red-800">Reject</button></span>}
-                      <button onClick={() => handleRemove(e.id)} disabled={isPending}
-                        className="rounded-lg p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <span className="mr-2 text-xs font-semibold">{enrollee.status}</span>
+                      {enrollee.rejection_reason && <span title={enrollee.rejection_reason} className="mr-2 text-xs text-red-700">Reason: {enrollee.rejection_reason}</span>}
+                      {(enrollee.status === "Approved" || enrollee.status === "Active") && <label className="mr-2 text-xs"><input type="checkbox" checked={!!enrollee.attended} onChange={(event) => void handleAttendance(enrollee.id, event.target.checked)} /> Attended</label>}
+                      {enrollee.status === "Pending" && (
+                        <span className="mr-2 inline-flex gap-1">
+                          <button disabled={reviewingId !== null} onClick={() => handleReview(enrollee.id, "Approved")} className="rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Approve</button>
+                          <button disabled={reviewingId !== null} onClick={() => handleReview(enrollee.id, "Rejected")} className="rounded bg-red-100 px-2 py-1 text-xs text-red-800">Reject</button>
+                        </span>
+                      )}
+                      <button onClick={() => handleRemove(enrollee.id)} disabled={isPending} aria-label="Remove enrollee" className="rounded-lg p-1 text-muted-foreground hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
                     </td>
                   </tr>
                 ))}

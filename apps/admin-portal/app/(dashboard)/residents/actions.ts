@@ -252,6 +252,8 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .from("residents")
     .update({ verification_status: "Verified", updated_at: new Date().toISOString() })
     .eq("id", residentId)
+    .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .select("id, verification_status")
     .maybeSingle();
 
@@ -313,6 +315,8 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     .from("residents")
     .update(updateData)
     .eq("id", residentId)
+    .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .select("id, verification_status")
     .maybeSingle();
 

@@ -21,7 +21,7 @@ export async function fetchAnnouncements(): Promise<Announcement[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(`Unable to fetch announcements: ${error.message}`);
-  return (data ?? []).map((item) => ({
+  return (data ?? []).map((item: { id: string; title: string; description: string | null; category: string; status: string; created_at: string }) => ({
     id: item.id,
     title: item.title,
     body: item.description ?? "",
