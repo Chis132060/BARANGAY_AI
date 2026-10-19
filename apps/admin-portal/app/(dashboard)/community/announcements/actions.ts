@@ -11,15 +11,26 @@ export interface Announcement {
   created_at: string;
 }
 
+// The live announcements table stores content in description and category.
+// Category is not an audience field, so legacy categories default to "All".
 export async function fetchAnnouncements(): Promise<Announcement[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("announcements")
-    .select("*")
+    .select("id,title,description,category,status,created_at")
     .order("created_at", { ascending: false });
 
-  if (error) return [];
-  return data as Announcement[];
+  if (error) throw new Error(`Unable to fetch announcements: ${error.message}`);
+  return (data ?? []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    body: item.description ?? "",
+    target_audience: (["All", "Residents", "Senior", "4Ps"].includes(item.category)
+      ? item.category
+      : "All") as Announcement["target_audience"],
+    status: item.status as Announcement["status"],
+    created_at: item.created_at,
+  }));
 }
 
 export async function publishAnnouncement(
@@ -33,26 +44,23 @@ export async function publishAnnouncement(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  // The database currently has no target_audience column. Preserve existing
+  // category values on edits rather than overwriting them with audience labels.
+  const fields = { title, description: body, status };
   if (id) {
-    const { error } = await supabase
-      .from("announcements")
-      .update({ title, body, target_audience: targetAudience, status, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { error } = await supabase.from("announcements").update(fields).eq("id", id);
     if (error) throw new Error(error.message);
   } else {
-    // INSERT triggers notifications for all targeted users via DB trigger (see migration)
-    const { error } = await supabase
-      .from("announcements")
-      .insert([{ title, body, target_audience: targetAudience, status, created_by: user.id }]);
+    const { error } = await supabase.from("announcements").insert([{
+      ...fields,
+      category: "General",
+      published_by: user.id,
+      published_date: status === "Published" ? new Date().toISOString() : null,
+    }]);
     if (error) throw new Error(error.message);
   }
 
-  await supabase.from("transactions").insert({
-    user_id: user.id,
-    module: "Announcements",
-    action: id ? "Update" : "Publish",
-    description: `Announcement "${title}" ${id ? "updated" : "published"} for ${targetAudience}.`,
-  });
-
+  // Audience targeting and push notifications require a separate persisted
+  // audience field and notification workflow; do not claim delivery here.
   return { success: true };
 }
