@@ -6,6 +6,13 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  cacheStartUrl: true,
+  dynamicStartUrl: true,
+  dynamicStartUrlRedirect: "/login",
+  cacheOnFrontEndNav: true,
+  fallbacks: {
+    document: "/~offline",
+  },
   // worker/index.ts is automatically bundled into the generated sw.js by next-pwa.
   // This handles the `push` and `notificationclick` events.
   // customWorkerSrc defaults to "worker" which matches our directory — making this explicit.
