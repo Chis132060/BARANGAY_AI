@@ -155,3 +155,16 @@ export async function setProgramPublication(programId: string, publish: boolean)
   revalidatePath("/programs");
   return { success: true };
 }
+
+export async function reviewProgramApplication(enrolleeId: string, decision: "Approved" | "Rejected") {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { data, error } = await supabase.from("program_enrollees")
+    .update({ status: decision }).eq("id", enrolleeId).eq("status", "Pending")
+    .select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Application not pending or permission denied");
+  revalidatePath("/programs");
+  return { success: true };
+}
