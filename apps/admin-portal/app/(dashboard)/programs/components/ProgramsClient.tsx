@@ -25,6 +25,7 @@ import {
   fetchEnrollees,
   addEnrollee,
   removeEnrollee,
+  setProgramPublication,
 } from "../actions";
 
 // ─── Program Icon Map ─────────────────────────────────────────────────────────
@@ -264,6 +265,9 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
     established_date: "",
     status: "Active",
     is_custom: true,
+    purok: "Purok 3",
+    venue: "",
+    schedule_details: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -324,6 +328,18 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
                   <option>Environmental</option>
                   <option>Other</option>
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold">Purok / Area</label>
+                <input value={form.purok} onChange={(e) => setForm((f) => ({ ...f, purok: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold">Venue</label>
+                <input value={form.venue} onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-semibold">Schedule (if confirmed)</label>
+                <input value={form.schedule_details} onChange={(e) => setForm((f) => ({ ...f, schedule_details: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
               </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-xs font-semibold">Description</label>
@@ -386,6 +402,13 @@ export function ProgramsClient({ initialPrograms }: Props) {
   const filtered = programs.filter((p) =>
     `${p.name} ${p.code || ""} ${p.category}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  async function handlePublication(program: BarangayProgram) {
+    try {
+      await setProgramPublication(program.id, !program.is_public);
+      setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, is_public: !p.is_public } : p));
+    } catch (err: any) { alert(err.message || "Failed to change publication status"); }
+  }
 
   function handleDelete(id: string, isCustom: boolean) {
     if (!isCustom) { alert("Built-in programs cannot be deleted."); return; }
@@ -483,6 +506,10 @@ export function ProgramsClient({ initialPrograms }: Props) {
                 <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">{program.description || program.category}</p>
               </div>
 
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">{program.purok || "All Puroks"}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); handlePublication(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.is_public ? "Unpublish" : "Publish to PWA"}</button>
+              </div>
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" />
