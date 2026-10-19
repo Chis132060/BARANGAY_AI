@@ -19,6 +19,9 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("General");
   const [description, setDescription] = useState("");
+  const [area, setArea] = useState("Purok 3");
+  const [schedule, setSchedule] = useState("");
+  const [venue, setVenue] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -65,7 +68,7 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
         .from("announcements")
         .insert({
           title,
-          description,
+          description: category === "Program" ? [description, `Area: ${area}`, schedule && `Schedule: ${schedule}`, venue && `Venue: ${venue}`].filter(Boolean).join("\n\n") : description,
           category,
           published_by: user?.id || null,
           status: "Published",
@@ -91,6 +94,8 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
       setAnnouncements([newAnn, ...announcements]);
       setTitle("");
       setDescription("");
+      setSchedule("");
+      setVenue("");
       setShowModal(false);
       setImageFile(null);
       setImagePreview(null);
@@ -217,10 +222,19 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
                   <option value="General">General News</option>
                   <option value="Health">Health & Wellness</option>
                   <option value="Event">Community Event</option>
+                  <option value="Program">Barangay Program</option>
                   <option value="Emergency">Emergency / Advisory</option>
                 </select>
               </div>
 
+              {category === "Program" && (
+                <div className="space-y-2 rounded-xl border p-3">
+                  <p className="text-xs font-semibold">Barangay program details — publish only confirmed information</p>
+                  <label className="block text-xs">Purok / Area<input value={area} onChange={(e) => setArea(e.target.value)} required className="mt-1 w-full rounded-lg border p-2 text-sm" /></label>
+                  <label className="block text-xs">Schedule (if confirmed)<input value={schedule} onChange={(e) => setSchedule(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm" /></label>
+                  <label className="block text-xs">Venue (if confirmed)<input value={venue} onChange={(e) => setVenue(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm" /></label>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Description / Content</label>
                 <textarea
