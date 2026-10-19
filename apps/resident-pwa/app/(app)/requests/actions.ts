@@ -30,14 +30,18 @@ export async function submitDocumentRequest(formData: FormData) {
   const purpose = formData.get("purpose") as string;
   const requirementsJson = formData.get("requirements") as string;
 
-  if (!documentTypeId || !purpose) {
+  if (!documentTypeId || !purpose?.trim() || purpose.length > 2000) {
     throw new Error("Missing required fields");
   }
 
   let requirements: string[] = [];
   try {
-    requirements = JSON.parse(requirementsJson || "[]");
-  } catch (e) {
+    const parsed: unknown = JSON.parse(requirementsJson || "[]");
+    if (!Array.isArray(parsed) || parsed.length > 20 || !parsed.every((req) => typeof req === "string" && req.length > 0 && req.length <= 120)) {
+      throw new Error("Invalid requirements data");
+    }
+    requirements = parsed;
+  } catch {
     throw new Error("Invalid requirements data");
   }
 
