@@ -16,7 +16,7 @@ import {
   Phone,
   ShieldCheck,
 } from "lucide-react";
-import { approveResident, rejectResident, fetchPendingVerifications } from "../../actions";
+import { approveResident, rejectResident, fetchPendingVerifications, fetchResidentIdPhotoUrl } from "../../actions";
 import type { PendingResident } from "../../actions";
 import { useAuth } from "@/components/auth-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -32,11 +32,26 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   const [error, setError] = useState<string | null>(initialError);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedResident, setSelectedResident] = useState<PendingResident | null>(null);
+  const [idPhotoUrl, setIdPhotoUrl] = useState<string | null>(null);
+  const [idPhotoLoading, setIdPhotoLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [rejectModalId, setRejectModalId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setIdPhotoUrl(null);
+    setIdPhotoLoading(false);
+    if (!selectedResident?.id_photo_url) return;
+    setIdPhotoLoading(true);
+    fetchResidentIdPhotoUrl(selectedResident.id)
+      .then((url) => { if (!cancelled) setIdPhotoUrl(url); })
+      .catch(() => { if (!cancelled) setIdPhotoUrl(null); })
+      .finally(() => { if (!cancelled) setIdPhotoLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedResident?.id]);
 
   const canApprove = hasPermission("residents", "canApprove");
 
@@ -303,13 +318,13 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
               <div className="rounded-xl bg-muted/40 p-3 sm:col-span-2"><span className="block text-xs font-semibold text-muted-foreground">Declared address</span><span className="font-medium">{formatAddress(selectedResident.address)}</span></div>
             </div>
 
-            {selectedResident.id_photo_url && (
+            {(selectedResident.id_photo_url || idPhotoLoading) && (
               <div className="mt-5">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-bold">Uploaded proof of identity</p>
-                  <button type="button" onClick={() => setSelectedId(selectedResident.id_photo_url!)} className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"><Eye className="h-3.5 w-3.5" /> View full image</button>
+                  <button type="button" onClick={() => { if (idPhotoUrl) setSelectedId(idPhotoUrl); }} disabled={!idPhotoUrl} className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"><Eye className="h-3.5 w-3.5" /> View full image</button>
                 </div>
-                <img src={selectedResident.id_photo_url} alt="Uploaded proof of identity" className="max-h-64 w-full rounded-xl border bg-black/5 object-contain" />
+                {idPhotoUrl ? <img src={idPhotoUrl} alt="Uploaded proof of identity" className="max-h-64 w-full rounded-xl border bg-black/5 object-contain" /> : <p className="rounded-xl border p-4 text-sm text-muted-foreground">{idPhotoLoading ? "Loading ID proof…" : "ID proof unavailable"}</p>}
               </div>
             )}
 
