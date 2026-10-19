@@ -192,19 +192,22 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    let persistedSessionId: string | null = null;
     if (isLoggedIn) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from("chat_sessions").upsert({
+        const { data: persistedSession, error: sessionError } = await supabase.from("chat_sessions").upsert({
           user_id: user.id,
           session_token: sessionId,
           last_active_at: new Date().toISOString(),
-        }, { onConflict: "session_token" });
-        await supabase.from("chat_messages").insert({
+        }, { onConflict: "session_token" }).select("id").single();
+        if (sessionError) console.warn("Unable to save chat session:", sessionError.message);
+        persistedSessionId = persistedSession?.id ?? null;
+        if (persistedSessionId) await supabase.from("chat_messages").insert({
           user_id: user.id,
           sender: "user",
           message: userText,
-          session_id: sessionId,
+          session_id: persistedSessionId,
         });
       }
     }
@@ -267,7 +270,7 @@ export function ChatInterface() {
             form_type: finalFormType ?? null,
             citations: citations,
             model_used: "gemini-1.5-flash",
-            session_id: sessionId,
+            session_id: persistedSessionId,
           });
           await supabase.from("chat_sessions").update({
             last_active_at: new Date().toISOString(),
