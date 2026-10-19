@@ -132,7 +132,8 @@ export async function middleware(request: NextRequest) {
 
 
 export const config = {
+  // Do not run auth middleware on generated Workbox/PWA scripts or static assets.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
