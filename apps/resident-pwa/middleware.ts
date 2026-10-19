@@ -4,7 +4,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
 import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 
-const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/auth", "/chat", "/announcements", "/home"];
+const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/auth", "/chat", "/announcements"];
+const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some(
+  (route) => pathname === route || pathname.startsWith(`${route}/`)
+);
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -21,7 +24,19 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   let supabase: any;
-  const mockSupabaseEnabled = isMockSupabaseEnabled();
+  const mockSupabaseEnabled = process.env.NODE_ENV !== "production" && isMockSupabaseEnabled();
+  // Never silently enable mock auth when production Supabase configuration is missing.
+  if (!url || !anonKey) {
+    if (process.env.NODE_ENV === "production") {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Authentication unavailable" }, { status: 503 });
+      }
+      if (pathname === "/login" || pathname === "/register") return response;
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
   if (!url || mockSupabaseEnabled) {
     const requestCookieStore = {
       get: (name: string) => request.cookies.get(name)?.value,
@@ -88,7 +103,7 @@ export async function middleware(request: NextRequest) {
   // API routes perform their own authentication/rate limiting. Do not turn
   // guest API requests into an HTML login redirect (which breaks JSON clients).
   if (pathname.startsWith("/api/")) return response;
-  const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+  const isPublic = isPublicRoute(pathname);
 
   // Unknown/missing roles must not pass through to resident-only pages.
   if (user && userRole !== "Resident" && !isPublic) {
