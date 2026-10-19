@@ -3,6 +3,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 import { v4 as uuidv4 } from "uuid";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { validateRegistrationInput, validateIdFile } = require("../../../lib/registration-validation.cjs");
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -33,6 +35,11 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     if (!email || !password || !firstName || !lastName || !birthDate || !idBlob) {
       return { error: "Missing required fields." };
     }
+
+    const inputErrors = validateRegistrationInput({ email, password, firstName, lastName, birthDate, contactNumber, street, purok, idType });
+    if (inputErrors.length) return { error: inputErrors[0] };
+    const fileErrors = validateIdFile({ type: idBlob.type, size: idBlob.size });
+    if (fileErrors.length) return { error: fileErrors[0] };
 
     if (!ALLOWED_MIME_TYPES.includes(idBlob.type)) {
       return { error: "Invalid image format. Only JPEG, PNG, and WEBP are allowed." };
