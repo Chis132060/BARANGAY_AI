@@ -72,6 +72,8 @@ async function writeFallbackAudit(supabase: any, input: {
 export async function POST(request: NextRequest) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const authorization = session?.access_token ? `Bearer ${session.access_token}` : undefined;
 
   const body = await request.json();
   const { message, sessionId, language = "tgl" } = body as {
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
     userId: user?.id,
     language,
     apiBaseUrl,
+    accessToken: session?.access_token,
   });
 
   if (agentResponse) {
@@ -125,12 +128,11 @@ export async function POST(request: NextRequest) {
 
     const fastApiRes = await fetch(`${apiBaseUrl}/api/v1/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(authorization ? { Authorization: authorization } : {}) },
       signal: controller.signal,
       body: JSON.stringify({
         query: message,
         session_id: sessionId ?? null,
-        user_id: user?.id ?? null,
         language: language,
       }),
     });

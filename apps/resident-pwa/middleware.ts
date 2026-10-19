@@ -59,17 +59,18 @@ export async function middleware(request: NextRequest) {
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
+    if (user && mockSupabaseEnabled) userRole = user.user_metadata?.role || "Resident";
     
     if (user && !mockSupabaseEnabled) {
-      const { data: userData } = await supabase
+      const { data: userData, error } = await supabase
         .from("users")
         .select("roles!inner(name)")
         .eq("id", user.id)
         .maybeSingle();
       
-      userRole = Array.isArray(userData?.roles) 
+      userRole = !error && (Array.isArray(userData?.roles)
         ? userData?.roles[0]?.name 
-        : userData?.roles?.name;
+        : userData?.roles?.name);
     }
   } catch (err) {
     console.warn("[PWA Middleware] Supabase auth check failed, using fallback:", err);
@@ -81,9 +82,8 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/api/")) return response;
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
-  // If a non-Resident attempts to access a protected PWA route, log them out and redirect
-  if (user && userRole && userRole !== "Resident" && !isPublic) {
-    await supabase.auth.signOut();
+  // Unknown/missing roles must not pass through to resident-only pages.
+  if (user && userRole !== "Resident" && !isPublic) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("error", "admin_account");
@@ -102,7 +102,7 @@ export async function middleware(request: NextRequest) {
       const isApprovalRoute = pathname.startsWith("/pending-approval");
       const isAuthCallback = pathname.startsWith("/auth");
 
-      if ((status === "Pending" || status === "Rejected") && !isApprovalRoute && !isAuthCallback) {
+      if ((!resident || status === "Pending" || status === "Rejected") && !isApprovalRoute && !isAuthCallback) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = "/pending-approval";
         return NextResponse.redirect(redirectUrl);
@@ -121,7 +121,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && (pathname === "/login" || pathname === "/register") && (!userRole || userRole === "Resident")) {
+  if (user && (pathname === "/login" || pathname === "/register") && userRole === "Resident") {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/home";
     return NextResponse.redirect(redirectUrl);

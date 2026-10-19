@@ -240,7 +240,7 @@ export async function getPermissionsForUser(userId: string): Promise<Record<stri
     .eq("id", userId)
     .single();
 
-  if (userErr || !user) return {};
+  if (userErr || !user?.role_id) return {};
 
   const { data: permissions } = await supabase
     .from("permissions")
@@ -268,19 +268,20 @@ export async function checkUserPermission(
   action: keyof PermissionSet
 ): Promise<boolean> {
   const supabase = createClient();
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from("users")
     .select("role_id, role:roles(name)")
     .eq("id", userId)
     .maybeSingle();
 
+  if (error || !user?.role_id) return false;
   const roleName = (user as any)?.role?.name;
   if (roleName === "Super Admin" || roleName === "Barangay Captain") return true;
+  if (!roleName) return false;
 
   const perms = await getPermissionsForUser(userId);
   // Super Admin wildcard
-  if (perms["*"]) return true;
-  if (Object.keys(perms).length === 0) return true;
+  if (perms["*"]) return perms["*"][action] ?? false;
   return perms[module]?.[action] ?? false;
 }
 

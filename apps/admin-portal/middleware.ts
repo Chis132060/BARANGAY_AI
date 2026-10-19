@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
 
 const PUBLIC_ROUTES = ["/login", "/auth/callback"];
+const ADMIN_ROLES = new Set(["Super Admin", "Barangay Captain", "Secretary", "Treasurer", "Staff"]);
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -57,18 +58,21 @@ export async function middleware(request: NextRequest) {
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
+    if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
+      userRole = user.user_metadata?.role || "Staff";
+    }
     
     if (user && process.env.NEXT_PUBLIC_MOCK_SUPABASE !== "true") {
-      const { data: userData } = await supabase
+      const { data: userData, error } = await supabase
         .from("users")
         .select("roles!inner(name)")
         .eq("id", user.id)
         .maybeSingle();
       
       // Handle both single object or array return types just in case
-      userRole = Array.isArray(userData?.roles) 
+      userRole = !error && (Array.isArray(userData?.roles)
         ? userData?.roles[0]?.name 
-        : userData?.roles?.name;
+        : userData?.roles?.name);
     }
   } catch (err) {
     console.warn("[Middleware] Supabase auth check failed, using fallback:", err);
@@ -78,7 +82,7 @@ export async function middleware(request: NextRequest) {
   const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
   // If a Resident attempts to access a protected admin route, log them out and redirect
-  if (user && userRole === "Resident" && !isPublic) {
+  if (user && !isPublic && !ADMIN_ROLES.has(userRole ?? "")) {
     await supabase.auth.signOut();
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
@@ -92,7 +96,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && pathname === "/login" && userRole !== "Resident") {
+  if (user && pathname === "/login" && ADMIN_ROLES.has(userRole ?? "")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
     return NextResponse.redirect(redirectUrl);

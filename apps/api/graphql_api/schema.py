@@ -131,7 +131,17 @@ from services.stream_service import stream_ai_response
 class Subscription:
     @strawberry.subscription
     async def ai_response_stream(self, info: strawberry.Info, session_id: str, message: str) -> AIStreamEvent:
-        # Authentication occurs in WebSocket init payload (handled by context/middleware)
+        user_id = require_auth(info)
+        result = (
+            get_supabase_client()
+            .table("ai_sessions")
+            .select("id")
+            .eq("id", session_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not result.data:
+            raise Exception("SESSION_ACCESS_DENIED")
         async for event in stream_ai_response(session_id, message):
             yield event
 

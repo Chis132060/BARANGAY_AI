@@ -2,7 +2,7 @@
 
 import { AdminTable } from "@/components/ui/AdminTable";
 import type { ResidentListItem } from "../actions";
-import { User, Phone, MapPin, CheckCircle2, Shield, Heart } from "lucide-react";
+import { MapPin, Phone, Eye, UserX } from "lucide-react";
 
 interface ResidentTableProps {
   residents: ResidentListItem[];
@@ -20,13 +20,17 @@ export function ResidentTable({ residents }: ResidentTableProps) {
               <th className="px-6 py-3.5">Address & Purok</th>
               <th className="px-6 py-3.5">Classifications</th>
               <th className="px-6 py-3.5">Contact Number</th>
+              <th className="px-6 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-xs">
             {residents.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground font-medium">
-                  No resident records found matching filters.
+                <td colSpan={6} className="px-6 py-14 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <UserX className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-xs font-semibold text-muted-foreground">No resident records found matching filters.</p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -37,7 +41,7 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                   : "—";
 
                 return (
-                  <tr key={res.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={res.id} className="hover:bg-muted/30 transition-colors group">
                     <td className="px-6 py-4 font-bold text-foreground">
                       <div className="flex items-center gap-3">
                         <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-extrabold text-sm border border-primary/20">
@@ -95,6 +99,15 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                       ) : (
                         "—"
                       )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-muted/60 hover:bg-primary hover:text-primary-foreground border border-transparent hover:border-primary/20 text-muted-foreground transition-all opacity-0 group-hover:opacity-100"
+                        title={`View ${res.first_name} ${res.last_name}'s profile`}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
                     </td>
                   </tr>
                 );
