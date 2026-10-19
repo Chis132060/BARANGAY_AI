@@ -4,8 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Loader2, Mail, CheckCircle2, PrinterIcon } from "lucide-react";
+import { createResidentWithCredentials } from "../actions/createResidentWithCredentials";
 
 const residentFormSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
@@ -15,6 +15,11 @@ const residentFormSchema = z.object({
   gender: z.enum(["Male", "Female", "Other"]),
   civil_status: z.enum(["Single", "Married", "Widowed", "Divorced"]),
   contact_number: z.string().optional(),
+  email: z
+    .string()
+    .email("Please enter a valid email address")
+    .optional()
+    .or(z.literal("")),
   voter_status: z.boolean().default(false),
   senior_status: z.boolean().default(false),
   pwd_status: z.boolean().default(false),
@@ -34,6 +39,13 @@ interface ResidentFormProps {
 export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{
+    residentCode: string;
+    emailSent: boolean;
+    hasEmail: boolean;
+    generatedPassword?: string;
+    firstName: string;
+  } | null>(null);
 
   const {
     register,
@@ -49,6 +61,7 @@ export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
       gender: "Male",
       civil_status: "Single",
       contact_number: "",
+      email: "",
       voter_status: false,
       senior_status: false,
       pwd_status: false,
@@ -64,41 +77,23 @@ export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
     setErrorMsg(null);
 
     try {
-      const supabase = createClient();
-      const { data: resData, error: resError } = await supabase
-        .from("residents")
-        .insert({
-          first_name: values.first_name,
-          middle_name: values.middle_name,
-          last_name: values.last_name,
-          birth_date: values.birth_date,
-          gender: values.gender,
-          civil_status: values.civil_status,
-          contact_number: values.contact_number,
-          voter_status: values.voter_status,
-          senior_status: values.senior_status,
-          pwd_status: values.pwd_status,
-          four_ps_status: values.four_ps_status,
-        })
-        .select("id")
-        .single();
+      const res = await createResidentWithCredentials({
+        ...values,
+        email: values.email?.trim() || undefined,
+      });
 
-      if (resError) throw new Error(resError.message);
-
-      if ((values.house_number || values.street || values.purok) && resData) {
-        const { error: addrError } = await supabase
-          .from("addresses")
-          .insert({
-            resident_id: resData.id,
-            house_number: values.house_number,
-            street: values.street,
-            purok: values.purok,
-          });
-          
-        if (addrError) console.error("Address error:", addrError.message);
+      if (!res.success) {
+        setErrorMsg(res.error ?? "Failed to create resident profile.");
+        return;
       }
 
-      onSuccess();
+      setResult({
+        residentCode: res.residentCode,
+        emailSent: res.emailSent,
+        hasEmail: !!values.email?.trim(),
+        generatedPassword: res.generatedPassword,
+        firstName: values.first_name,
+      });
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to create resident profile.");
     } finally {
@@ -106,10 +101,103 @@ export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
     }
   }
 
+  // ── Success screen ──────────────────────────────────────────────────────────
+  if (result) {
+    return (
+      <div className="space-y-5 bg-card p-6 border rounded-2xl shadow-sm max-w-2xl mx-auto">
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <CheckCircle2 className="h-12 w-12 text-green-500" />
+          <h2 className="text-xl font-bold">Resident Registered!</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            The resident profile has been created and their login account is ready.
+          </p>
+        </div>
+
+        {/* Email delivered */}
+        {result.emailSent && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+            <Mail className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-green-800">Credentials emailed ✓</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                Login credentials have been sent to the resident's email address. They can log in using their email and the password from the email.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* No email — show printable credential card */}
+        {!result.hasEmail && result.generatedPassword && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-amber-700">
+              <PrinterIcon className="h-4 w-4" />
+              <p className="text-xs font-bold uppercase tracking-wide">Print and hand this to the resident</p>
+            </div>
+
+            {/* Printable card */}
+            <div
+              id="credential-card"
+              className="border-2 border-dashed border-gray-300 rounded-xl p-6 bg-white print:border-solid print:border-black"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Smart Barangay</p>
+                  <p className="text-lg font-bold text-gray-900">Login Credentials</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">{new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-gray-50 rounded-lg p-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Resident Name</p>
+                  <p className="text-base font-bold text-gray-900">{result.firstName}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Username</p>
+                  <p className="text-xl font-mono font-bold text-blue-700">{result.residentCode}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Password</p>
+                  <p className="text-xl font-mono font-bold text-gray-900 tracking-widest">{result.generatedPassword}</p>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-gray-400 mt-3 text-center">
+                Login at your Barangay's resident portal. Keep this slip private.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 transition-all"
+            >
+              <PrinterIcon className="h-4 w-4" />
+              Print Credential Slip
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center justify-center gap-3 pt-2 border-t">
+          <button
+            type="button"
+            onClick={onSuccess}
+            className="px-6 py-2 text-sm font-semibold rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground shadow"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Form ────────────────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 bg-card p-6 border rounded-2xl shadow-sm max-w-2xl mx-auto">
       <h2 className="text-xl font-bold border-b pb-3 mb-2">Register Resident Profile</h2>
-      
+
       {errorMsg && (
         <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg font-medium">
           {errorMsg}
@@ -188,6 +276,27 @@ export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
             {...register("contact_number")}
           />
         </div>
+      </div>
+
+      {/* Email — optional */}
+      <div>
+        <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
+          Email Address{" "}
+          <span className="normal-case font-normal text-muted-foreground/70">(optional — credentials will be emailed if provided)</span>
+        </label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="email"
+            placeholder="resident@example.com"
+            className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            {...register("email")}
+          />
+        </div>
+        {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
+        <p className="text-xs text-muted-foreground mt-1">
+          If left blank, a Resident Code (e.g. BRY-2026-00142) will be generated as the login username. Admin should print and hand it to the resident.
+        </p>
       </div>
 
       {/* Address Block */}

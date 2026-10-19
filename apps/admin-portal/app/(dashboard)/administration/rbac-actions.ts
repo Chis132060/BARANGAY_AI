@@ -219,6 +219,10 @@ export async function updateSystemUser(id: string, updates: { name?: string; ema
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !(await checkUserPermission(user.id, "administration", "canEdit"))) throw new Error("Unauthorized.");
+  // Profile email is not the Auth email. Never let the admin UI desynchronize them.
+  if (updates.email !== undefined) {
+    throw new Error("Email changes must use the authenticated account email-change flow.");
+  }
   const { error } = await supabase
     .from("users")
     .update({ ...updates, updated_at: new Date().toISOString() })

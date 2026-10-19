@@ -7,9 +7,27 @@ import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
+const RESIDENT_CODE_DOMAIN = "smartbarangay.local";
+
+/** Converts a BRY- resident code to its synthetic auth email */
+function residentCodeToEmail(code: string): string {
+  return `${code.trim().toLowerCase()}@${RESIDENT_CODE_DOMAIN}`;
+}
+
+/** Returns true if the input looks like a resident code (e.g. BRY-2026-00001) */
+function isResidentCode(value: string): boolean {
+  return /^BRY-\d{4}-\d+$/i.test(value.trim());
+}
+
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters long"),
+  username: z
+    .string()
+    .min(1, "Please enter your email or Resident Code")
+    .refine(
+      (val) => isResidentCode(val) || z.string().email().safeParse(val).success,
+      { message: "Enter a valid email address or Resident Code (e.g. BRY-2026-00001)" }
+    ),
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
@@ -25,7 +43,7 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { username: "", password: "" },
   });
 
   async function onSubmit(values: LoginValues) {
@@ -34,22 +52,30 @@ export function LoginForm() {
 
     const supabase = createClient();
 
-    console.log("[LOGIN] Attempting sign in for:", values.email);
+    // Map BRY- resident code → synthetic email; otherwise use as-is
+    const authEmail = isResidentCode(values.username)
+      ? residentCodeToEmail(values.username)
+      : values.username.trim();
+
+    console.log("[LOGIN] Attempting sign in for:", authEmail);
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: values.email,
+      email: authEmail,
       password: values.password,
     });
 
     console.log("[LOGIN] Result:", { user: data?.user?.email, error: error?.message });
 
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(
+        error.message === "Invalid login credentials"
+          ? "Incorrect username or password. Please try again."
+          : error.message
+      );
       setLoading(false);
       return;
     }
 
-    // Navigate directly — cookies are set by createBrowserClient before this line
     console.log("[LOGIN] Success! Navigating to /home...");
     window.location.href = "/home";
   }
@@ -63,24 +89,30 @@ export function LoginForm() {
       )}
 
       <div>
-        <label htmlFor="email" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-          Email Address
+        <label
+          htmlFor="username"
+          className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2"
+        >
+          Email or Resident Code
         </label>
         <input
-          id="email"
-          type="email"
+          id="username"
+          type="text"
           disabled={loading}
-          placeholder="you@example.com"
+          placeholder="you@example.com or BRY-2026-00001"
           className="w-full rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
-          {...register("email")}
+          {...register("username")}
         />
-        {errors.email && (
-          <p className="mt-1 text-xs text-red-600 font-medium">{errors.email.message}</p>
+        {errors.username && (
+          <p className="mt-1 text-xs text-red-600 font-medium">{errors.username.message}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+        <label
+          htmlFor="password"
+          className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2"
+        >
           Password
         </label>
         <div className="relative">
