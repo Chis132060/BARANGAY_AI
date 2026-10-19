@@ -2,6 +2,21 @@
 export default null;
 declare let self: ServiceWorkerGlobalScope;
 
+self.addEventListener("activate", (event) => {
+  // skipWaiting/clientsClaim can move an already-open PWA to a new worker
+  // while its HTML and React chunks still belong to the previous build. Reload
+  // those windows so the modal and the rest of the app hydrate from one build.
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) =>
+      Promise.all(
+        clients
+          .filter((client) => new URL(client.url).origin === self.location.origin)
+          .map((client) => client.navigate(client.url).catch(() => null))
+      )
+    )
+  );
+});
+
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   
