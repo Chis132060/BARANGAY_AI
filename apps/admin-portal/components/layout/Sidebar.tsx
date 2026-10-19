@@ -6,12 +6,43 @@ import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../auth-provider";
-import { navigationConfig, NavigationModule } from "../../lib/navigation";
+import { navigationConfig } from "../../lib/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { role, permissions, hasPermission } = useAuth();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const supabase = createClient();
+    let mounted = true;
+    const refreshCounts = async () => {
+      const [verifications, requests] = await Promise.all([
+        supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending"),
+        supabase.from("document_requests").select("*", { count: "exact", head: true }).eq("status", "Pending"),
+      ]);
+      if (!mounted) return;
+      setQueueCounts((previous) => ({
+        ...previous,
+        ...(verifications.error ? {} : { "/residents/verification": verifications.count ?? 0 }),
+        ...(requests.error ? {} : { "/documents/requests": requests.count ?? 0 }),
+      }));
+    };
+    void refreshCounts();
+    const channel = supabase.channel("admin-sidebar-queue-counts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "residents" }, () => { void refreshCounts(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "document_requests" }, () => { void refreshCounts(); })
+      .subscribe();
+    const onFocus = () => { void refreshCounts(); };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      mounted = false;
+      window.removeEventListener("focus", onFocus);
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Filter modules based on dynamic permissions from DB
   const filteredModules = navigationConfig.filter((module) => {
@@ -112,7 +143,12 @@ export function Sidebar() {
                           {isActive && (
                             <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" />
                           )}
-                          <span className="pl-1">{child.title}</span>
+                          <span className="pl-1 flex-1">{child.title}</span>
+                          {(queueCounts[child.href] ?? 0) > 0 && (
+                            <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center tabular-nums" aria-label={`${queueCounts[child.href]} pending`}>
+                              {queueCounts[child.href] > 99 ? "99+" : queueCounts[child.href]}
+                            </span>
+                          )
                         </Link>
                       );
                     })}
