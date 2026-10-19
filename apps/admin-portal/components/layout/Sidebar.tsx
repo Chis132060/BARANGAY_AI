@@ -148,7 +148,7 @@ export function Sidebar() {
                             <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center tabular-nums" aria-label={`${queueCounts[child.href]} pending`}>
                               {queueCounts[child.href] > 99 ? "99+" : queueCounts[child.href]}
                             </span>
-                          )
+                          )}
                         </Link>
                       );
                     })}
