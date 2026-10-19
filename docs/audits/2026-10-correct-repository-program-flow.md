@@ -14,10 +14,10 @@ Repository: `Chis132060/BARANGAY_AI` (Next.js monorepo). This is the repository 
 - This is a replacement for conflicting PR #71, not a second copy of the earlier wrong-repository PRs.
 
 ## Mandatory release gates (not yet verified)
-- Confirm the actual deployment database includes `apply_to_barangay_program(uuid)` RPC with authenticated-only execution and ownership checks.
-- Confirm `program_enrollees.status` accepts Pending/Approved/Rejected. The older migration `20261001_boarders_programs.sql` restricts status to Active/Inactive; running against that schema will fail. Resolve via reviewed migration, **not** unreviewed live SQL.
-- Verify staff-only UPDATE policy and resident-scoped SELECT policy. The older migration grants all authenticated users SELECT on all enrollees, exposing resident data; tighten RLS before production.
-- Test resident join/repeat attempts, staff approve/reject, unauthorized users, concurrent decisions, and build both Next.js apps.
+- **Live database inspected:** `apply_to_barangay_program(uuid)` exists and checks `auth.uid()`, verified resident, and public active program. Verify its EXECUTE grants and duplicate behavior before release.
+- **Live database inspected:** `program_enrollees.status` is `text` without the old Active/Inactive CHECK constraint; however the checked-in `20261001_boarders_programs.sql` still defines that old constraint. Align migration history for fresh installs, without blindly reapplying the old migration to production.
+- **Live database inspected:** policies include `Staff read enrollees`, `Staff manage enrollees`, and `Residents read own applications`. The checked-in old migration instead grants all authenticated users SELECT. Preserve the live policy model and add a safe migration for fresh installs.
+- Test resident join/repeat attempts, staff approve/reject, unauthorized users, concurrent decisions, and build both Next.js apps. The live RPC currently uses an `ON CONFLICT ... DO UPDATE SET id=id` no-op; it may return success for duplicate applications, so the UI must check existing state and server logic should eventually make repeat submissions explicit.
 - Vercel deployment quota may prevent automatic preview builds; verify after reset.
 
 No production database, deployment, or secrets were changed. No tests were executed in this PR creation step.
