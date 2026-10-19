@@ -128,8 +128,10 @@ export async function updateRequestStatus(
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
-  const canEdit = await checkUserPermission(user.id, "documents", "canEdit");
-  const canApprove = await checkUserPermission(user.id, "documents", "canApprove");
+  const [canEdit, canApprove] = await Promise.all([
+    checkUserPermission(user.id, "documents", "canEdit"),
+    checkUserPermission(user.id, "documents", "canApprove"),
+  ]);
   if (!canEdit && !canApprove) throw new Error("Insufficient permissions to process document requests");
 
   // Fetch current request details to get resident and document info
@@ -143,6 +145,16 @@ export async function updateRequestStatus(
     `)
     .eq("id", requestId)
     .single();
+
+  const validStatuses = ["Pending", "Under Review", "Approved", "Ready for Pickup", "Released", "Completed", "Rejected"];
+  if (!validStatuses.includes(status)) throw new Error("Invalid document request status");
+  if (["Approved", "Ready for Pickup", "Released", "Completed", "Rejected"].includes(status) && !canApprove) {
+    throw new Error("Approval permission is required for this status");
+  }
+  if (customFee !== undefined && (!Number.isFinite(customFee) || customFee < 0)) {
+    throw new Error("Invalid document fee");
+  }
+  if (paymentStatus && !canApprove) throw new Error("Approval permission is required to change payment status");
 
   const updateFields: any = {
     status,
