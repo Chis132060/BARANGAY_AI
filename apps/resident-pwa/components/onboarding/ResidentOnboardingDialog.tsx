@@ -1,20 +1,29 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Home, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { completeResidentOnboarding } from "@/app/(app)/onboarding/actions";
 
 export function ResidentOnboardingDialog() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const savingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const closeProfile = () => setOpen(false);
+  const closeProfile = () => {
+    if (savingRef.current) return;
+    setError(null);
+    setOpen(false);
+  };
 
   async function submitProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     const formData = new FormData(event.currentTarget);
@@ -38,12 +47,17 @@ export function ResidentOnboardingDialog() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "We could not save your household information.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   useEffect(() => {
-    let mounted = true;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     async function checkOnboarding() {
       try {
         const supabase = createClient();
@@ -54,15 +68,18 @@ export function ResidentOnboardingDialog() {
           .select("verification_status, household_onboarding_completed")
           .eq("user_id", user.id)
           .maybeSingle();
-        if (mounted && resident?.verification_status === "Verified" && !resident.household_onboarding_completed) {
+        if (active && resident?.verification_status === "Verified" && !resident.household_onboarding_completed) {
           setOpen(true);
         }
+      } catch (err) {
+        console.error("Unable to check resident onboarding:", err);
+        if (active) setError("Unable to check your resident profile. Please refresh the page.");
       } finally {
-        if (mounted) setLoading(false);
+        if (active) setLoading(false);
       }
     }
     void checkOnboarding();
-    return () => { mounted = false; };
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -72,15 +89,15 @@ export function ResidentOnboardingDialog() {
     return () => { document.body.style.overflow = previousOverflow; };
   }, [open]);
 
-  if (loading || !open) return null;
+  if (!mounted || loading || !open) return null;
 
-  return (
+  return createPortal(
     <div
       aria-labelledby="onboarding-title"
       role="dialog"
       aria-modal="true"
       className="fixed inset-0 z-[100] flex h-[100dvh] items-center justify-center overflow-hidden bg-slate-950/50 p-4 text-left backdrop-blur-sm"
-      onClick={(event) => { if (event.target === event.currentTarget) setOpen(false); }}
+      onClick={(event) => { if (event.target === event.currentTarget) closeProfile(); }}
     >
       <div className="flex h-full w-full items-center justify-center overflow-y-auto overscroll-contain touch-pan-y">
         <section className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 pb-safe shadow-2xl touch-pan-y" onClick={(event) => event.stopPropagation()}>
@@ -92,7 +109,7 @@ export function ResidentOnboardingDialog() {
                 <p className="mt-1 text-xs leading-relaxed text-gray-500">Your account is approved. These details help the Barangay maintain household records and identify eligible programs.</p>
               </div>
             </div>
-            <button type="button" onClick={closeProfile} aria-label="Complete later" className="flex min-h-10 min-w-10 touch-manipulation items-center justify-center rounded-full p-1.5 text-gray-400 hover:bg-gray-100">
+            <button type="button" onClick={closeProfile} disabled={saving} aria-label="Complete later" className="flex min-h-10 min-w-10 touch-manipulation items-center justify-center rounded-full p-1.5 text-gray-400 hover:bg-gray-100">
               <X className="h-4 w-4" />
             </button>
           </header>
@@ -135,7 +152,7 @@ export function ResidentOnboardingDialog() {
             <footer className="mt-4 flex items-center justify-between gap-3">
               <p className="flex items-center gap-1.5 text-[10px] leading-snug text-gray-400"><ShieldCheck className="h-3.5 w-3.5 shrink-0" />Stored under your resident record.</p>
               <div className="flex items-center gap-2">
-              <button type="button" onClick={closeProfile} className="flex min-h-12 touch-manipulation items-center rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+              <button type="button" onClick={closeProfile} disabled={saving} className="flex min-h-12 touch-manipulation items-center rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
                 Cancel
               </button>
               <button type="submit" disabled={saving} className="flex min-h-12 touch-manipulation items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-wait disabled:opacity-70">
@@ -146,6 +163,7 @@ export function ResidentOnboardingDialog() {
           </form>
         </section>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
