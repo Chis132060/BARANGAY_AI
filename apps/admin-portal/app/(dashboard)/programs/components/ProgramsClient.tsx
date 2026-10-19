@@ -26,7 +26,12 @@ import {
   addEnrollee,
   removeEnrollee,
   setProgramPublication,
+  updateProgramRegistration,
   reviewProgramApplication,
+  editProgram,
+  archiveProgram,
+  setProgramAttendance,
+  fetchProgramAudit,
 } from "../actions";
 
 // ─── Program Icon Map ─────────────────────────────────────────────────────────
@@ -71,13 +76,15 @@ function EnrolleesPanel({
     purok: "",
     role: "Member",
     date_enrolled: new Date().toISOString().slice(0, 10),
-    status: "Active",
+    status: editing?.status || "Active",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [isPending, startTransition] = useTransition();
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [audit, setAudit] = useState<Array<{action:string;details:string|null;created_at:string;actor_id:string|null}>>([]);
+  const [showAudit, setShowAudit] = useState(false);
 
   useEffect(() => {
     fetchEnrollees(program.id)
@@ -121,16 +128,29 @@ function EnrolleesPanel({
   }
 
   async function handleReview(id: string, decision: "Approved" | "Rejected") {
+    const reason = decision === "Rejected" ? prompt("Reason for rejection (required):") : "";
+    if (decision === "Rejected" && !reason?.trim()) return;
     if (reviewingId) return;
     setReviewingId(id);
     setFormError("");
     try {
-      await reviewProgramApplication(id, decision);
+      await reviewProgramApplication(id, decision, reason || "");
       setEnrollees((prev) => prev.map((e) => e.id === id ? { ...e, status: decision } : e));
     } catch (err: any) { setFormError(err.message || "Unable to review application"); }
     finally { setReviewingId(null); }
   }
 
+  async function handleAttendance(id: string, attended: boolean) {
+    try { await setProgramAttendance(id, attended); setEnrollees((prev) => prev.map((e) => e.id === id ? {...e,attended} : e)); }
+    catch (err: any) { setFormError(err.message || "Attendance update failed"); }
+  }
+  function downloadCsv() {
+    const headers = ["Name","Contact","Purok","Status","Rejection Reason","Attended","Application Date"];
+    const csv = [headers, ...enrollees.map((e) => [e.full_name,e.contact_number || "",e.purok || "",e.status,e.rejection_reason || "",e.attended ? "Yes" : "No",e.created_at])].map((row) => row.map((cell) => '"' + String(cell).replace(/"/g,'""') + '"').join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF",csv],{type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a"); link.href=url; link.download="program-participants.csv"; link.click(); URL.revokeObjectURL(url);
+  }
   function handleRemove(id: string) {
     if (!confirm("Remove this enrollee?")) return;
     startTransition(async () => {
@@ -210,10 +230,13 @@ function EnrolleesPanel({
         )}
 
         {!showAdd && formError && <p role="alert" className="px-6 py-2 text-xs text-red-700">{formError}</p>}
+        {showAudit && <div className="max-h-36 overflow-y-auto border-b p-3 text-xs">{audit.length === 0 ? "No audit events yet" : audit.map((a,i) => <p key={i}>{new Date(a.created_at).toLocaleString()} — {a.action} {a.details || ""}</p>)}</div>}
+        <div className="px-6 py-2 text-xs text-muted-foreground">Applications: {enrollees.filter(e => e.status === "Pending").length} pending · {enrollees.filter(e => e.status === "Approved").length} approved · {enrollees.filter(e => e.status === "Rejected").length} rejected · {enrollees.filter(e => e.attended).length} attended</div>
         {/* Enrollee List */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b">
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Members & Beneficiaries</span>
+            <div className="flex gap-2"><button type="button" onClick={downloadCsv} className="rounded-lg border px-2 py-1 text-xs">Export CSV</button><button type="button" onClick={async () => { try { setAudit(await fetchProgramAudit(program.id)); setShowAudit(!showAudit); } catch (err:any) { setFormError(err.message); } }} className="rounded-lg border px-2 py-1 text-xs">Audit Log</button></div>
             <button onClick={() => setShowAdd(!showAdd)}
               className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors">
               <UserPlus className="h-3.5 w-3.5" /> Add Member
@@ -242,6 +265,8 @@ function EnrolleesPanel({
                     <td className="px-6 py-3 text-xs">{enrollee.date_enrolled}</td>
                     <td className="px-6 py-3 text-right">
                       <span className="mr-2 text-xs font-semibold">{enrollee.status}</span>
+                      {enrollee.rejection_reason && <span title={enrollee.rejection_reason} className="mr-2 text-xs text-red-700">Reason: {enrollee.rejection_reason}</span>}
+                      {(enrollee.status === "Approved" || enrollee.status === "Active") && <label className="mr-2 text-xs"><input type="checkbox" checked={!!enrollee.attended} onChange={(event) => void handleAttendance(enrollee.id, event.target.checked)} /> Attended</label>}
                       {enrollee.status === "Pending" && (
                         <span className="mr-2 inline-flex gap-1">
                           <button disabled={reviewingId !== null} onClick={() => handleReview(enrollee.id, "Approved")} className="rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Approve</button>
@@ -262,20 +287,26 @@ function EnrolleesPanel({
 }
 
 // ─── Create Program Modal ──────────────────────────────────────────────────────
-function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCreated: (p: BarangayProgram) => void }) {
+function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => void; onCreated: (p: BarangayProgram) => void; editing?: BarangayProgram | null }) {
   const [form, setForm] = useState({
-    name: "",
-    code: "",
-    description: "",
-    category: "Social Services",
-    chairperson: "",
-    contact: "",
-    established_date: "",
+    name: editing?.name || "",
+    code: editing?.code || "",
+    description: editing?.description || "",
+    category: editing?.category || "Social Services",
+    chairperson: editing?.chairperson || "",
+    contact: editing?.contact || "",
+    established_date: editing?.established_date || "",
     status: "Active",
     is_custom: true,
-    purok: "Purok 3",
-    venue: "",
-    schedule_details: "",
+    purok: editing?.purok || "Purok 3",
+    venue: editing?.venue || "",
+    schedule_details: editing?.schedule_details || "",
+    requirements: editing?.requirements || "",
+    registration_deadline: editing?.registration_deadline?.slice(0,16) || "",
+    max_participants: editing?.max_participants || 0,
+    min_age: editing?.min_age ?? 0,
+    max_age: editing?.max_age ?? 0,
+    registration_open: false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -286,8 +317,8 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
     setSaving(true);
     setError("");
     try {
-      const result = await createProgram(form as any);
-      const newProg: BarangayProgram = { ...form, id: result.id, created_at: new Date().toISOString(), enrollee_count: 0 };
+      const result = editing ? (await editProgram(editing.id, {...form, registration_deadline: form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null, max_participants: form.max_participants || null, min_age: form.min_age || null, max_age: form.max_age || null}), {id: editing.id}) : await createProgram({...form,registration_deadline:form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null,max_participants:form.max_participants || null,min_age:form.min_age || null,max_age:form.max_age || null} as any);
+      const newProg: BarangayProgram = { ...editing, ...form, id: result.id, created_at: editing?.created_at || new Date().toISOString(), enrollee_count: editing?.enrollee_count || 0 };
       onCreated(newProg);
       onClose();
     } catch (err: any) {
@@ -301,7 +332,7 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg rounded-2xl bg-card border shadow-2xl">
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="font-bold text-base flex items-center gap-2"><Plus className="h-4 w-4 text-primary" />Create New Program</h2>
+          <h2 className="font-bold text-base flex items-center gap-2"><Plus className="h-4 w-4 text-primary" />{editing ? "Edit Program" : "Create New Program"}</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted transition-colors"><X className="h-5 w-5" /></button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -350,6 +381,14 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
                 <input value={form.schedule_details} onChange={(e) => setForm((f) => ({ ...f, schedule_details: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
               </div>
               <div className="col-span-2">
+                <label className="mb-1 block text-xs font-semibold">Requirements / Eligibility</label>
+                <textarea value={form.requirements} onChange={(e) => setForm((f) => ({ ...f, requirements: e.target.value }))} rows={2} placeholder="Who can join and what to bring" className="w-full rounded-lg border px-3 py-2 text-sm" />
+              </div>
+              <div><label className="mb-1 block text-xs font-semibold">Registration Deadline</label><input type="datetime-local" value={form.registration_deadline} onChange={(e) => setForm((f) => ({...f,registration_deadline:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div><label className="mb-1 block text-xs font-semibold">Max Slots (0 = unlimited)</label><input type="number" min="0" value={form.max_participants} onChange={(e) => setForm((f) => ({...f,max_participants:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div><label className="mb-1 block text-xs font-semibold">Min Age (0 = any)</label><input type="number" min="0" value={form.min_age} onChange={(e) => setForm((f) => ({...f,min_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div><label className="mb-1 block text-xs font-semibold">Max Age (0 = any)</label><input type="number" min="0" value={form.max_age} onChange={(e) => setForm((f) => ({...f,max_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div className="col-span-2">
                 <label className="mb-1 block text-xs font-semibold">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={2} placeholder="Brief program description…"
@@ -386,7 +425,7 @@ function CreateProgramModal({ onClose, onCreated }: { onClose: () => void; onCre
             <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors">Cancel</button>
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60">
-              <Save className="h-4 w-4" /> {saving ? "Creating…" : "Create Program"}
+              <Save className="h-4 w-4" /> {saving ? "Saving…" : editing ? "Save Changes" : "Create Program"}
             </button>
           </div>
         </form>
@@ -405,6 +444,7 @@ export function ProgramsClient({ initialPrograms }: Props) {
   const [search, setSearch] = useState("");
   const [selectedProgram, setSelectedProgram] = useState<BarangayProgram | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProgram, setEditingProgram] = useState<BarangayProgram | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const filtered = programs.filter((p) =>
@@ -418,6 +458,18 @@ export function ProgramsClient({ initialPrograms }: Props) {
     } catch (err: any) { alert(err.message || "Failed to change publication status"); }
   }
 
+  async function handleRegistration(program: BarangayProgram) {
+    try {
+      await updateProgramRegistration(program.id, !program.registration_open);
+      setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, registration_open: !p.registration_open } : p));
+    } catch (err: any) { alert(err.message || "Failed to update registration"); }
+  }
+
+  async function handleArchive(program: BarangayProgram) {
+    if (!confirm("Archive this program and close registration?")) return;
+    try { await archiveProgram(program.id); setPrograms((prev) => prev.map((p) => p.id === program.id ? {...p,status:"Archived",is_public:false,registration_open:false} : p)); }
+    catch (err:any) { alert(err.message); }
+  }
   function handleDelete(id: string, isCustom: boolean) {
     if (!isCustom) { alert("Built-in programs cannot be deleted."); return; }
     if (!confirm("Delete this custom program?")) return;
@@ -514,8 +566,11 @@ export function ProgramsClient({ initialPrograms }: Props) {
                 <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">{program.description || program.category}</p>
               </div>
 
-              <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={(e) => {e.stopPropagation();setEditingProgram(program);}} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Edit</button>
+                <button type="button" onClick={(e) => {e.stopPropagation();void handleArchive(program);}} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Archive</button>
                 <span className="text-xs text-muted-foreground">{program.purok || "All Puroks"}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); handleRegistration(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.registration_open ? "Close Registration" : "Open Registration"}</button>
                 <button type="button" onClick={(e) => { e.stopPropagation(); handlePublication(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.is_public ? "Unpublish" : "Publish to PWA"}</button>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
@@ -555,6 +610,7 @@ export function ProgramsClient({ initialPrograms }: Props) {
         />
       )}
 
+      {editingProgram && <CreateProgramModal key={editingProgram.id} editing={editingProgram} onClose={() => setEditingProgram(null)} onCreated={(p) => setPrograms((prev) => prev.map((item) => item.id === p.id ? p : item))} />}
       {/* Create Program Modal */}
       {showCreateModal && (
         <CreateProgramModal

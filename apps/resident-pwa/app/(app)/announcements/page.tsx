@@ -10,6 +10,8 @@ interface Announcement {
 interface Program {
   id: string; name: string; description: string | null; category: string;
   purok: string | null; venue: string | null; schedule_details: string | null;
+  requirements: string | null; registration_open: boolean;
+  registration_deadline: string | null; max_participants: number | null; min_age: number | null; max_age: number | null;
 }
 
 export default function AnnouncementsPage() {
@@ -19,6 +21,8 @@ export default function AnnouncementsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [applications, setApplications] = useState<Record<string, string>>({});
+  const [applicationDetails, setApplicationDetails] = useState<Array<{program_id:string;status:string;rejection_reason:string|null;created_at:string}>>([]);
+  const [showMyApplications, setShowMyApplications] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -61,7 +65,7 @@ export default function AnnouncementsPage() {
       try {
       const [ann, prog] = await Promise.all([
         supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
-        supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
+        supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open,registration_deadline,max_participants,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (!ann.error) {
@@ -80,9 +84,10 @@ export default function AnnouncementsPage() {
       if (user) {
         const { data: resident, error: residentError } = await supabase.from("residents").select("id").eq("user_id", user.id).maybeSingle();
         if (!residentError && resident) {
-          const { data: existing, error: applicationsError } = await supabase.from("program_enrollees").select("program_id,status").eq("resident_id", resident.id);
+          const { data: existing, error: applicationsError } = await supabase.from("program_enrollees").select("program_id,status,rejection_reason,created_at").eq("resident_id", resident.id);
           if (active && !applicationsError && existing) {
             setApplications(Object.fromEntries(existing.map((item: { program_id: string; status: string }) => [item.program_id, item.status])));
+            setApplicationDetails(existing as Array<{program_id:string;status:string;rejection_reason:string|null;created_at:string}>);
           }
         }
       }
@@ -117,6 +122,10 @@ export default function AnnouncementsPage() {
       </div>
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
       {applyMessage && <p role="status" className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">{applyMessage}</p>}
+      <section className="rounded-2xl border bg-white p-3">
+        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "▲" : "▼"}</span></button>
+        {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
+      </section>
       <section className="space-y-3">
         <div className="flex items-center justify-between"><h2 className="text-base font-bold">Barangay Programs</h2><span className="text-xs text-gray-500">{programs.length} available</span></div>
         {programs.length > 0 && <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Program categories">{["All", ...Array.from(new Set(programs.map((p) => p.category)))].map((category) => <button key={category} type="button" onClick={() => setCategoryFilter(category)} aria-pressed={categoryFilter === category} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${categoryFilter === category ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}>{category}</button>)}</div>}
@@ -129,8 +138,13 @@ export default function AnnouncementsPage() {
               <p>Area: {p.purok || "All Puroks"}</p>
               {p.venue && <p>Venue: {p.venue}</p>}
               {p.schedule_details && <p>Schedule: {p.schedule_details}</p>}
+              {p.requirements && <p className="whitespace-pre-line"><strong>Requirements:</strong> {p.requirements}</p>}
+              {p.registration_deadline && <p>Apply by: {new Date(p.registration_deadline).toLocaleString()}</p>}
+              {p.max_participants && <p>Capacity: {p.max_participants} slots (subject to availability)</p>}
+              {(p.min_age || p.max_age) && <p>Age: {p.min_age || "Any"} – {p.max_age || "Any"}</p>}
+              <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-            <button type="button" disabled={!!applications[p.id] || applying !== null} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : applying === p.id ? "Submitting..." : "Join Program"}</button>
+            <button type="button" disabled={!p.registration_open || !!applications[p.id] || applying !== null || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : (!p.registration_open || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())) ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
           </article>
         ))}
       </section>
