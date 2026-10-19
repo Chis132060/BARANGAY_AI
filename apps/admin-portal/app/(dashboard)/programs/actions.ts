@@ -28,6 +28,10 @@ export interface BarangayProgram {
   contact?: string;
   established_date?: string;
   status: string;
+  purok?: string;
+  venue?: string;
+  schedule_details?: string;
+  is_public?: boolean;
   enrollee_count?: number;
   created_at: string;
 }
@@ -89,6 +93,10 @@ export async function createProgram(
       contact: formData.contact || null,
       established_date: formData.established_date || null,
       status: formData.status || "Active",
+      purok: formData.purok || "All Puroks",
+      venue: formData.venue || null,
+      schedule_details: formData.schedule_details || null,
+      is_public: false,
     })
     .select("id")
     .single();
@@ -133,6 +141,16 @@ export async function removeEnrollee(enrolleeId: string): Promise<{ success: boo
 export async function deleteProgram(programId: string): Promise<{ success: boolean }> {
   const supabase = createClient();
   const { error } = await supabase.from("barangay_programs").delete().eq("id", programId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/programs");
+  return { success: true };
+}
+
+export async function setProgramPublication(programId: string, publish: boolean) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { error } = await supabase.from("barangay_programs").update({ is_public: publish }).eq("id", programId);
   if (error) throw new Error(error.message);
   revalidatePath("/programs");
   return { success: true };
