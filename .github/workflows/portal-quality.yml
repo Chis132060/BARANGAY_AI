@@ -1,0 +1,46 @@
+name: Portal quality gates
+
+on:
+  pull_request:
+    paths:
+      - 'apps/admin-portal/**'
+      - 'apps/resident-pwa/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/portal-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/admin-portal/**'
+      - 'apps/resident-pwa/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/portal-quality.yml'
+
+jobs:
+  portal-checks:
+    name: ${{ matrix.app }} checks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin-portal, resident-pwa]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Regression tests
+        run: npm test --workspace=apps/${{ matrix.app }}
+      - name: TypeScript
+        run: npm run type-check --workspace=apps/${{ matrix.app }}
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm run build --workspace=apps/${{ matrix.app }}
