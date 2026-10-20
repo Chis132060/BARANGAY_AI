@@ -98,9 +98,9 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
     setError(null);
     try {
       await approveResident(id);
-      setResidents((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, verification_status: "Verified" } : r))
-      );
+      // This page is a pending-only queue. Remove the approved record so it
+      // cannot continue appearing as pending if realtime delivery is delayed.
+      setResidents((prev) => prev.filter((r) => r.id !== id));
       setSelectedResident(null);
       const target = residents.find((r) => r.id === id);
       setActionMessage(
@@ -119,9 +119,8 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
     setError(null);
     try {
       await rejectResident(id, rejectReason || undefined);
-      setResidents((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, verification_status: "Rejected" } : r))
-      );
+      // Rejected applicants also leave the pending-only queue immediately.
+      setResidents((prev) => prev.filter((r) => r.id !== id));
       setSelectedResident(null);
       const target = residents.find((r) => r.id === id);
       setActionMessage(
