@@ -15,6 +15,9 @@ import {
   X,
   Save,
   DollarSign,
+  Minus,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import { BoarderListItem, createBoarder, deleteBoarder, updateBoarderStatus } from "../actions";
 
@@ -138,16 +141,54 @@ export function BoardersClient({ initialBoarders }: Props) {
         </button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — KPI cards matching dashboard quality */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: "Total Boarders", value: boarders.length, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: "Active", value: boarders.filter((b) => b.status === "Active").length, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Inactive / Left", value: boarders.filter((b) => b.status !== "Active").length, color: "text-gray-600", bg: "bg-gray-50" },
+          {
+            label: "Total Boarders",
+            value: boarders.length,
+            delta: "Registered boarders & renters",
+            icon: Users,
+            accentColor: "text-indigo-600",
+            bgColor: "bg-indigo-50 dark:bg-indigo-950/30",
+            sparkColor: "#6366f1",
+          },
+          {
+            label: "Active",
+            value: boarders.filter((b) => b.status === "Active").length,
+            delta: "Currently residing",
+            icon: UserCheck,
+            accentColor: "text-emerald-600",
+            bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+            sparkColor: "#10b981",
+          },
+          {
+            label: "Inactive / Left",
+            value: boarders.filter((b) => b.status !== "Active").length,
+            delta: "No longer residing",
+            icon: UserX,
+            accentColor: "text-slate-500",
+            bgColor: "bg-slate-100 dark:bg-slate-800/40",
+            sparkColor: "#94a3b8",
+          },
         ].map((stat) => (
-          <div key={stat.label} className={`${stat.bg} rounded-xl border p-4`}>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{stat.label}</p>
-            <p className={`mt-1 text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+          <div key={stat.label} className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</span>
+              <div className={`p-2.5 rounded-xl ${stat.bgColor} ${stat.accentColor} transition-transform group-hover:scale-110`}>
+                <stat.icon className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="flex items-end justify-between gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-foreground leading-none">{stat.value}</span>
+              <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="opacity-70">
+                <polyline points="0,18 8,14 16,16 24,10 32,12 40,6 48,8 56,3 64,6" stroke={stat.sparkColor} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <Minus className="h-3 w-3" />
+              <span>{stat.delta}</span>
+            </div>
           </div>
         ))}
       </div>

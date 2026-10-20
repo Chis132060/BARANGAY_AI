@@ -16,6 +16,7 @@ import {
   Heart,
   Star,
   Globe,
+  Minus,
 } from "lucide-react";
 import {
   BarangayOrganization,
@@ -366,17 +367,63 @@ export function OrganizationsClient({ initialOrganizations }: Props) {
         </button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — KPI cards matching dashboard quality */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: "Total", value: orgs.length, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Active", value: orgs.filter((o) => o.status === "Active").length, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Built-in", value: orgs.filter((o) => !o.is_custom).length, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Custom", value: orgs.filter((o) => o.is_custom).length, color: "text-violet-600", bg: "bg-violet-50" },
+          {
+            label: "Total",
+            value: orgs.length,
+            delta: "Organizations registered",
+            icon: Handshake,
+            accentColor: "text-amber-600",
+            bgColor: "bg-amber-50 dark:bg-amber-950/30",
+            sparkColor: "#f59e0b",
+          },
+          {
+            label: "Active",
+            value: orgs.filter((o) => o.status === "Active").length,
+            delta: "Currently operational",
+            icon: Users,
+            accentColor: "text-emerald-600",
+            bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+            sparkColor: "#10b981",
+          },
+          {
+            label: "Built-in",
+            value: orgs.filter((o) => !o.is_custom).length,
+            delta: "Pre-loaded barangay orgs",
+            icon: Globe,
+            accentColor: "text-blue-600",
+            bgColor: "bg-blue-50 dark:bg-blue-950/30",
+            sparkColor: "#3b82f6",
+          },
+          {
+            label: "Custom",
+            value: orgs.filter((o) => o.is_custom).length,
+            delta: "Staff-created entries",
+            icon: Star,
+            accentColor: "text-violet-600",
+            bgColor: "bg-violet-50 dark:bg-violet-950/30",
+            sparkColor: "#7c3aed",
+          },
         ].map((s) => (
-          <div key={s.label} className={`${s.bg} rounded-xl border p-4`}>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{s.label}</p>
-            <p className={`mt-1 text-3xl font-bold ${s.color}`}>{s.value}</p>
+          <div key={s.label} className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{s.label}</span>
+              <div className={`p-2.5 rounded-xl ${s.bgColor} ${s.accentColor} transition-transform group-hover:scale-110`}>
+                <s.icon className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="flex items-end justify-between gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-foreground leading-none">{s.value}</span>
+              <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="opacity-70">
+                <polyline points="0,18 8,14 16,16 24,10 32,12 40,6 48,8 56,3 64,6" stroke={s.sparkColor} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <Minus className="h-3 w-3" />
+              <span>{s.delta}</span>
+            </div>
           </div>
         ))}
       </div>
