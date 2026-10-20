@@ -167,6 +167,8 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         }
       />
 
+      <ResidentCsvImport onImported={async () => { setResidents(await onRefresh("", "All")); }} />
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="flex items-center gap-3 w-full sm:w-auto">
