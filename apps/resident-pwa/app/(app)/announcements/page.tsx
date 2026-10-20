@@ -5,13 +5,13 @@ import { Calendar, Megaphone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Announcement {
-  id: string; title: string; description: string; category: string; created_at: string;
+  id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
 }
 interface Program {
   id: string; name: string; description: string | null; category: string;
   purok: string | null; venue: string | null; schedule_details: string | null;
   requirements: string | null; registration_open: boolean;
-  registration_deadline: string | null; max_participants: number | null; min_age: number | null; max_age: number | null;
+  registration_deadline: string | null; registration_opens_at: string | null; event_start_at: string | null; event_end_at: string | null; max_participants: number | null; min_age: number | null; max_age: number | null;
 }
 
 export default function AnnouncementsPage() {
@@ -67,8 +67,8 @@ export default function AnnouncementsPage() {
 
       try {
         const [ann, prog] = await Promise.all([
-          supabase.from("announcements").select("id,title,description,category,created_at").eq("status", "Published").order("created_at", { ascending: false }),
-          supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open,registration_deadline,max_participants,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
+          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),
+          supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,event_end_at,max_participants,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
         ]);
         if (!active) return;
         if (!ann.error) {
@@ -146,14 +146,17 @@ export default function AnnouncementsPage() {
             <div className="space-y-1 text-xs text-gray-500">
               <p>Area: {p.purok || "All Puroks"}</p>
               {p.venue && <p>Venue: {p.venue}</p>}
-              {p.schedule_details && <p>Schedule: {p.schedule_details}</p>}
+              {p.event_start_at && <p className="font-semibold text-blue-700">Event: {new Date(p.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}
+              {p.event_end_at && new Date(p.event_end_at).getTime() < Date.now() && <p className="font-semibold">Completed</p>}
+              {p.schedule_details && <p>Schedule notes: {p.schedule_details}</p>}
               {p.requirements && <p className="whitespace-pre-line"><strong>Requirements:</strong> {p.requirements}</p>}
-              {p.registration_deadline && <p>Apply by: {new Date(p.registration_deadline).toLocaleString()}</p>}
+              {p.registration_opens_at && <p>Applications open: {new Date(p.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
+              {p.registration_deadline && <p>Apply by: {new Date(p.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>
               {p.max_participants && <p>Capacity: {p.max_participants} slots (subject to availability)</p>}
               {(p.min_age || p.max_age) && <p>Age: {p.min_age || "Any"} – {p.max_age || "Any"}</p>}
               <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-            <button type="button" disabled={!p.registration_open || !!applications[p.id] || applying !== null || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : (!p.registration_open || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())) ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
+            <button type="button" disabled={!p.registration_open || (!!p.registration_opens_at && new Date(p.registration_opens_at).getTime() > Date.now()) || (!!p.event_start_at && new Date(p.event_start_at).getTime() <= Date.now()) || !!applications[p.id] || applying !== null || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : (!p.registration_open || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())) ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
           </article>
         ))}
       </section>
@@ -165,7 +168,7 @@ export default function AnnouncementsPage() {
         {announcements.map((a) => (
           <article key={a.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase text-blue-700">{a.category}</span><span className="flex items-center gap-1 text-[10px] text-gray-400"><Calendar className="h-3 w-3" />{new Date(a.created_at).toLocaleDateString()}</span></div>
-            <h3 className="text-sm font-bold">{a.title}</h3><p className="whitespace-pre-line text-xs text-gray-600">{a.description}</p>
+            <h3 className="text-sm font-bold">{a.title}</h3>{a.event_start_at && <p className="text-xs font-semibold text-blue-700">Event: {new Date(a.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}{a.venue && <p className="text-xs text-gray-600">Venue: {a.venue}</p>}<p className="whitespace-pre-line text-xs text-gray-600">{a.description}</p>
           </article>
         ))}
       </section>}

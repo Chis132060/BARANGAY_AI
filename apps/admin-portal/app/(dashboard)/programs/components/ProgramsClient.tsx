@@ -303,6 +303,9 @@ function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => vo
     schedule_details: editing?.schedule_details || "",
     requirements: editing?.requirements || "",
     registration_deadline: editing?.registration_deadline?.slice(0,16) || "",
+    registration_opens_at: editing?.registration_opens_at?.slice(0,16) || "",
+    event_start_at: editing?.event_start_at?.slice(0,16) || "",
+    event_end_at: editing?.event_end_at?.slice(0,16) || "",
     max_participants: editing?.max_participants || 0,
     min_age: editing?.min_age ?? 0,
     max_age: editing?.max_age ?? 0,
@@ -314,10 +317,11 @@ function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => vo
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { setError("Program name is required."); return; }
+    if (form.event_start_at && form.event_end_at && new Date(form.event_end_at) <= new Date(form.event_start_at)) { setError("Event end must be after event start."); return; }
     setSaving(true);
     setError("");
     try {
-      const result = editing ? (await editProgram(editing.id, {...form, registration_deadline: form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null, max_participants: form.max_participants || null, min_age: form.min_age || null, max_age: form.max_age || null}), {id: editing.id}) : await createProgram({...form,registration_deadline:form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null,max_participants:form.max_participants || null,min_age:form.min_age || null,max_age:form.max_age || null} as any);
+      const result = editing ? (await editProgram(editing.id, {...form, registration_deadline: form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null, event_start_at: form.event_start_at ? new Date(form.event_start_at).toISOString() : null, event_end_at: form.event_end_at ? new Date(form.event_end_at).toISOString() : null, registration_opens_at: form.registration_opens_at ? new Date(form.registration_opens_at).toISOString() : null, max_participants: form.max_participants || null, min_age: form.min_age || null, max_age: form.max_age || null}), {id: editing.id}) : await createProgram({...form,registration_deadline:form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null,max_participants:form.max_participants || null,min_age:form.min_age || null,max_age:form.max_age || null} as any);
       const newProg: BarangayProgram = { ...editing, ...form, id: result.id, created_at: editing?.created_at || new Date().toISOString(), enrollee_count: editing?.enrollee_count || 0 };
       onCreated(newProg);
       onClose();
@@ -384,6 +388,9 @@ function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => vo
                 <label className="mb-1 block text-xs font-semibold">Requirements / Eligibility</label>
                 <textarea value={form.requirements} onChange={(e) => setForm((f) => ({ ...f, requirements: e.target.value }))} rows={2} placeholder="Who can join and what to bring" className="w-full rounded-lg border px-3 py-2 text-sm" />
               </div>
+              <div><label className="mb-1 block text-xs font-semibold">Event Start (PH time)</label><input type="datetime-local" value={form.event_start_at} onChange={(e) => setForm((f) => ({...f,event_start_at:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div><label className="mb-1 block text-xs font-semibold">Event End (PH time)</label><input type="datetime-local" value={form.event_end_at} onChange={(e) => setForm((f) => ({...f,event_end_at:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div><label className="mb-1 block text-xs font-semibold">Registration Opens (PH time)</label><input type="datetime-local" value={form.registration_opens_at} onChange={(e) => setForm((f) => ({...f,registration_opens_at:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
               <div><label className="mb-1 block text-xs font-semibold">Registration Deadline</label><input type="datetime-local" value={form.registration_deadline} onChange={(e) => setForm((f) => ({...f,registration_deadline:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
               <div><label className="mb-1 block text-xs font-semibold">Max Slots (0 = unlimited)</label><input type="number" min="0" value={form.max_participants} onChange={(e) => setForm((f) => ({...f,max_participants:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
               <div><label className="mb-1 block text-xs font-semibold">Min Age (0 = any)</label><input type="number" min="0" value={form.min_age} onChange={(e) => setForm((f) => ({...f,min_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
