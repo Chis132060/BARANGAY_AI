@@ -2,6 +2,16 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkUserPermission } from "../administration/rbac-actions";
+
+async function requireProgramPermission(action: "canView" | "canCreate" | "canEdit" | "canDelete" | "canApprove") {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "programs", action))) {
+    throw new Error("Insufficient programs permissions");
+  }
+}
+
 
 export interface ProgramEnrollee {
   id: string;
