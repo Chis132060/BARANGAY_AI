@@ -8,7 +8,7 @@ interface Announcement {
   id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
 }
 interface Program {
-  id: string; name: string; description: string | null; category: string;
+  id: string; name: string; description: string | null; category: string; status: string; image_url: string | null;
   purok: string | null; venue: string | null; schedule_details: string | null;
   requirements: string | null; registration_open: boolean;
   registration_deadline: string | null; registration_opens_at: string | null; event_start_at: string | null; event_end_at: string | null; max_participants: number | null; min_age: number | null; max_age: number | null;
@@ -68,7 +68,7 @@ export default function AnnouncementsPage() {
       try {
         const [ann, prog] = await Promise.all([
           supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),
-          supabase.from("barangay_programs").select("id,name,description,category,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,event_end_at,max_participants,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
+          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,event_end_at,max_participants,min_age,max_age").eq("is_public", true).in("status", ["Active","On Hold"]).order("created_at", { ascending: false }),
         ]);
         if (!active) return;
         if (!ann.error) {
@@ -142,6 +142,8 @@ export default function AnnouncementsPage() {
           <article key={p.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
             <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{p.category}</span>
             <h3 className="text-sm font-bold text-gray-900">{p.name}</h3>
+            {p.image_url && <img src={p.image_url} alt={p.name} className="w-full max-h-52 rounded-xl object-cover" />}
+            {p.status === "On Hold" && <p className="rounded-lg bg-amber-50 p-2 text-xs font-semibold text-amber-800">Historical / citywide reference only. Not confirmed as a current barangay program. No registration available; please verify with the barangay office.</p>}
             {p.description && <p className="whitespace-pre-line text-xs text-gray-600">{p.description}</p>}
             <div className="space-y-1 text-xs text-gray-500">
               <p>Area: {p.purok || "All Puroks"}</p>
@@ -156,7 +158,7 @@ export default function AnnouncementsPage() {
               {(p.min_age || p.max_age) && <p>Age: {p.min_age || "Any"} – {p.max_age || "Any"}</p>}
               <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-            <button type="button" disabled={!p.registration_open || (!!p.registration_opens_at && new Date(p.registration_opens_at).getTime() > Date.now()) || (!!p.event_start_at && new Date(p.event_start_at).getTime() <= Date.now()) || !!applications[p.id] || applying !== null || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : (!p.registration_open || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())) ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
+            <button type="button" disabled={p.status !== "Active" || !p.registration_open || (!!p.registration_opens_at && new Date(p.registration_opens_at).getTime() > Date.now()) || (!!p.event_start_at && new Date(p.event_start_at).getTime() <= Date.now()) || !!applications[p.id] || applying !== null || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : (p.status !== "Active" || !p.registration_open || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())) ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
           </article>
         ))}
       </section>
