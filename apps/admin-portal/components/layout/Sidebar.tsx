@@ -66,13 +66,13 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 shrink-0 border-r bg-card/95 flex flex-col h-full z-40 transition-all select-none">
+    <aside className="w-[248px] shrink-0 border-r border-slate-200 bg-white flex flex-col h-full z-40 transition-all select-none">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-6 h-16 shrink-0">
-        <img src="/logo.png" alt="Barangay Logo" className="h-9 w-9 object-contain shrink-0" />
+      <div className="flex items-center gap-3 px-5 h-[76px] border-b border-slate-200 shrink-0">
+        <img src="/logo.png" alt="Barangay Tandang Sora seal" className="h-11 w-11 rounded-full object-contain shrink-0" />
         <div className="flex flex-col">
-          <span className="font-extrabold text-sm tracking-tight text-foreground leading-none">Smart Barangay</span>
-          <span className="text-[10px] font-bold text-primary tracking-wider uppercase mt-1">Admin Portal</span>
+          <span className="font-bold text-[13px] tracking-tight text-slate-900 leading-tight">Tandang Sora</span>
+          <span className="text-[10px] font-bold text-blue-700 tracking-wider uppercase mt-1">Admin Portal</span>
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, ShieldCheck, Sparkles, Activity } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../auth-provider";
 import { navigationConfig, NavigationModule } from "../../lib/navigation";
@@ -36,20 +36,18 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 shrink-0 border-r bg-card/95 flex flex-col h-full z-40 transition-all select-none">
+    <aside className="w-[248px] shrink-0 border-r border-slate-200 bg-white flex flex-col h-full z-40 transition-all select-none">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-6 h-16 border-b shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <ShieldCheck className="h-5 w-5" />
-        </div>
+      <div className="flex items-center gap-3 px-5 h-[76px] border-b border-slate-200 shrink-0">
+        <img src="/logo.png" alt="Barangay Tandang Sora seal" className="h-11 w-11 rounded-full object-contain shrink-0" />
         <div className="flex flex-col">
-          <span className="font-extrabold text-sm tracking-tight text-foreground leading-none">Smart Barangay</span>
-          <span className="text-[10px] font-bold text-primary tracking-wider uppercase mt-1">Admin Portal</span>
+          <span className="font-bold text-[13px] tracking-tight text-slate-900 leading-tight">Barangay Tandang Sora</span>
+          <span className="text-[10px] font-semibold text-blue-700 tracking-[0.14em] uppercase mt-1">Admin Portal</span>
         </div>
       </div>
 
       {/* Navigation Tree */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1 scrollbar-thin">
         {filteredModules.map((module) => {
           const hasChildren = !!module.children && module.children.length > 0;
           const isOpen = !!openMenus[module.title];
@@ -73,14 +71,14 @@ export function Sidebar() {
                 <button
                   onClick={() => toggleMenu(module.title)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all group",
+                    "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all group",
                     hasActiveChild
-                      ? "text-primary bg-primary/10"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      ? "text-blue-700 bg-blue-50"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <module.icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-110", hasActiveChild ? "text-primary" : "text-muted-foreground")} />
+                    <module.icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-110", hasActiveChild ? "text-blue-700" : "text-slate-500")} />
                     <span>{module.title}</span>
                   </div>
                   {isOpen ? (
@@ -99,10 +97,10 @@ export function Sidebar() {
                           key={child.href}
                           href={child.href}
                           className={cn(
-                            "block px-3 py-2 rounded-lg text-[11px] font-semibold transition-all relative",
+                            "block px-3 py-2 rounded-md text-[11px] font-medium transition-all relative",
                             isActive
-                              ? "text-primary bg-primary/15 font-bold shadow-2xs"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                              ? "text-blue-700 bg-blue-50 font-semibold"
+                              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                           )}
                         >
                           {child.title}
@@ -121,10 +119,10 @@ export function Sidebar() {
               key={module.title}
               href={module.href || "#"}
               className={cn(
-                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               <module.icon className="h-4 w-4 shrink-0" />
@@ -135,7 +133,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer System Status */}
-      <div className="p-3 m-3 rounded-xl bg-muted/40 border text-xs text-muted-foreground space-y-2">
+      <div className="p-3 m-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500 space-y-2">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> System Online
