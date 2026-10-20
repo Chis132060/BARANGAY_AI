@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Plus, Search, Filter, X, Users, Download } from "lucide-react";
 import { ResidentTable } from "./ResidentTable";
 import { ResidentForm } from "../forms/ResidentForm";
+import { ResidentCsvImport } from "./ResidentCsvImport";
 import type { ResidentListItem } from "../actions";
 import { PageHeader } from "@/components/ui/PageHeader";
 
