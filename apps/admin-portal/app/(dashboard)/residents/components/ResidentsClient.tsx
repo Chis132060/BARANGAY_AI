@@ -102,7 +102,7 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
     const rows = displayedResidents.map((r) => [r.id, r.first_name, r.middle_name ?? "", r.last_name, r.birth_date, r.contact_number ?? "", r.verification_status ?? "", r.address?.house_number ?? "", r.address?.street ?? "", r.address?.purok ?? "", r.senior_status ? "Yes" : "No", r.pwd_status ? "Yes" : "No", r.four_ps_status ? "Yes" : "No"]);
     const escapeCell = (value: unknown) => {
       const raw = String(value ?? "");
-      const safe = /^\\s*[=+@-]/.test(raw) ? "'" + raw : raw;
+      const safe = /^\s*[=+@-]/.test(raw) ? "'" + raw : raw;
       return '"' + safe.replace(/"/g, '""') + '"';
     };
     const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n");
