@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminTable } from "@/components/ui/AdminTable";
+import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useTransition } from "react";
 import {
   BookOpen,
@@ -287,25 +288,27 @@ function EnrolleesPanel({
 }
 
 // ─── Create Program Modal ──────────────────────────────────────────────────────
+function manilaLocal(value?: string | null) { return value ? new Date(new Date(value).getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0,16) : ""; }
 function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => void; onCreated: (p: BarangayProgram) => void; editing?: BarangayProgram | null }) {
   const [form, setForm] = useState({
     name: editing?.name || "",
     code: editing?.code || "",
     description: editing?.description || "",
+    image_url: editing?.image_url || "",
     category: editing?.category || "Social Services",
     chairperson: editing?.chairperson || "",
     contact: editing?.contact || "",
     established_date: editing?.established_date || "",
-    status: "Active",
+    status: editing?.status || "Active",
     is_custom: true,
     purok: editing?.purok || "Purok 3",
     venue: editing?.venue || "",
     schedule_details: editing?.schedule_details || "",
     requirements: editing?.requirements || "",
-    registration_deadline: editing?.registration_deadline?.slice(0,16) || "",
-    registration_opens_at: editing?.registration_opens_at?.slice(0,16) || "",
-    event_start_at: editing?.event_start_at?.slice(0,16) || "",
-    event_end_at: editing?.event_end_at?.slice(0,16) || "",
+    registration_deadline: manilaLocal(editing?.registration_deadline),
+    registration_opens_at: manilaLocal(editing?.registration_opens_at),
+    event_start_at: manilaLocal(editing?.event_start_at),
+    event_end_at: manilaLocal(editing?.event_end_at),
     max_participants: editing?.max_participants || 0,
     min_age: editing?.min_age ?? 0,
     max_age: editing?.max_age ?? 0,
@@ -314,6 +317,21 @@ function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => vo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  async function uploadProgramImage(file: File) {
+    if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Use JPG, PNG or WebP, up to 5 MB."); return; }
+    setSaving(true); setError("");
+    try {
+      const supabase = createClient();
+      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+      const path = `${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("program-images").upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("program-images").getPublicUrl(path);
+      setForm((prev) => ({ ...prev, image_url: data.publicUrl }));
+    } catch (error) { setError(error instanceof Error ? error.message : "Upload failed"); }
+    finally { setSaving(false); }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { setError("Program name is required."); return; }
@@ -321,7 +339,7 @@ function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => vo
     setSaving(true);
     setError("");
     try {
-      const result = editing ? (await editProgram(editing.id, {...form, registration_deadline: form.registration_deadline ? new Date(form.registration_deadline + ":00+08:00").toISOString() : null, event_start_at: form.event_start_at ? new Date(form.event_start_at + ":00+08:00").toISOString() : null, event_end_at: form.event_end_at ? new Date(form.event_end_at + ":00+08:00").toISOString() : null, registration_opens_at: form.registration_opens_at ? new Date(form.registration_opens_at + ":00+08:00").toISOString() : null, max_participants: form.max_participants || null, min_age: form.min_age || null, max_age: form.max_age || null}), {id: editing.id}) : await createProgram({...form,registration_deadline:form.registration_deadline ? new Date(form.registration_deadline + ":00+08:00").toISOString() : null,max_participants:form.max_participants || null,min_age:form.min_age || null,max_age:form.max_age || null} as any);
+      const result = editing ? (await editProgram(editing.id, {...form, registration_deadline: form.registration_deadline ? new Date(form.registration_deadline + ":00+08:00").toISOString() : null, event_start_at: form.event_start_at ? new Date(form.event_start_at + ":00+08:00").toISOString() : null, event_end_at: form.event_end_at ? new Date(form.event_end_at + ":00+08:00").toISOString() : null, registration_opens_at: form.registration_opens_at ? new Date(form.registration_opens_at + ":00+08:00").toISOString() : null, max_participants: form.max_participants || null, min_age: form.min_age || null, max_age: form.max_age || null}), {id: editing.id}) : await createProgram({...form,registration_deadline:form.registration_deadline ? new Date(form.registration_deadline + ":00+08:00").toISOString() : null,event_start_at:form.event_start_at ? new Date(form.event_start_at + ":00+08:00").toISOString() : null,event_end_at:form.event_end_at ? new Date(form.event_end_at + ":00+08:00").toISOString() : null,registration_opens_at:form.registration_opens_at ? new Date(form.registration_opens_at + ":00+08:00").toISOString() : null,max_participants:form.max_participants || null,min_age:form.min_age || null,max_age:form.max_age || null} as any);
       const newProg: BarangayProgram = { ...editing, ...form, id: result.id, created_at: editing?.created_at || new Date().toISOString(), enrollee_count: editing?.enrollee_count || 0 };
       onCreated(newProg);
       onClose();
@@ -395,6 +413,11 @@ function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => vo
               <div><label className="mb-1 block text-xs font-semibold">Max Slots (0 = unlimited)</label><input type="number" min="0" value={form.max_participants} onChange={(e) => setForm((f) => ({...f,max_participants:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
               <div><label className="mb-1 block text-xs font-semibold">Min Age (0 = any)</label><input type="number" min="0" value={form.min_age} onChange={(e) => setForm((f) => ({...f,min_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
               <div><label className="mb-1 block text-xs font-semibold">Max Age (0 = any)</label><input type="number" min="0" value={form.max_age} onChange={(e) => setForm((f) => ({...f,max_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-semibold">Program cover image (JPG, PNG, WebP; max 5 MB)</label>
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadProgramImage(file); }} className="w-full rounded-lg border px-3 py-2 text-sm" />
+                {form.image_url && <img src={form.image_url} alt="Program cover preview" className="mt-2 h-28 rounded-lg object-cover" />}
+              </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-xs font-semibold">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
