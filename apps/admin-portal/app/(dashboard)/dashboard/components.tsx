@@ -3,53 +3,174 @@
 import {
   Users, Home, BadgeCheck, Accessibility, FileText, Building2,
   UserPlus, Receipt, PackageCheck, UserRound, AlertCircle,
-  type LucideIcon
+  TrendingDown, TrendingUp, Minus,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import type { DashboardMetrics } from "./actions";
 
-// ─── Action Card (urgent, requires staff attention) ──────────────────────────
-interface ActionCardProps {
+// ─── Tiny inline sparkline SVG ────────────────────────────────────────────────
+function Sparkline({ color = "#94a3b8", up = true }: { color?: string; up?: boolean }) {
+  const points = up
+    ? "0,18 8,14 16,16 24,10 32,12 40,6 48,8 56,3 64,6"
+    : "0,6 8,8 16,4 24,10 32,8 40,14 48,12 56,16 64,18";
+  return (
+    <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="opacity-70">
+      <polyline points={points} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ─── KPI Hero Card ─────────────────────────────────────────────────────────────
+interface KpiCardProps {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  delta?: string;
+  deltaType?: "up" | "down" | "neutral";
+  href: string;
+  accentColor: string;
+  bgColor: string;
+  sparkColor?: string;
+}
+
+export function KpiCard({
+  label, value, icon: Icon, delta, deltaType = "neutral",
+  href, accentColor, bgColor, sparkColor = "#94a3b8",
+}: KpiCardProps) {
+  const DeltaIcon = deltaType === "up" ? TrendingUp : deltaType === "down" ? TrendingDown : Minus;
+
+  return (
+    <Link
+      href={href}
+      className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
+        <div className={`p-2.5 rounded-xl ${bgColor} ${accentColor} transition-transform group-hover:scale-110`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </div>
+
+      <div className="flex items-end justify-between gap-2">
+        <span className="text-3xl font-extrabold tracking-tight text-foreground leading-none">{value}</span>
+        <Sparkline color={sparkColor} up={deltaType !== "down"} />
+      </div>
+
+      {delta && (
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          <DeltaIcon className="h-3 w-3" />
+          <span>{delta}</span>
+        </div>
+      )}
+    </Link>
+  );
+}
+
+// ─── Horizontal Metric Bar Row ─────────────────────────────────────────────────
+interface MetricRowProps {
+  label: string;
+  value: number;
+  max: number;
+  color: string;
+  href: string;
+}
+
+export function MetricRow({ label, value, max, color, href }: MetricRowProps) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 py-2 px-1 rounded-lg hover:bg-muted/40 transition-colors"
+    >
+      <span className="w-36 shrink-0 text-xs font-medium text-muted-foreground truncate group-hover:text-foreground transition-colors">
+        {label}
+      </span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full ${color} rounded-full transition-all duration-700`}
+          style={{ width: pct > 0 ? `${pct}%` : "2%" }}
+        />
+      </div>
+      <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
+        {value.toLocaleString()}
+      </span>
+    </Link>
+  );
+}
+
+// ─── SVG Donut Chart ───────────────────────────────────────────────────────────
+interface DonutSegment {
+  label: string;
+  value: number;
+  color: string;
+}
+
+function DonutChart({ segments, total }: { segments: DonutSegment[]; total: number }) {
+  const r = 64;
+  const cx = 80;
+  const cy = 80;
+  const circ = 2 * Math.PI * r;
+  let cumPct = 0;
+
+  return (
+    <svg width="160" height="160" viewBox="0 0 160 160">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(220 14% 92%)" strokeWidth="20" />
+      {segments.map((seg, i) => {
+        const pct = total > 0 ? seg.value / total : 0;
+        const dash = pct * circ;
+        const gap = circ - dash;
+        const rotation = -90 + cumPct * 360;
+        cumPct += pct;
+        return (
+          <circle
+            key={i}
+            cx={cx} cy={cy} r={r}
+            fill="none"
+            stroke={seg.color}
+            strokeWidth="20"
+            strokeDasharray={`${dash} ${gap}`}
+            transform={`rotate(${rotation} ${cx} ${cy})`}
+            strokeLinecap="butt"
+          />
+        );
+      })}
+      <text x={cx} y={cy - 8} textAnchor="middle" fill="currentColor" fontSize="22" fontWeight="800" fontFamily="inherit">
+        {total}
+      </text>
+      <text x={cx} y={cy + 14} textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="inherit">TOTAL</text>
+    </svg>
+  );
+}
+
+// ─── Action Banner (horizontal, urgent) ───────────────────────────────────────
+interface ActionBannerProps {
   title: string;
   value: number;
   icon: LucideIcon;
   description: string;
   href: string;
   badge?: string;
+  urgent?: boolean;
 }
 
-export function ActionCard({ title, value, icon: Icon, description, href, badge }: ActionCardProps) {
-  const isUrgent = value > 0;
-
+export function ActionBanner({ title, value, icon: Icon, description, href, badge, urgent }: ActionBannerProps) {
   return (
     <Link
       href={href}
-      aria-label={`Open ${title}`}
-      className={`block bg-card rounded-2xl p-5 border border-border shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group`}
+      className="group flex items-center gap-4 rounded-2xl border border-border p-4 bg-card shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</span>
-          {isUrgent && (
-            <span className="relative flex h-2 w-2">
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-muted-foreground" />
-            </span>
-          )}
-        </div>
-        <div className="p-2.5 rounded-xl bg-muted text-muted-foreground transition-transform group-hover:scale-110">
-          <Icon className="h-4 w-4" />
-        </div>
+      <div className={`p-3 rounded-xl shrink-0 transition-transform group-hover:scale-110 ${urgent && value > 0 ? "bg-amber-100 text-amber-600 dark:bg-amber-900/40" : "bg-blue-50 text-blue-600 dark:bg-blue-950/30"}`}>
+        <Icon className="h-5 w-5" />
       </div>
-
-      <div>
-        <h3 className="text-3xl font-extrabold tracking-tight text-foreground">
-          {value}
-        </h3>
-        <p className="text-[11px] text-muted-foreground mt-1 leading-normal">{description}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">{title}</p>
+        <p className="text-2xl font-extrabold tracking-tight text-foreground leading-none">{value}</p>
+        <p className="text-[11px] text-muted-foreground mt-1 truncate">{description}</p>
       </div>
-
-      {badge && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-          <AlertCircle className="h-2.5 w-2.5" />
+      {badge && value > 0 && (
+        <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold ${urgent ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" : "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"}`}>
+          <AlertCircle className="h-3 w-3" />
           {badge}
         </span>
       )}
@@ -57,80 +178,27 @@ export function ActionCard({ title, value, icon: Icon, description, href, badge 
   );
 }
 
-// ─── Revenue Card ─────────────────────────────────────────────────────────────
-interface RevenueCardProps {
-  value: string;
-  icon: LucideIcon;
-  description: string;
-  href: string;
-}
-
-export function RevenueCard({ value, icon: Icon, description, href }: RevenueCardProps) {
+// ─── Revenue Banner ────────────────────────────────────────────────────────────
+export function RevenueBanner({ value, description, href }: { value: string; description: string; href: string }) {
   return (
     <Link
       href={href}
-      aria-label="Document Fees Revenue"
-      className="block bg-card border border-border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group"
+      className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
     >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Document Fees Revenue</span>
-        <div className="p-2.5 rounded-xl bg-muted text-muted-foreground transition-transform group-hover:scale-110">
-          <Icon className="h-4 w-4" />
-        </div>
+      <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 shrink-0 transition-transform group-hover:scale-110">
+        <Receipt className="h-5 w-5" />
       </div>
-      <div>
-        <h3 className="text-3xl font-extrabold tracking-tight text-foreground">{value}</h3>
-        <p className="text-[11px] text-muted-foreground mt-1 leading-normal">{description}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Document Fees Revenue</p>
+        <p className="text-2xl font-extrabold tracking-tight text-foreground leading-none">{value}</p>
+        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 truncate">{description}</p>
       </div>
+      <TrendingUp className="h-5 w-5 text-emerald-500 shrink-0" />
     </Link>
   );
 }
 
-// ─── Stat Card (passive demographic metric) ───────────────────────────────────
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  icon: LucideIcon;
-  description: string;
-  href: string;
-  colorClass: string;
-  fillPercent?: number;
-}
-
-export function StatCard({ title, value, icon: Icon, description, href, colorClass, fillPercent }: StatCardProps) {
-  const fill = Math.min(100, Math.max(0, fillPercent ?? 0));
-
-  return (
-    <Link
-      href={href}
-      aria-label={`Open ${title}`}
-      className="block bg-card rounded-2xl p-5 border border-border shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 space-y-3 relative overflow-hidden group"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</span>
-        <div className={`p-2.5 rounded-xl transition-transform group-hover:scale-110 ${colorClass}`}>
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-3xl font-extrabold tracking-tight text-foreground">{value}</h3>
-        <p className="text-[11px] text-muted-foreground mt-1 leading-normal">{description}</p>
-      </div>
-
-      <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full bg-primary/50 transition-all duration-700"
-          style={{ width: fill > 0 ? `${fill}%` : "4%" }}
-        />
-      </div>
-    </Link>
-  );
-}
-
-// ─── StatsGrid ────────────────────────────────────────────────────────────────
-import type { DashboardMetrics } from "./actions";
-
+// ─── Full StatsGrid ────────────────────────────────────────────────────────────
 interface StatsGridProps {
   metrics: DashboardMetrics;
 }
@@ -138,108 +206,127 @@ interface StatsGridProps {
 export function StatsGrid({ metrics }: StatsGridProps) {
   const pop = Math.max(1, metrics.totalPopulation);
 
+  const donutSegments: DonutSegment[] = [
+    { label: "Voters", value: metrics.registeredVoters, color: "#7c3aed" },
+    { label: "Seniors", value: metrics.seniorCitizens, color: "#f59e0b" },
+    { label: "4Ps", value: metrics.fourPsMembers, color: "#10b981" },
+    { label: "PWD", value: metrics.pwdResidents, color: "#6366f1" },
+    {
+      label: "Others",
+      value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents),
+      color: "#e2e8f0",
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Action Cards — require staff attention */}
+      {/* ── Row 1: KPI Hero Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <KpiCard label="Total Population" value={metrics.totalPopulation.toLocaleString()} icon={Users} delta="Registered residents" deltaType="neutral" href="/residents" accentColor="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-950/30" sparkColor="#3b82f6" />
+        <KpiCard label="Households" value={metrics.totalHouseholds.toLocaleString()} icon={Home} delta="Family units" deltaType="neutral" href="/residents/household" accentColor="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-950/30" sparkColor="#10b981" />
+        <KpiCard label="Registered Voters" value={metrics.registeredVoters.toLocaleString()} icon={BadgeCheck} delta={`${Math.round((metrics.registeredVoters / pop) * 100)}% of pop.`} deltaType="up" href="/community/precinct" accentColor="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-950/30" sparkColor="#7c3aed" />
+        <KpiCard label="Senior Citizens" value={metrics.seniorCitizens.toLocaleString()} icon={UserRound} delta={`${Math.round((metrics.seniorCitizens / pop) * 100)}% of pop.`} deltaType="neutral" href="/residents/senior" accentColor="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-950/30" sparkColor="#f59e0b" />
+        <KpiCard label="PWD Members" value={metrics.pwdResidents.toLocaleString()} icon={Accessibility} delta={`${Math.round((metrics.pwdResidents / pop) * 100)}% of pop.`} deltaType="neutral" href="/residents/pwd" accentColor="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-950/30" sparkColor="#6366f1" />
+        <KpiCard label="Local Businesses" value={metrics.registeredBusinesses.toLocaleString()} icon={Building2} delta="Active permits" deltaType="up" href="/business/registry" accentColor="text-teal-600" bgColor="bg-teal-50 dark:bg-teal-950/30" sparkColor="#14b8a6" />
+      </div>
+
+      {/* ── Row 2: Requires Action banners (horizontal) ── */}
       <div>
         <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-          <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+          <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
           Requires Action
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ActionCard
+          <ActionBanner
             title="Pending Registrations"
             value={metrics.pendingRegistrations}
             icon={UserPlus}
             description="Self-registered residents awaiting verification"
             href="/residents/verification"
-            badge={metrics.pendingRegistrations > 0 ? "Needs review" : undefined}
+            badge="Needs review"
+            urgent
           />
-          <ActionCard
-            title="Pending Document Requests"
+          <ActionBanner
+            title="Pending Requests"
             value={metrics.pendingRequests}
             icon={FileText}
             description="Applications awaiting staff review & approval"
             href="/documents/requests"
-            badge={metrics.pendingRequests > 0 ? "Queue active" : undefined}
+            badge="Queue active"
+            urgent
           />
-          <ActionCard
+          <ActionBanner
             title="Ready for Pickup"
             value={metrics.readyForPickupRequests ?? 0}
             icon={PackageCheck}
             description="Processed certificates ready for release"
             href="/documents/requests"
-            badge={(metrics.readyForPickupRequests ?? 0) > 0 ? "Awaiting resident" : undefined}
+            badge="Awaiting resident"
           />
-          <RevenueCard
+          <RevenueBanner
             value={`₱${(metrics.totalRevenue ?? 0).toLocaleString()}`}
-            icon={Receipt}
             description="Total fees collected from issued documents"
             href="/documents/requests"
           />
         </div>
       </div>
 
-      {/* Stat Cards — demographic overview */}
-      <div>
-        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3">
-          Community Overview
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <StatCard
-            title="Total Population"
-            value={metrics.totalPopulation.toLocaleString()}
-            icon={Users}
-            description="Verified residents in database"
-            href="/residents"
-            colorClass="bg-blue-500/10 text-blue-600 border border-blue-500/20"
-            fillPercent={100}
-          />
-          <StatCard
-            title="Households"
-            value={metrics.totalHouseholds.toLocaleString()}
-            icon={Home}
-            description="Registered household units"
-            href="/residents/household"
-            colorClass="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-            fillPercent={metrics.totalHouseholds > 0 ? Math.round((metrics.totalHouseholds / pop) * 100 * 4) : 0}
-          />
-          <StatCard
-            title="Registered Voters"
-            value={metrics.registeredVoters.toLocaleString()}
-            icon={BadgeCheck}
-            description="COMELEC registered voters"
-            href="/community/precinct"
-            colorClass="bg-purple-500/10 text-purple-600 border border-purple-500/20"
-            fillPercent={Math.round((metrics.registeredVoters / pop) * 100)}
-          />
-          <StatCard
-            title="Senior Citizens"
-            value={metrics.seniorCitizens.toLocaleString()}
-            icon={UserRound}
-            description="OSCA registered pensioners"
-            href="/residents/senior"
-            colorClass="bg-amber-500/10 text-amber-600 border border-amber-500/20"
-            fillPercent={Math.round((metrics.seniorCitizens / pop) * 100)}
-          />
-          <StatCard
-            title="PWD Members"
-            value={metrics.pwdResidents.toLocaleString()}
-            icon={Accessibility}
-            description="Persons with Disability"
-            href="/residents/pwd"
-            colorClass="bg-indigo-500/10 text-indigo-600 border border-indigo-500/20"
-            fillPercent={Math.round((metrics.pwdResidents / pop) * 100)}
-          />
-          <StatCard
-            title="Local Businesses"
-            value={metrics.registeredBusinesses}
-            icon={Building2}
-            description="Permitted establishments"
-            href="/business/registry"
-            colorClass="bg-teal-500/10 text-teal-600 border border-teal-500/20"
-            fillPercent={metrics.registeredBusinesses > 0 ? Math.round((metrics.registeredBusinesses / pop) * 100 * 10) : 0}
-          />
+      {/* ── Row 3: Chart panels ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Community breakdown horizontal bar chart */}
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-1">
+          <p className="text-sm font-extrabold text-foreground mb-4">Community Breakdown</p>
+          <MetricRow label="Total Population" value={metrics.totalPopulation} max={pop} color="bg-blue-500" href="/residents" />
+          <MetricRow label="Households" value={metrics.totalHouseholds} max={pop} color="bg-emerald-500" href="/residents/household" />
+          <MetricRow label="Registered Voters" value={metrics.registeredVoters} max={pop} color="bg-violet-500" href="/community/precinct" />
+          <MetricRow label="Senior Citizens" value={metrics.seniorCitizens} max={pop} color="bg-amber-500" href="/residents/senior" />
+          <MetricRow label="4Ps Beneficiaries" value={metrics.fourPsMembers} max={pop} color="bg-teal-500" href="/residents" />
+          <MetricRow label="PWD Members" value={metrics.pwdResidents} max={pop} color="bg-indigo-500" href="/residents/pwd" />
+          <MetricRow label="Local Businesses" value={metrics.registeredBusinesses} max={pop} color="bg-pink-500" href="/business/registry" />
+        </div>
+
+        {/* Demographic donut + improved legend */}
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col gap-5">
+          <p className="text-sm font-extrabold text-foreground">Demographic Distribution</p>
+
+          {/* Donut centered, larger */}
+          <div className="flex justify-center">
+            <DonutChart segments={donutSegments} total={metrics.totalPopulation} />
+          </div>
+
+          {/* Full-width legend rows with mini bars, counts, and percentages */}
+          <div className="space-y-2.5">
+            {[
+              { label: "Registered Voters", value: metrics.registeredVoters, color: "#7c3aed", barColor: "bg-violet-500" },
+              { label: "Senior Citizens",   value: metrics.seniorCitizens,   color: "#f59e0b", barColor: "bg-amber-500"  },
+              { label: "4Ps Beneficiaries", value: metrics.fourPsMembers,    color: "#10b981", barColor: "bg-emerald-500"},
+              { label: "PWD Members",       value: metrics.pwdResidents,     color: "#6366f1", barColor: "bg-indigo-500" },
+              {
+                label: "Others",
+                value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents),
+                color: "#cbd5e1",
+                barColor: "bg-slate-300",
+              },
+            ].map(({ label, value, color, barColor }) => {
+              const pct = Math.round((value / pop) * 100);
+              return (
+                <div key={label} className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+                    <span className="flex-1 font-medium text-muted-foreground">{label}</span>
+                    <span className="tabular-nums text-muted-foreground font-normal">{value.toLocaleString()}</span>
+                    <span className="tabular-nums font-bold text-foreground w-9 text-right">{pct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${barColor} rounded-full transition-all duration-700`}
+                      style={{ width: pct > 0 ? `${pct}%` : "1%" }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
