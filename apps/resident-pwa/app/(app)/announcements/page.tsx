@@ -151,7 +151,7 @@ export default function AnnouncementsPage() {
               {p.schedule_details && <p>Schedule notes: {p.schedule_details}</p>}
               {p.requirements && <p className="whitespace-pre-line"><strong>Requirements:</strong> {p.requirements}</p>}
               {p.registration_opens_at && <p>Applications open: {new Date(p.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
-              {p.registration_deadline && <p>Apply by: {new Date(p.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>
+              {p.registration_deadline && <p>Apply by: {new Date(p.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
               {p.max_participants && <p>Capacity: {p.max_participants} slots (subject to availability)</p>}
               {(p.min_age || p.max_age) && <p>Age: {p.min_age || "Any"} – {p.max_age || "Any"}</p>}
               <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
