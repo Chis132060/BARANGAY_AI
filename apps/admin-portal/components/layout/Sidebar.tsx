@@ -14,6 +14,7 @@ export function Sidebar() {
   const { role, permissions, hasPermission } = useAuth();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
+  const [programLinks, setProgramLinks] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -31,9 +32,15 @@ export function Sidebar() {
       }));
     };
     void refreshCounts();
+    const refreshPrograms = async () => {
+      const { data, error } = await supabase.from("barangay_programs").select("id,name").neq("status", "Archived").order("name").limit(50);
+      if (mounted && !error) setProgramLinks((data || []).map((p) => ({ id: p.id, name: p.name })));
+    };
+    void refreshPrograms();
     const channel = supabase.channel("admin-sidebar-queue-counts")
       .on("postgres_changes", { event: "*", schema: "public", table: "residents" }, () => { void refreshCounts(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "document_requests" }, () => { void refreshCounts(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void refreshPrograms(); })
       .subscribe();
     const onFocus = () => { void refreshCounts(); };
     window.addEventListener("focus", onFocus);
@@ -79,11 +86,12 @@ export function Sidebar() {
       {/* Navigation Tree */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 sidebar-scroll">
         {filteredModules.map((module) => {
-          const hasChildren = !!module.children && module.children.length > 0;
+          const moduleChildren = module.title === "Programs & Councils" ? [...(module.children || []).filter((child) => child.href === "/programs"), ...programLinks.map((p) => ({ title: p.name, href: `/programs?program=${encodeURIComponent(p.id)}`, module: "programs" }))] : module.children;
+          const hasChildren = !!moduleChildren && moduleChildren.length > 0;
           const isOpen = !!openMenus[module.title];
 
           // Filter children based on their own module permissions
-          const allowedChildren = module.children?.filter((child) => {
+          const allowedChildren = moduleChildren?.filter((child) => {
             if (!child.module || role === "Super Admin") return true;
             return hasPermission(child.module, child.requiredAction || "canView");
           }) || [];
