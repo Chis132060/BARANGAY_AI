@@ -25,6 +25,7 @@ export interface BarangayProgram {
   name: string;
   code?: string;
   description?: string;
+  image_url?: string | null;
   category: string;
   is_custom: boolean;
   chairperson?: string;
@@ -100,6 +101,7 @@ export async function createProgram(
       name: formData.name,
       code: formData.code || null,
       description: formData.description || null,
+      image_url: formData.image_url || null,
       category: formData.category,
       is_custom: formData.is_custom,
       chairperson: formData.chairperson || null,
@@ -202,7 +204,7 @@ export async function editProgram(programId: string, updates: Partial<BarangayPr
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
-  const allowed = ["name","description","category","purok","venue","schedule_details","requirements","chairperson","contact","status","registration_deadline","registration_opens_at","event_start_at","event_end_at","max_participants","min_age","max_age"] as const;
+  const allowed = ["name","description","image_url","category","purok","venue","schedule_details","requirements","chairperson","contact","status","registration_deadline","registration_opens_at","event_start_at","event_end_at","max_participants","min_age","max_age"] as const;
   const payload: Record<string, unknown> = {};
   for (const key of allowed) if (Object.prototype.hasOwnProperty.call(updates,key)) payload[key] = updates[key] === "" ? null : updates[key];
   if (updates.status && updates.status !== "Active") { payload.registration_open = false; payload.is_public = false; }
