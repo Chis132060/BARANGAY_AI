@@ -1,5 +1,7 @@
 import { AdminTable } from "@/components/ui/AdminTable";
-import { fetchHouseholds } from "../actions";
+import { fetchHouseholds, fetchResidents } from "../actions";
+import { fetchHouseholdMembers } from "./actions";
+import { HouseholdMembersClient } from "./HouseholdMembersClient";
 import { CreateHouseholdForm } from "./CreateHouseholdForm";
 
 export const metadata = { title: "Household Management | Admin" };
