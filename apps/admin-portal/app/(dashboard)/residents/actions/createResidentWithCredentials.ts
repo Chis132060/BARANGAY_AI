@@ -165,14 +165,28 @@ export async function createResidentWithCredentials(
     return { success: false, residentCode, emailSent: false, error: resError.message };
   }
 
-  // 3. Insert address if provided
-  if ((input.house_number || input.street || input.purok) && resData) {
-    await supabaseAdmin.from("addresses").insert({
+  // 3. Insert address if at least one address field was provided.
+  // Do not silently report success if the address insert fails; that creates
+  // a resident record with apparently missing profile fields.
+  if ((input.house_number?.trim() || input.street?.trim() || input.purok?.trim()) && resData) {
+    const { error: addressError } = await supabaseAdmin.from("addresses").insert({
       resident_id: resData.id,
-      house_number: input.house_number,
-      street: input.street,
-      purok: input.purok,
+      house_number: input.house_number?.trim() || null,
+      street: input.street?.trim() || null,
+      purok: input.purok?.trim() || null,
     });
+
+    if (addressError) {
+      // Keep auth/profile data consistent when this multi-step operation fails.
+      await supabaseAdmin.from("residents").delete().eq("id", resData.id);
+      await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      return {
+        success: false,
+        residentCode,
+        emailSent: false,
+        error: `Resident address could not be saved: ${addressError.message}`,
+      };
+    }
   }
 
   // 4. Audit log
