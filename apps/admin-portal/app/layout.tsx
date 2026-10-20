@@ -7,12 +7,12 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Smart Barangay — Admin Portal",
-    template: "%s | Smart Barangay Admin",
+    default: "Barangay Tandang Sora — Admin Portal",
+    template: "%s | Barangay Tandang Sora Admin",
   },
   description:
-    "Admin portal for managing Smart Barangay operations, staff, residents, and AI-powered services.",
-  icons: { icon: "/logo.png", apple: "/logo.png" },
+    "Admin portal for managing Barangay Tandang Sora operations, staff, residents, and community services.",
+  icons: { icon: "/logo-icon.png", apple: "/logo-icon.png" },
   robots: { index: false, follow: false }, // Admin portals should not be indexed
 };
 
