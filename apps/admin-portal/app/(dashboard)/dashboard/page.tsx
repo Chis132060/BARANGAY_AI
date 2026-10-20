@@ -36,7 +36,6 @@ export default async function DashboardPage() {
     };
   }
 
-  const populationBase = Math.max(1, metrics.totalPopulation);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -60,78 +59,56 @@ export default async function DashboardPage() {
       <DashboardRealtime />
       <StatsGrid metrics={metrics} />
 
-      {/* Activity Feed & Demographics Split Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Operations Log */}
-        <div className="lg:col-span-2 border rounded-2xl bg-card p-5 space-y-4 shadow-xs">
-          <div className="flex items-center justify-between border-b pb-3">
-            <h3 className="font-extrabold text-sm text-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Recent Operations & Requests
-            </h3>
-            <Link href="/documents/requests" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-              View all <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="divide-y divide-border/60">
-            {recentActivities.length === 0 ? (
-              <div className="py-10 text-center space-y-2">
-                <FileCheck className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-                <p className="text-xs text-muted-foreground font-medium">No recent activity yet</p>
-              </div>
-            ) : (
-              (recentActivities as { id: string; title: string; subtitle: string; status: string; time: string }[]).map((act) => (
-                <div key={act.id} className="py-3 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl border text-blue-600 bg-blue-50`}>
-                      <FileCheck className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{act.title}</p>
-                      <p className="text-[11px] text-muted-foreground">{act.subtitle}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border">
-                      {act.status}
-                    </span>
-                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{act.time}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Demographics Ratio Summary */}
-        <div className="border rounded-2xl bg-card p-5 space-y-4 shadow-xs">
-          <h3 className="font-extrabold text-sm text-foreground border-b pb-3">
-            Demographic Distribution
+      {/* Recent Operations — full-width analytics table */}
+      <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h3 className="font-extrabold text-sm text-foreground flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            Recent Operations &amp; Requests
           </h3>
-
-          <div className="space-y-3 text-xs">
-            {[
-              { label: "Registered Voters", value: metrics.registeredVoters, color: "bg-purple-600", pct: Math.round((metrics.registeredVoters / populationBase) * 100) },
-              { label: "Senior Citizens", value: metrics.seniorCitizens, color: "bg-amber-500", pct: Math.round((metrics.seniorCitizens / populationBase) * 100) },
-              { label: "4Ps Beneficiaries", value: metrics.fourPsMembers, color: "bg-emerald-500", pct: Math.round((metrics.fourPsMembers / populationBase) * 100) },
-              { label: "PWD Residents", value: metrics.pwdResidents, color: "bg-indigo-500", pct: Math.round((metrics.pwdResidents / populationBase) * 100) },
-            ].map(({ label, value, color, pct }) => (
-              <div key={label}>
-                <div className="flex justify-between font-semibold mb-1">
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="text-foreground tabular-nums">{pct}%</span>
-                </div>
-                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${color} rounded-full transition-all duration-700`}
-                    style={{ width: pct > 0 ? `${pct}%` : "2%" }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <Link href="/documents/requests" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            View all <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
+
+        {recentActivities.length === 0 ? (
+          <div className="py-14 text-center space-y-2">
+            <FileCheck className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+            <p className="text-xs text-muted-foreground font-medium">No recent activity yet</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {/* Table Header */}
+            <div className="grid grid-cols-[2fr_2fr_1fr_1fr] gap-4 px-5 py-2.5 bg-muted/40">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Document</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resident</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-right">Time</span>
+            </div>
+            {(recentActivities as { id: string; title: string; subtitle: string; status: string; time: string }[]).map((act) => {
+              const statusColor =
+                act.status === "Pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" :
+                act.status === "Approved" || act.status === "Ready for Pickup" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" :
+                act.status === "Released" || act.status === "Completed" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" :
+                "bg-muted text-muted-foreground";
+              return (
+                <div key={act.id} className="grid grid-cols-[2fr_2fr_1fr_1fr] gap-4 items-center px-5 py-3.5 hover:bg-muted/30 transition-colors group">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 shrink-0">
+                      <FileCheck className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">{act.title}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground truncate">{act.subtitle}</span>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold w-fit ${statusColor}`}>
+                    {act.status}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-mono text-right">{act.time}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
