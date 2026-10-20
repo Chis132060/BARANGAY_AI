@@ -3,6 +3,9 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Camera, X, Check, RefreshCw } from "lucide-react";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { assessCapture } = require("../../lib/capture-quality.cjs");
+
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
   onCancel: () => void;
@@ -14,6 +17,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string>("");
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+  const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
@@ -27,6 +31,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
     stopCamera();
     setError("");
     setCapturedBlob(null);
+    setQualityWarnings([]);
     if (capturedUrl) {
       URL.revokeObjectURL(capturedUrl);
       setCapturedUrl(null);
@@ -69,7 +74,12 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       if (ctx) {
+        if (canvas.width < 1 || canvas.height < 1) { setError("Camera is not ready. Please retry."); return; }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try {
+          const sample = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          setQualityWarnings(assessCapture({ width: canvas.width, height: canvas.height, pixels: sample.data }).warnings);
+        } catch { setQualityWarnings(["Could not assess image quality. Check that all ID text is readable."]); }
         canvas.toBlob(
           (blob) => {
             if (blob) {
@@ -126,6 +136,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
             alt="Captured ID"
             className="w-full h-full object-cover rounded-md"
           />
+          {qualityWarnings.length > 0 && <div role="alert" className="absolute top-3 left-3 right-3 bg-amber-950/90 text-amber-100 text-xs rounded-lg p-2">{qualityWarnings.join(" ")}</div>}
           <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-6">
             <button
               type="button"
