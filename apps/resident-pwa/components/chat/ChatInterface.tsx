@@ -73,6 +73,7 @@ export function ChatInterface() {
   const [voiceMode, setVoiceMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const voiceTranscriptRef = useRef<string | null>(null);
+  const voiceRequestInFlightRef = useRef(false);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
   const { speak, stop: stopSpeaking, speakingId, loadingId } = useTTS();
@@ -143,10 +144,11 @@ export function ChatInterface() {
   }, [voiceMode, ttsLang, speak]);
 
   useEffect(() => {
-    if (!voiceMode || !isSupported || isListening || loading || speakingId || loadingId) return;
+    if (!voiceMode || !isSupported || isListening || loading || speakingId || loadingId || voiceRequestInFlightRef.current) return;
     const timer = window.setTimeout(() => {
       startListening(ttsLang, (transcribedText) => {
         if (!voiceModeRef.current) return;
+        voiceRequestInFlightRef.current = true;
         voiceTranscriptRef.current = transcribedText;
         setInput(transcribedText);
         window.setTimeout(() => {
@@ -178,7 +180,7 @@ export function ChatInterface() {
     e.preventDefault();
     const text = overrideText ?? voiceTranscriptRef.current ?? input;
     voiceTranscriptRef.current = null;
-    if (!text.trim() || loading) return;
+    if (!text.trim() || loading) { voiceRequestInFlightRef.current = false; return; }
 
     const userText = text.trim();
     const userFormRequest = detectFormTrigger(userText, isLoggedIn);
@@ -230,6 +232,7 @@ export function ChatInterface() {
           isError: true,
           timestamp: Date.now(),
         }]);
+        voiceRequestInFlightRef.current = false;
         setLoading(false);
         return;
       }
@@ -292,6 +295,7 @@ export function ChatInterface() {
         timestamp: Date.now(),
       }]);
     } finally {
+      voiceRequestInFlightRef.current = false;
       setLoading(false);
     }
   }, [input, loading, isLoggedIn, sessionId, supabase, ttsLang]);
