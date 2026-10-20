@@ -12,6 +12,7 @@ import { InChatFormCard } from "./InChatFormCard";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
+import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
@@ -37,19 +38,10 @@ interface Message {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
-  const FORM_KEYWORDS: { pattern: RegExp; formType: string; formTitle: string }[] = [
-    { pattern: /barangay clearance/i, formType: "clearance", formTitle: "Barangay Clearance" },
-    { pattern: /indigency/i, formType: "indigency", formTitle: "Certificate of Indigency" },
-    { pattern: /residency/i, formType: "residency", formTitle: "Certificate of Residency" },
-    { pattern: /business clearance|business permit/i, formType: "business", formTitle: "Business Clearance" },
-  ];
-  for (const { pattern, formType, formTitle } of FORM_KEYWORDS) {
-    if (pattern.test(text)) {
-      if (isLoggedIn) return { formType, formTitle };
-      return { guestActionTrigger: true };
-    }
-  }
-  return {};
+  const id = requestedDocumentForm(text);
+  if (!id) return {};
+  if (!isLoggedIn) return { guestActionTrigger: true };
+  return { formType: id, formTitle: DOCUMENT_FORMS[id].title };
 }
 
 function formatTime(ts?: number): string {
@@ -80,13 +72,17 @@ export function ChatInterface() {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const voiceTranscriptRef = useRef<string | null>(null);
+  const voiceRequestInFlightRef = useRef(false);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
-  const { speak, speakingId, loadingId } = useTTS();
+  const { speak, stop: stopSpeaking, speakingId, loadingId } = useTTS();
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const soraIsSpeaking = Boolean(speakingId || loadingId);
+  const voiceModeRef = useRef(false);
+  voiceModeRef.current = voiceMode;
 
   const verifiedSuggestions = getVerifiedQuestionSuggestions(ttsLang);
   const isWelcomeOnly = messages.length === 1 && messages[0].id === "welcome";
@@ -148,15 +144,20 @@ export function ChatInterface() {
   }, [voiceMode, ttsLang, speak]);
 
   useEffect(() => {
-    if (!voiceMode || !isSupported || isListening || loading || speakingId) return;
+    if (!voiceMode || !isSupported || isListening || loading || speakingId || loadingId || voiceRequestInFlightRef.current) return;
     const timer = window.setTimeout(() => {
       startListening(ttsLang, (transcribedText) => {
+        if (!voiceModeRef.current) return;
+        voiceRequestInFlightRef.current = true;
+        voiceTranscriptRef.current = transcribedText;
         setInput(transcribedText);
-        window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+        window.setTimeout(() => {
+          if (voiceModeRef.current) formRef.current?.requestSubmit();
+        }, 0);
       });
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [voiceMode, isSupported, isListening, loading, speakingId, startListening, ttsLang]);
+  }, [voiceMode, isSupported, isListening, loading, speakingId, loadingId, startListening, ttsLang]);
 
   const selectLanguage = (language: TTSLanguage) => {
     setTtsLang(language);
@@ -171,15 +172,18 @@ export function ChatInterface() {
   function resetChat() {
     setMessages([{ id: "welcome", sender: "ai", text: welcomeByLanguage[ttsLang], timestamp: Date.now() }]);
     setInput("");
+    voiceTranscriptRef.current = null;
     setRateLimited(false);
   }
 
   const handleSend = useCallback(async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
-    const text = overrideText ?? input;
-    if (!text.trim() || loading) return;
+    const text = overrideText ?? voiceTranscriptRef.current ?? input;
+    voiceTranscriptRef.current = null;
+    if (!text.trim() || loading) { voiceRequestInFlightRef.current = false; return; }
 
     const userText = text.trim();
+    const userFormRequest = detectFormTrigger(userText, isLoggedIn);
     setInput("");
     setRateLimited(false);
 
@@ -228,6 +232,7 @@ export function ChatInterface() {
           isError: true,
           timestamp: Date.now(),
         }]);
+        voiceRequestInFlightRef.current = false;
         setLoading(false);
         return;
       }
@@ -240,11 +245,15 @@ export function ChatInterface() {
       const aiText: string = data.answer ?? "";
       const citations: string[] = data.citations ?? [];
       const contextUsed: boolean = data.context_used ?? false;
-      const detectedForm = detectFormTrigger(aiText, isLoggedIn);
-      const finalFormType = (isLoggedIn && (data.formType || detectedForm.formType)) || undefined;
-      const finalFormTitle = (isLoggedIn && (data.formTitle || detectedForm.formTitle)) || undefined;
-      const finalFormSchema = isLoggedIn ? data.formSchema : undefined;
-      const guestTrigger = !isLoggedIn && (data.guestActionTrigger || detectedForm.guestActionTrigger);
+      // Never open a form because an AI answer merely mentioned a document.
+      // A real resident request and a known existing form ID are both required.
+      const formId = userFormRequest.formType && isDocumentFormId(userFormRequest.formType)
+        ? userFormRequest.formType : null;
+      const finalFormType = formId ?? undefined;
+      const finalFormTitle = formId ? DOCUMENT_FORMS[formId].title : undefined;
+      const finalFormSchema = formId && data.formSchema && typeof data.formSchema === "object"
+        ? data.formSchema : undefined;
+      const guestTrigger = Boolean(userFormRequest.guestActionTrigger);
 
       const aiMsg: Message = {
         id: `ai-${Date.now()}`,
@@ -286,6 +295,7 @@ export function ChatInterface() {
         timestamp: Date.now(),
       }]);
     } finally {
+      voiceRequestInFlightRef.current = false;
       setLoading(false);
     }
   }, [input, loading, isLoggedIn, sessionId, supabase, ttsLang]);
@@ -340,7 +350,7 @@ export function ChatInterface() {
             type="button"
             onClick={() => {
               setVoiceMode((v) => {
-                if (v) { stopListening(); voiceIntroLanguageRef.current = null; }
+                if (v) { stopListening(); stopSpeaking(); voiceIntroLanguageRef.current = null; }
                 return !v;
               });
             }}
@@ -633,7 +643,7 @@ export function ChatInterface() {
               type="button"
               onClick={() => toggleListening(ttsLang, (transcribedText) => {
                 setInput(transcribedText);
-                if (voiceMode) setTimeout(() => formRef.current?.requestSubmit(), 0);
+                // Manual microphone input only populates the field; resident confirms sending.
               })}
               title={isListening ? "Listening - click to stop" : "Voice input"}
               className={`h-7 w-7 rounded-full flex items-center justify-center transition-all shrink-0 ${
