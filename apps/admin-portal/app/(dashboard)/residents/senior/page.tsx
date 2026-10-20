@@ -1,5 +1,6 @@
 import { AdminTable } from "@/components/ui/AdminTable";
-import { Download, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
+import { SeniorExport } from "./SeniorExport";
 import { fetchResidents } from "../actions";
 
 export const metadata = { title: "Senior Citizen Registry | Admin" };
