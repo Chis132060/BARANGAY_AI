@@ -60,10 +60,7 @@ export default function ProfilePage() {
 
   function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
-    setUserName(fullNameInput);
-    setIsEditing(false);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    // This field is currently display-only. Do not claim a database save.\n    setIsEditing(false);\n    setActiveModal("Profile updates");
   }
 
   return (
@@ -221,7 +218,7 @@ export default function ProfilePage() {
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
-            {activeModal === "Notifications" && (
+            {activeModal === "Profile updates" && (\n              <p className="text-xs text-gray-600 leading-relaxed">Please contact the Barangay Office to request changes to your official resident name.</p>\n            )}\n            {activeModal === "Notifications" && (
               <p className="text-xs text-gray-600 leading-relaxed">
                 Push notifications for Barangay announcements and document request status updates are currently enabled for this device.
               </p>
