@@ -61,8 +61,11 @@ export const navigationConfig: NavigationModule[] = [
   {
     title: "Programs & Councils",
     icon: BookOpen,
-    href: "/programs",
     module: "programs",
+    children: [
+      { title: "All Programs", href: "/programs", module: "programs" },
+      { title: "Community Programs", href: "/programs?category=Community", module: "programs" },
+    ],
   },
   {
     title: "Organizations",
