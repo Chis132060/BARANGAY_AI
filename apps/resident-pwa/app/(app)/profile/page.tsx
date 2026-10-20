@@ -8,6 +8,9 @@ export default function ProfilePage() {
   const [userEmail, setUserEmail] = useState<string>("resident@barangay.gov");
   const [userName, setUserName] = useState<string>("Resident");
   const [loading, setLoading] = useState(true);
+  const [address, setAddress] = useState("Not recorded");
+  const [purok, setPurok] = useState("Not recorded");
+  const [verification, setVerification] = useState("Unknown");
   const [isEditing, setIsEditing] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [fullNameInput, setFullNameInput] = useState("");
@@ -23,6 +26,23 @@ export default function ProfilePage() {
           const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Resident";
           setUserName(name);
           setFullNameInput(name);
+          const { data: resident, error: residentError } = await supabase
+            .from("residents")
+            .select("first_name, middle_name, last_name, verification_status, address:addresses(house_number, street, purok)")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (residentError) throw residentError;
+          if (resident) {
+            const actualName = [resident.first_name, resident.middle_name, resident.last_name].filter(Boolean).join(" ");
+            setUserName(actualName || name);
+            setFullNameInput(actualName || name);
+            setVerification(resident.verification_status || "Unknown");
+            const addr = Array.isArray(resident.address) ? resident.address[0] : resident.address;
+            if (addr) {
+              setAddress([addr.house_number, addr.street].filter(Boolean).join(", ") || "Not recorded");
+              setPurok(addr.purok || "Not recorded");
+            }
+          }
         }
       } catch (err) {
         console.error("Error loading user profile:", err);
@@ -79,16 +99,16 @@ export default function ProfilePage() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">Address</span>
-            <span className="font-medium text-gray-800">Zone 4, Main Street</span>
+            <span className="font-medium text-gray-800">{address}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Purok</span>
-            <span className="font-medium text-gray-800">Purok 2</span>
+            <span className="font-medium text-gray-800">{purok}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Verification</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-              Verified Resident
+              {verification === "Verified" ? "Verified Resident" : verification === "Pending" ? "Pending Verification" : verification === "Rejected" ? "Verification Rejected" : "Status Unavailable"}
             </span>
           </div>
         </div>
