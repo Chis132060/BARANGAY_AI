@@ -72,6 +72,7 @@ export function ChatInterface() {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const voiceTranscriptRef = useRef<string | null>(null);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
   const { speak, stop: stopSpeaking, speakingId, loadingId } = useTTS();
@@ -146,6 +147,7 @@ export function ChatInterface() {
     const timer = window.setTimeout(() => {
       startListening(ttsLang, (transcribedText) => {
         if (!voiceModeRef.current) return;
+        voiceTranscriptRef.current = transcribedText;
         setInput(transcribedText);
         window.setTimeout(() => {
           if (voiceModeRef.current) formRef.current?.requestSubmit();
@@ -168,12 +170,14 @@ export function ChatInterface() {
   function resetChat() {
     setMessages([{ id: "welcome", sender: "ai", text: welcomeByLanguage[ttsLang], timestamp: Date.now() }]);
     setInput("");
+    voiceTranscriptRef.current = null;
     setRateLimited(false);
   }
 
   const handleSend = useCallback(async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
-    const text = overrideText ?? input;
+    const text = overrideText ?? voiceTranscriptRef.current ?? input;
+    voiceTranscriptRef.current = null;
     if (!text.trim() || loading) return;
 
     const userText = text.trim();
