@@ -2,6 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkUserPermission } from "../administration/rbac-actions";
+
+async function requireOrganizationPermission(action: "canView" | "canCreate" | "canEdit" | "canDelete") {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "organizations", action))) throw new Error("Insufficient organization permissions");
+}
+
 
 export interface OrgMember {
   id: string;
@@ -33,6 +41,7 @@ export interface BarangayOrganization {
 }
 
 export async function fetchOrganizations(): Promise<BarangayOrganization[]> {
+  await requireOrganizationPermission("canView");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("barangay_organizations")
@@ -52,6 +61,7 @@ export async function fetchOrganizations(): Promise<BarangayOrganization[]> {
 }
 
 export async function fetchOrgMembers(orgId: string): Promise<OrgMember[]> {
+  await requireOrganizationPermission("canView");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("organization_members")
@@ -65,6 +75,7 @@ export async function fetchOrgMembers(orgId: string): Promise<OrgMember[]> {
 export async function createOrganization(
   formData: Omit<BarangayOrganization, "id" | "created_at" | "member_count">
 ): Promise<{ success: boolean; id: string }> {
+  await requireOrganizationPermission("canCreate");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("barangay_organizations")
@@ -90,6 +101,7 @@ export async function createOrganization(
 export async function addOrgMember(
   formData: Omit<OrgMember, "id" | "created_at">
 ): Promise<{ success: boolean; id: string }> {
+  await requireOrganizationPermission("canCreate");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("organization_members")
@@ -112,6 +124,7 @@ export async function addOrgMember(
 }
 
 export async function removeOrgMember(memberId: string): Promise<{ success: boolean }> {
+  await requireOrganizationPermission("canDelete");
   const supabase = createClient();
   const { error } = await supabase.from("organization_members").delete().eq("id", memberId);
   if (error) throw new Error(error.message);
@@ -120,6 +133,7 @@ export async function removeOrgMember(memberId: string): Promise<{ success: bool
 }
 
 export async function deleteOrganization(orgId: string): Promise<{ success: boolean }> {
+  await requireOrganizationPermission("canDelete");
   const supabase = createClient();
   const { error } = await supabase.from("barangay_organizations").delete().eq("id", orgId);
   if (error) throw new Error(error.message);

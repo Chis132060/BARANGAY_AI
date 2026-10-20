@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 interface Announcement {
   id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
 }
+interface PublicOrganization { id: string; name: string; description: string | null; org_type: string; president: string | null; contact: string | null; }
 interface Program {
   id: string; name: string; description: string | null; category: string; status: string; image_url: string | null;
   purok: string | null; venue: string | null; schedule_details: string | null;
@@ -17,6 +18,7 @@ interface Program {
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [organizations, setOrganizations] = useState<PublicOrganization[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -26,7 +28,7 @@ export default function AnnouncementsPage() {
   const [applying, setApplying] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [activeTab, setActiveTab] = useState<"programs" | "announcements">("programs");
+  const [activeTab, setActiveTab] = useState<"programs" | "organizations" | "announcements">("programs");
   const lastLoadAt = useRef(0);
   const inFlight = useRef(false);
   const reloadRequested = useRef(false);
@@ -66,9 +68,10 @@ export default function AnnouncementsPage() {
       setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
 
       try {
-        const [ann, prog] = await Promise.all([
+        const [ann, prog, org] = await Promise.all([
           supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),
           supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,event_end_at,max_participants,min_age,max_age").eq("is_public", true).in("status", ["Active","On Hold"]).order("created_at", { ascending: false }),
+          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name"),
         ]);
         if (!active) return;
         if (!ann.error) {
@@ -79,7 +82,8 @@ export default function AnnouncementsPage() {
           programsRef.current = (prog.data || []) as Program[];
           setPrograms(programsRef.current);
         }
-        setErrorMessage([ann.error?.message, prog.error?.message].filter(Boolean).join("; "));
+        if (!org.error) setOrganizations((org.data || []) as PublicOrganization[]);
+        setErrorMessage([ann.error?.message, prog.error?.message, org.error?.message].filter(Boolean).join("; "));
         setLoading(false);
 
         const { data: { user } } = await supabase.auth.getUser();
@@ -110,6 +114,7 @@ export default function AnnouncementsPage() {
     const channel = supabase.channel("resident-updates-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "barangay_organizations" }, () => { void load(); })
       .subscribe();
     return () => {
       active = false;
@@ -121,13 +126,14 @@ export default function AnnouncementsPage() {
     <div className="p-4 space-y-5 pb-20">
       <div className="flex items-center justify-between">
         <div><h1 className="text-xl font-extrabold text-gray-900">Barangay Updates</h1>
-          <p className="text-xs text-gray-500">Programs and official announcements from Barangay Hall</p></div>
+          <p className="text-xs text-gray-500">Programs, organizations, and official announcements from Barangay Hall</p></div>
         <button aria-label="Refresh updates" onClick={() => setRefresh((v) => v + 1)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>
       </div>
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
       {applyMessage && <p role="status" className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">{applyMessage}</p>}
-      <div role="tablist" aria-label="Updates sections" className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1">
+      <div role="tablist" aria-label="Updates sections" className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 p-1">
         <button id="updates-programs-tab" type="button" role="tab" aria-selected={activeTab === "programs"} aria-controls="updates-programs-panel" onClick={() => setActiveTab("programs")} className={`rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${activeTab === "programs" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Programs</button>
+        <button id="updates-organizations-tab" type="button" role="tab" aria-selected={activeTab === "organizations"} aria-controls="updates-organizations-panel" onClick={() => setActiveTab("organizations")} className={`rounded-xl px-2 py-3 text-xs font-semibold transition-colors ${activeTab === "organizations" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Organizations</button>
         <button id="updates-announcements-tab" type="button" role="tab" aria-selected={activeTab === "announcements"} aria-controls="updates-announcements-panel" onClick={() => setActiveTab("announcements")} className={`rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${activeTab === "announcements" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Announcements</button>
       </div>
       {activeTab === "programs" && <>
@@ -163,6 +169,10 @@ export default function AnnouncementsPage() {
         ))}
       </section>
       </>}
+      {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
+        <h2 className="text-base font-bold">Community Organizations</h2>
+        {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published organizations available.</p> : organizations.map((org) => <article key={org.id} className="rounded-2xl border bg-white p-4 space-y-2"><span className="text-xs font-bold text-blue-700">{org.org_type}</span><h3 className="font-bold">{org.name}</h3>{org.description && <p className="text-sm text-gray-600 whitespace-pre-line">{org.description}</p>}{org.president && <p className="text-xs text-gray-500">President: {org.president}</p>}{org.contact && <p className="text-xs text-gray-500">Contact: {org.contact}</p>}</article>)}
+      </section>}
       {activeTab === "announcements" && <section id="updates-announcements-panel" role="tabpanel" aria-labelledby="updates-announcements-tab" className="space-y-3">
         <h2 className="text-base font-bold">Barangay Announcements</h2>
         {loading && <p className="text-sm text-gray-500">Loading announcements...</p>}

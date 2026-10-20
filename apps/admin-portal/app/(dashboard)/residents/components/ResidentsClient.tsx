@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Filter, X, Users } from "lucide-react";
+import { Plus, Search, Filter, X, Users, Download } from "lucide-react";
 import { ResidentTable } from "./ResidentTable";
 import { ResidentForm } from "../forms/ResidentForm";
+import { ResidentCsvImport } from "./ResidentCsvImport";
 import type { ResidentListItem } from "../actions";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -97,6 +98,25 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
     });
   }, [debouncedSearch, filters.classification, residents]);
 
+  function exportResidentsCsv() {
+    const headers = ["Resident ID", "First Name", "Middle Name", "Last Name", "Birth Date", "Contact Number", "Verification", "House Number", "Street", "Purok", "Senior", "PWD", "4Ps"];
+    const rows = displayedResidents.map((r) => [r.id, r.first_name, r.middle_name ?? "", r.last_name, r.birth_date, r.contact_number ?? "", r.verification_status ?? "", r.address?.house_number ?? "", r.address?.street ?? "", r.address?.purok ?? "", r.senior_status ? "Yes" : "No", r.pwd_status ? "Yes" : "No", r.four_ps_status ? "Yes" : "No"]);
+    const escapeCell = (value: unknown) => {
+      const raw = String(value ?? "");
+      const safe = /^\s*[=+@-]/.test(raw) ? "'" + raw : raw;
+      return '"' + safe.replace(/"/g, '""') + '"';
+    };
+    const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "barangay-residents.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
   }
@@ -135,6 +155,8 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         subtitle="Manage, search, and filter Barangay resident demographics and records."
         icon={Users}
         actions={
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={exportResidentsCsv} className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-accent"><Download className="h-4 w-4" /> Export CSV</button>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-foreground font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md shadow-primary/20"
@@ -142,8 +164,11 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
             <Plus className="h-4 w-4" />
             Add Resident
           </button>
+          </div>
         }
       />
+
+      <ResidentCsvImport onImported={async () => { setResidents(await onRefresh("", "All")); }} />
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">

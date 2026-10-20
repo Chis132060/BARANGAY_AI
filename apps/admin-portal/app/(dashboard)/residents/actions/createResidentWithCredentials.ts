@@ -111,6 +111,10 @@ export async function createResidentWithCredentials(
   const allowed = await checkUserPermission(user.id, "residents", "canCreate");
   if (!allowed) throw new Error("Insufficient permissions");
 
+  if (!input.street?.trim() || !input.purok?.trim()) {
+    return { success: false, residentCode: "", emailSent: false, error: "Street and purok are required." };
+  }
+
   // Generate resident code + password
   const sequence = await getNextResidentSequence(supabaseAdmin);
   const residentCode = generateResidentCode(sequence);
