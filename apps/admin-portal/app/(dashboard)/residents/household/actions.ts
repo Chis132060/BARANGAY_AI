@@ -40,3 +40,20 @@ export async function removeHouseholdMember(householdId: string, residentId: str
   if (error) throw new Error(error.message);
   revalidatePath("/residents/household");
 }
+
+export async function fetchHouseholdMembers(): Promise<Array<{ household_id: string; resident_id: string; first_name: string; last_name: string }>> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "residents", "canView"))) throw new Error("Insufficient permissions");
+  const { data: memberships, error } = await supabase.from("household_members").select("household_id,resident_id");
+  if (error) throw new Error(error.message);
+  const ids = Array.from(new Set((memberships || []).map(m => m.resident_id)));
+  if (!ids.length) return [];
+  const { data: residents, error: residentError } = await supabase.from("residents").select("id,first_name,last_name").in("id",ids);
+  if (residentError) throw new Error(residentError.message);
+  const byId = new Map((residents || []).map(r => [r.id,r]));
+  return (memberships || []).map(m => ({
+    ...m, first_name: byId.get(m.resident_id)?.first_name || "Unknown",
+    last_name: byId.get(m.resident_id)?.last_name || "",
+  }));
+}
