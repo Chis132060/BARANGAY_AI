@@ -136,7 +136,17 @@ export async function createResident(formData: Omit<ResidentListItem, "id">) {
         purok: formData.address.purok,
       });
       
-    if (addrError) throw new Error(addrError.message);
+    if (addrError) {
+      // Avoid leaving a resident without their submitted address when creation fails.
+      const { error: rollbackError } = await supabase
+        .from("residents")
+        .delete()
+        .eq("id", resData.id);
+      if (rollbackError) {
+        throw new Error(`Address creation failed: ${addrError.message}. Resident cleanup also failed: ${rollbackError.message}`);
+      }
+      throw new Error(`Address creation failed: ${addrError.message}. Resident creation was rolled back.`);
+    }
   }
 
   return { success: true, id: resData.id };
