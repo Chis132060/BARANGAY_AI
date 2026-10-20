@@ -32,7 +32,7 @@ def pcm_to_wav_data_url(base64_pcm: str, sample_rate: int = 24000) -> str:
 
 @router.post("/tts/generate")
 async def generate_tts(request: TTSRequest):
-    """Generate Ate Sora audio using Gemini Umbriel only."""
+    """Generate Ate Sora speech with OpenAI, preserving the existing audio response."""
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Text prompt is required.")
     # Keep the existing /api/v1/tts/generate contract so the PWA's
@@ -65,7 +65,7 @@ async def generate_tts(request: TTSRequest):
     if response.status_code != 200:
         logger.warning("OpenAI speech request failed: HTTP %s", response.status_code)
         raise HTTPException(status_code=503, detail="Voice service is temporarily unavailable.")
-    if not response.content.startswith(b"RIFF") or b"WAVE" not in response.content[:16]:
+    if len(response.content) < 44 or not response.content.startswith(b"RIFF") or response.content[8:12] != b"WAVE":
         logger.warning("OpenAI speech returned non-WAV audio")
         raise HTTPException(status_code=502, detail="Voice service returned invalid audio.")
     audio_url = "data:audio/wav;base64," + base64.b64encode(response.content).decode("ascii")
@@ -75,7 +75,7 @@ async def generate_tts(request: TTSRequest):
         "data": {
             "audio_url": audio_url,
             "format": "wav",
-            "sample_rate": 24000,
+            "sample_rate": None,
             "source": "openai",
             "voice": settings.OPENAI_TTS_VOICE,
         },
