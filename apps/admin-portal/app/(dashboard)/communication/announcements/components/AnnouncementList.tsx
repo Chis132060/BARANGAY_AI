@@ -77,8 +77,8 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
           status: "Published",
           published_date: new Date().toISOString(),
           image_url,
-          event_start_at: eventStart ? new Date(eventStart).toISOString() : null,
-          event_end_at: eventEnd ? new Date(eventEnd).toISOString() : null,
+          event_start_at: eventStart ? new Date(eventStart + ":00+08:00").toISOString() : null,
+          event_end_at: eventEnd ? new Date(eventEnd + ":00+08:00").toISOString() : null,
           venue: venue.trim() || null,
         })
         .select()
