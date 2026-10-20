@@ -101,7 +101,7 @@ export function useTTS(): UseTTSReturn {
             played = await playGeneratedAudio(data.data.audio_url, messageId, generation);
           }
         } else {
-          console.warn("[TTS] Gemini voice request failed:", res.status);
+          console.warn("[TTS] OpenAI voice request failed:", res.status);
         }
       } catch (error) {
         if ((error as { name?: string })?.name === "AbortError") return;

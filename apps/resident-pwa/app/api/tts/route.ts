@@ -73,12 +73,12 @@ export async function POST(req: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, language: language || "tgl" }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(55000),
       cache: "no-store",
     });
     const data = await response.json().catch(() => ({
       success: false,
-      error: "Gemini TTS returned an invalid response.",
+      error: "Voice service returned an invalid response.",
     }));
 
     if (!response.ok) {
@@ -91,9 +91,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[TTS Gemini Umbriel ERROR]", error);
+    console.error("[TTS OpenAI ERROR]", error);
     return NextResponse.json(
-      { success: false, error: "Gemini Umbriel voice is unavailable." },
+      { success: false, error: "Voice service is unavailable." },
       { status: 503 }
     );
   }
