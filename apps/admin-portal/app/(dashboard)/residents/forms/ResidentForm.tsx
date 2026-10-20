@@ -24,9 +24,9 @@ const residentFormSchema = z.object({
   senior_status: z.boolean().default(false),
   pwd_status: z.boolean().default(false),
   four_ps_status: z.boolean().default(false),
-  house_number: z.string().optional(),
-  street: z.string().optional(),
-  purok: z.string().optional(),
+  house_number: z.string().trim().optional(),
+  street: z.string().trim().min(1, "Street is required"),
+  purok: z.string().trim().min(1, "Purok is required"),
 });
 
 type ResidentFormValues = z.infer<typeof residentFormSchema>;
