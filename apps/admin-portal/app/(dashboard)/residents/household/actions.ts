@@ -47,12 +47,12 @@ export async function fetchHouseholdMembers(): Promise<Array<{ household_id: str
   if (!user || !(await checkUserPermission(user.id, "residents", "canView"))) throw new Error("Insufficient permissions");
   const { data: memberships, error } = await supabase.from("household_members").select("household_id,resident_id");
   if (error) throw new Error(error.message);
-  const ids = Array.from(new Set((memberships || []).map(m => m.resident_id)));
+  const ids = Array.from(new Set((memberships || []).map((m: { resident_id: string }) => m.resident_id)));
   if (!ids.length) return [];
   const { data: residents, error: residentError } = await supabase.from("residents").select("id,first_name,last_name").in("id",ids);
   if (residentError) throw new Error(residentError.message);
-  const byId = new Map((residents || []).map(r => [r.id,r]));
-  return (memberships || []).map(m => ({
+  const byId = new Map<string, { id: string; first_name: string; last_name: string }>((residents || []).map((r: { id: string; first_name: string; last_name: string }) => [r.id,r] as const));
+  return (memberships || []).map((m: { household_id: string; resident_id: string }) => ({
     ...m, first_name: byId.get(m.resident_id)?.first_name || "Unknown",
     last_name: byId.get(m.resident_id)?.last_name || "",
   }));
