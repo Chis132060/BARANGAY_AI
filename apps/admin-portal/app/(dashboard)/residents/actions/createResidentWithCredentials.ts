@@ -178,13 +178,14 @@ export async function createResidentWithCredentials(
 
     if (addressError) {
       // Keep auth/profile data consistent when this multi-step operation fails.
-      await supabaseAdmin.from("residents").delete().eq("id", resData.id);
-      await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      const { error: residentCleanupError } = await supabaseAdmin.from("residents").delete().eq("id", resData.id);
+      const { error: authCleanupError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      const cleanupFailure = [residentCleanupError?.message, authCleanupError?.message].filter(Boolean).join("; ");
       return {
         success: false,
         residentCode,
         emailSent: false,
-        error: `Resident address could not be saved: ${addressError.message}`,
+        error: `Resident address could not be saved: ${addressError.message}${cleanupFailure ? `. Cleanup also failed: ${cleanupFailure}` : ". Account creation was rolled back."}`,
       };
     }
   }
