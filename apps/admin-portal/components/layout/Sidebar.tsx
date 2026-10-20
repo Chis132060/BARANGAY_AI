@@ -20,7 +20,7 @@ export function Sidebar() {
     let mounted = true;
     const refreshCounts = async () => {
       const [verifications, requests] = await Promise.all([
-        supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending"),
+        supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending").not("user_id", "is", null),
         supabase.from("document_requests").select("*", { count: "exact", head: true }).eq("status", "Pending"),
       ]);
       if (!mounted) return;
