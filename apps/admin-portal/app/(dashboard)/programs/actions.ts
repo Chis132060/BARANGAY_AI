@@ -38,6 +38,9 @@ export interface BarangayProgram {
   registration_open?: boolean;
   requirements?: string;
   registration_deadline?: string | null;
+  registration_opens_at?: string | null;
+  event_start_at?: string | null;
+  event_end_at?: string | null;
   max_participants?: number | null;
   min_age?: number | null;
   max_age?: number | null;
@@ -110,6 +113,9 @@ export async function createProgram(
       registration_open: false,
       requirements: formData.requirements || null,
       registration_deadline: formData.registration_deadline || null,
+      registration_opens_at: formData.registration_opens_at || null,
+      event_start_at: formData.event_start_at || null,
+      event_end_at: formData.event_end_at || null,
       max_participants: formData.max_participants || null,
       min_age: formData.min_age ?? null,
       max_age: formData.max_age ?? null,
@@ -196,7 +202,7 @@ export async function editProgram(programId: string, updates: Partial<BarangayPr
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
-  const allowed = ["name","description","category","purok","venue","schedule_details","requirements","chairperson","contact","status","registration_deadline","max_participants","min_age","max_age"] as const;
+  const allowed = ["name","description","category","purok","venue","schedule_details","requirements","chairperson","contact","status","registration_deadline","registration_opens_at","event_start_at","event_end_at","max_participants","min_age","max_age"] as const;
   const payload: Record<string, unknown> = {};
   for (const key of allowed) if (Object.prototype.hasOwnProperty.call(updates,key)) payload[key] = updates[key] === "" ? null : updates[key];
   if (updates.status && updates.status !== "Active") { payload.registration_open = false; payload.is_public = false; }

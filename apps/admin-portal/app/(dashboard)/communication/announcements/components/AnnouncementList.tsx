@@ -22,6 +22,8 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
   const [area, setArea] = useState("Purok 3");
   const [schedule, setSchedule] = useState("");
   const [venue, setVenue] = useState("");
+  const [eventStart, setEventStart] = useState("");
+  const [eventEnd, setEventEnd] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -42,6 +44,7 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if ((category === "Event" || category === "Program") && (!eventStart || !eventEnd || !venue.trim() || new Date(eventEnd) <= new Date(eventStart))) { setErrorMsg("Confirm event start, end and venue."); return; }
     setLoading(true);
     setErrorMsg(null);
 
@@ -74,6 +77,9 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
           status: "Published",
           published_date: new Date().toISOString(),
           image_url,
+          event_start_at: eventStart ? new Date(eventStart + ":00+08:00").toISOString() : null,
+          event_end_at: eventEnd ? new Date(eventEnd + ":00+08:00").toISOString() : null,
+          venue: venue.trim() || null,
         })
         .select()
         .single();
@@ -96,6 +102,8 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
       setDescription("");
       setSchedule("");
       setVenue("");
+      setEventStart("");
+      setEventEnd("");
       setShowModal(false);
       setImageFile(null);
       setImagePreview(null);
@@ -227,6 +235,12 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
                 </select>
               </div>
 
+              {(category === "Event" || category === "Program") && <div className="grid gap-2 rounded-xl border p-3">
+                <p className="text-xs font-semibold">Confirmed event schedule (PH time)</p>
+                <label className="text-xs">Start<input required type="datetime-local" value={eventStart} onChange={(e) => setEventStart(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
+                <label className="text-xs">End<input required type="datetime-local" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
+                <label className="text-xs">Venue<input required value={venue} onChange={(e) => setVenue(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>
+              </div>}
               {category === "Program" && (
                 <div className="space-y-2 rounded-xl border p-3">
                   <p className="text-xs font-semibold">Barangay program details — publish only confirmed information</p>
