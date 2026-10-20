@@ -2,6 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkUserPermission } from "../administration/rbac-actions";
+
+async function requireBoarderPermission(action: "canView" | "canCreate" | "canEdit" | "canDelete") {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "boarders", action))) throw new Error("Insufficient boarders permissions");
+}
 
 export interface BoarderListItem {
   id: string;
@@ -24,6 +31,7 @@ export interface BoarderListItem {
 }
 
 export async function fetchBoarders(search = ""): Promise<BoarderListItem[]> {
+  await requireBoarderPermission("canView");
   const supabase = createClient();
 
   let query = supabase
@@ -48,6 +56,7 @@ export async function fetchBoarders(search = ""): Promise<BoarderListItem[]> {
 export async function createBoarder(
   formData: Omit<BoarderListItem, "id" | "created_at">
 ): Promise<{ success: boolean; id: string }> {
+  await requireBoarderPermission("canCreate");
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -82,6 +91,8 @@ export async function updateBoarderStatus(
   boarderId: string,
   status: string
 ): Promise<{ success: boolean }> {
+  await requireBoarderPermission("canEdit");
+  if (!["Active", "Inactive", "Left"].includes(status)) throw new Error("Invalid boarder status");
   const supabase = createClient();
   const { error } = await supabase
     .from("boarders")
@@ -95,6 +106,7 @@ export async function updateBoarderStatus(
 export async function deleteBoarder(
   boarderId: string
 ): Promise<{ success: boolean }> {
+  await requireBoarderPermission("canDelete");
   const supabase = createClient();
   const { error } = await supabase
     .from("boarders")
