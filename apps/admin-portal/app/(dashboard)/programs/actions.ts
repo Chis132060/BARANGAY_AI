@@ -51,6 +51,7 @@ export interface BarangayProgram {
 }
 
 export async function fetchPrograms(): Promise<BarangayProgram[]> {
+  await requireProgramPermission("canView");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("barangay_programs")
@@ -70,6 +71,7 @@ export async function fetchPrograms(): Promise<BarangayProgram[]> {
 }
 
 export async function fetchProgramById(programId: string): Promise<BarangayProgram | null> {
+  await requireProgramPermission("canView");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("barangay_programs")
@@ -81,6 +83,7 @@ export async function fetchProgramById(programId: string): Promise<BarangayProgr
 }
 
 export async function fetchEnrollees(programId: string): Promise<ProgramEnrollee[]> {
+  await requireProgramPermission("canView");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("program_enrollees")
@@ -94,6 +97,7 @@ export async function fetchEnrollees(programId: string): Promise<ProgramEnrollee
 export async function createProgram(
   formData: Omit<BarangayProgram, "id" | "created_at" | "enrollee_count">
 ): Promise<{ success: boolean; id: string }> {
+  await requireProgramPermission("canCreate");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("barangay_programs")
@@ -133,6 +137,7 @@ export async function createProgram(
 export async function addEnrollee(
   formData: Omit<ProgramEnrollee, "id" | "created_at">
 ): Promise<{ success: boolean; id: string }> {
+  await requireProgramPermission("canCreate");
   const supabase = createClient();
   const { data, error } = await supabase
     .from("program_enrollees")
@@ -155,6 +160,7 @@ export async function addEnrollee(
 }
 
 export async function removeEnrollee(enrolleeId: string): Promise<{ success: boolean }> {
+  await requireProgramPermission("canDelete");
   const supabase = createClient();
   const { error } = await supabase.from("program_enrollees").delete().eq("id", enrolleeId);
   if (error) throw new Error(error.message);
@@ -163,6 +169,7 @@ export async function removeEnrollee(enrolleeId: string): Promise<{ success: boo
 }
 
 export async function deleteProgram(programId: string): Promise<{ success: boolean }> {
+  await requireProgramPermission("canDelete");
   const supabase = createClient();
   const { error } = await supabase.from("barangay_programs").delete().eq("id", programId);
   if (error) throw new Error(error.message);
@@ -171,6 +178,7 @@ export async function deleteProgram(programId: string): Promise<{ success: boole
 }
 
 export async function setProgramPublication(programId: string, publish: boolean) {
+  await requireProgramPermission("canEdit");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -181,6 +189,7 @@ export async function setProgramPublication(programId: string, publish: boolean)
 }
 
 export async function reviewProgramApplication(enrolleeId: string, decision: "Approved" | "Rejected", reason = "") {
+  await requireProgramPermission("canApprove");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -191,6 +200,7 @@ export async function reviewProgramApplication(enrolleeId: string, decision: "Ap
 }
 
 export async function updateProgramRegistration(programId: string, registrationOpen: boolean) {
+  await requireProgramPermission("canEdit");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -201,6 +211,7 @@ export async function updateProgramRegistration(programId: string, registrationO
 }
 
 export async function editProgram(programId: string, updates: Partial<BarangayProgram>) {
+  await requireProgramPermission("canEdit");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -214,6 +225,7 @@ export async function editProgram(programId: string, updates: Partial<BarangayPr
   return { success:true };
 }
 export async function archiveProgram(programId: string) {
+  await requireProgramPermission("canEdit");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -223,6 +235,7 @@ export async function archiveProgram(programId: string) {
   return { success:true };
 }
 export async function setProgramAttendance(enrolleeId: string, attended: boolean) {
+  await requireProgramPermission("canEdit");
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -233,6 +246,7 @@ export async function setProgramAttendance(enrolleeId: string, attended: boolean
   return {success:true};
 }
 export async function fetchProgramAudit(programId: string) {
+  await requireProgramPermission("canView");
   const supabase = createClient();
   const { data, error } = await supabase.from("program_activity_logs").select("action,details,created_at,actor_id").eq("program_id",programId).order("created_at",{ascending:false}).limit(100);
   if (error) throw new Error(error.message);
