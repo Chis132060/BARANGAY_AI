@@ -26,7 +26,11 @@ export interface ResidentListItem {
 
 export async function fetchResidents(search = "", filter = "All"): Promise<ResidentListItem[]> {
   const supabase = createClient();
-  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const allowed = await checkUserPermission(user.id, "residents", "canView");
+  if (!allowed) throw new Error("Insufficient permissions: view on residents required");
+
   let query = supabase
     .from("residents")
     .select(`
@@ -105,6 +109,10 @@ export async function fetchHouseholds(): Promise<HouseholdListItem[]> {
 
 export async function createResident(formData: Omit<ResidentListItem, "id">) {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const allowed = await checkUserPermission(user.id, "residents", "canCreate");
+  if (!allowed) throw new Error("Insufficient permissions: create on residents required");
 
   const { data: resData, error: resError } = await supabase
     .from("residents")
