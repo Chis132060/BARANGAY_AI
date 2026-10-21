@@ -70,6 +70,20 @@ export async function createBoarder(
   validateBoarderInput(formData);
   const supabase = createClient();
 
+  // Prevent accidental duplicate registrations for the same name and birth date.
+  // A match requires manual review; never overwrite an existing record.
+  const { data: possibleDuplicates, error: duplicateError } = await supabase
+    .from("boarders")
+    .select("id, first_name, last_name, birth_date")
+    .eq("birth_date", formData.birth_date)
+    .ilike("first_name", formData.first_name.trim())
+    .ilike("last_name", formData.last_name.trim())
+    .limit(1);
+  if (duplicateError) throw new Error("Unable to verify possible duplicate boarder records.");
+  if (possibleDuplicates?.length) {
+    throw new Error("A boarder with the same name and birth date already exists. Review the existing record before adding another.");
+  }
+
   const { data, error } = await supabase
     .from("boarders")
     .insert({
