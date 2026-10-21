@@ -53,6 +53,17 @@ export function useTTS(): UseTTSReturn {
       const utterance = new SpeechSynthesisUtterance(cleanText(text));
       utterance.lang = language === "en" ? "en-US" : "fil-PH";
       utterance.rate = 0.95;
+      // Prefer a known feminine browser voice when OpenAI audio is unavailable.
+      const voices = window.speechSynthesis.getVoices();
+      const locale = language === "en" ? /en[-_]/i : /fil[-_]|tl[-_]/i;
+      const feminine = /female|woman|samantha|zira|aria|jenny|susan|karen|moira|tessa/i;
+      const preferred = voices.filter((voice) => locale.test(voice.lang)).find((voice) => feminine.test(voice.name))
+        ?? voices.find((voice) => feminine.test(voice.name) && /en[-_]/i.test(voice.lang));
+      if (preferred) {
+        utterance.voice = preferred;
+        utterance.lang = preferred.lang;
+      }
+      console.info("[TTS] Browser fallback active", { voice: preferred?.name ?? "device default" });
       utterance.onstart = () => {
         if (generationRef.current !== generation) { window.speechSynthesis.cancel(); resolve(false); return; }
         setLoadingId(null); setSpeakingId(messageId); setTtsState("PLAYING");
