@@ -32,15 +32,61 @@ def pcm_to_wav_data_url(base64_pcm: str, sample_rate: int = 24000) -> str:
 
 @router.post("/tts/generate")
 async def generate_tts(request: TTSRequest):
-    """Generate Ate Sora speech with OpenAI, preserving the existing audio response."""
+    """Generate Ate Sora speech using the configured provider and existing WAV contract."""
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Text prompt is required.")
     # Keep the existing /api/v1/tts/generate contract so the PWA's
     # playback and browser-speech fallback continue to work unchanged.
+    language_name = {"ceb": "Cebuano", "en": "English"}.get(request.language, "Filipino")
+    provider = settings.TTS_PROVIDER.lower().strip()
+    if provider == "gemini":
+        if not settings.GEMINI_API_KEY:
+            raise HTTPException(status_code=503, detail="Gemini voice is not configured.")
+        payload = {
+            "contents": [{"parts": [{"text": (
+                f"Read the following text exactly in {language_name}, using a warm, clear, "
+                f"friendly feminine voice. Do not add or change any words: {request.text}"
+            )}]}],
+            "generationConfig": {
+                "responseModalities": ["AUDIO"],
+                "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
+                    "voiceName": settings.GEMINI_TTS_VOICE
+                }}},
+            },
+        }
+        try:
+            async with httpx.AsyncClient(timeout=55.0) as client:
+                response = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_TTS_MODEL}:generateContent",
+                    headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+                    json=payload,
+                )
+        except httpx.HTTPError as exc:
+            logger.warning("Gemini speech transport failure: %s", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Voice service is temporarily unavailable.") from exc
+        if response.status_code != 200:
+            logger.warning("Gemini speech request failed: HTTP %s", response.status_code)
+            raise HTTPException(status_code=503, detail="Voice service is temporarily unavailable.")
+        try:
+            parts = response.json()["candidates"][0]["content"]["parts"]
+            audio = next(part["inlineData"] for part in parts if "inlineData" in part)
+            mime = audio.get("mimeType", "")
+            if not mime.startswith("audio/L16"):
+                raise ValueError("Unexpected Gemini audio encoding")
+            audio_url = pcm_to_wav_data_url(audio["data"])
+        except (KeyError, IndexError, StopIteration, TypeError, ValueError, base64.binascii.Error) as exc:
+            logger.warning("Gemini speech returned invalid audio: %s", type(exc).__name__)
+            raise HTTPException(status_code=502, detail="Voice service returned invalid audio.") from exc
+        return {"success": True, "data": {
+            "audio_url": audio_url, "format": "wav", "sample_rate": 24000,
+            "source": "gemini", "voice": settings.GEMINI_TTS_VOICE,
+        }}
+
+    if provider != "openai":
+        raise HTTPException(status_code=503, detail="Unsupported voice provider.")
     if not settings.OPENAI_API_KEY:
         raise HTTPException(status_code=503, detail="OpenAI voice is not configured.")
 
-    language_name = {"ceb": "Cebuano", "en": "English"}.get(request.language, "Filipino")
     payload = {
         "model": settings.OPENAI_TTS_MODEL,
         "voice": settings.OPENAI_TTS_VOICE,
