@@ -69,3 +69,42 @@ async def transcribe_voice(request: TranscribeRequest):
         raise HTTPException(status_code=502, detail="Invalid transcription response.") from exc
     transcript = re.sub(r"^\s*(transcription|transcript)\s*:\s*", "", transcript, flags=re.I)
     return {"success": True, "data": {"text": transcript, "language": request.language, "source": "gemini"}}
+
+
+class VoiceConversationRequest(TranscribeRequest):
+    session_id: str | None = None
+
+
+@router.post("/voice/converse")
+async def converse_voice(request: VoiceConversationRequest):
+    """Push-to-talk pipeline: speech -> audited barangay chat -> spoken reply."""
+    from routers.rag_router import ChatRequest, chat
+    from routers.tts_router import TTSRequest, generate_tts
+
+    transcription = await transcribe_voice(request)
+    spoken_text = transcription["data"]["text"].strip()
+    if not spoken_text:
+        raise HTTPException(status_code=422, detail="No intelligible speech detected.")
+    chat_result = await chat(ChatRequest(
+        query=spoken_text, language=request.language, session_id=request.session_id
+    ))
+    answer = chat_result.answer
+    # A text answer is still useful if the speech provider is unavailable.
+    audio = None
+    voice_error = None
+    try:
+        speech = await generate_tts(TTSRequest(text=answer[:1500], language=request.language))
+        audio = speech["data"]
+    except HTTPException:
+        voice_error = "Voice playback is temporarily unavailable."
+    return {
+        "success": True,
+        "data": {
+            "transcript": spoken_text,
+            "answer": answer,
+            "citations": chat_result.citations,
+            "audio": audio,
+            "voice_error": voice_error,
+            "language": request.language,
+        },
+    }
