@@ -14,7 +14,6 @@ import {
   Clock3,
   MapPin,
   Phone,
-  ShieldCheck,
 } from "lucide-react";
 import { approveResident, rejectResident, fetchPendingVerifications, fetchResidentIdPhotoUrl } from "../../actions";
 import type { PendingResident } from "../../actions";
@@ -91,7 +90,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   });
 
   const pendingCount = residents.filter((r) => r.verification_status === "Pending").length;
-  const reviewedCount = residents.length - pendingCount;
+  // The API returns pending-only registrations, not a historical review log.
 
   async function handleApprove(id: string) {
     setProcessingId(id);
@@ -169,7 +168,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
             Review self-registered resident accounts and uploaded ID proofs against barangay census records.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg border bg-card px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2 text-amber-700">
               <Clock3 className="h-4 w-4" />
@@ -178,13 +177,6 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
             <p className="mt-1 text-2xl font-extrabold">{pendingCount}</p>
           </div>
           <div className="rounded-lg border bg-card px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-2 text-emerald-700">
-              <ShieldCheck className="h-4 w-4" />
-              <span className="text-[11px] font-bold uppercase">Reviewed</span>
-            </div>
-            <p className="mt-1 text-2xl font-extrabold">{reviewedCount}</p>
-          </div>
-          <div className="hidden rounded-lg border bg-card px-4 py-3 shadow-sm sm:block">
             <div className="flex items-center gap-2 text-blue-700">
               <FileCheck className="h-4 w-4" />
               <span className="text-[11px] font-bold uppercase">Records</span>

@@ -39,9 +39,14 @@ export async function fetchBoarders(search = ""): Promise<BoarderListItem[]> {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (search) {
+  if (search.trim()) {
+    // PostgREST filter syntax is sensitive to commas and punctuation.
+    // Escape SQL LIKE wildcards and strip filter delimiters from user input.
+    const safeSearch = search.trim().slice(0, 100)
+      .replace(/[,%()]/g, " ")
+      .replace(/[\\%_]/g, (character) => `\\${character}`);
     query = query.or(
-      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,landlord_name.ilike.%${search}%`
+      `first_name.ilike.%${safeSearch}%,last_name.ilike.%${safeSearch}%,landlord_name.ilike.%${safeSearch}%`
     );
   }
 
@@ -53,11 +58,36 @@ export async function fetchBoarders(search = ""): Promise<BoarderListItem[]> {
   return (data || []) as BoarderListItem[];
 }
 
+function validateBoarderInput(formData: Omit<BoarderListItem, "id" | "created_at">) {
+  const today = new Date().toISOString().slice(0, 10);
+  const isDate = (value: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  if (!formData.first_name?.trim() || !formData.last_name?.trim()) throw new Error("First and last names are required.");
+  if (!formData.birth_date || !isDate(formData.birth_date) || formData.birth_date > today) throw new Error("Enter a valid birth date that is not in the future.");
+  if (formData.move_in_date && (!isDate(formData.move_in_date) || formData.move_in_date > today)) throw new Error("Move-in date must be valid and cannot be in the future.");
+  if (formData.monthly_rent != null && (!Number.isFinite(formData.monthly_rent) || formData.monthly_rent < 0)) throw new Error("Monthly rent must be a non-negative amount.");
+  if (!["Active", "Inactive", "Left"].includes(formData.status || "Active")) throw new Error("Invalid boarder status.");
+}
+
 export async function createBoarder(
   formData: Omit<BoarderListItem, "id" | "created_at">
 ): Promise<{ success: boolean; id: string }> {
   await requireBoarderPermission("canCreate");
+  validateBoarderInput(formData);
   const supabase = createClient();
+
+  // Prevent accidental duplicate registrations for the same name and birth date.
+  // A match requires manual review; never overwrite an existing record.
+  const { data: possibleDuplicates, error: duplicateError } = await supabase
+    .from("boarders")
+    .select("id, first_name, last_name, birth_date")
+    .eq("birth_date", formData.birth_date)
+    .ilike("first_name", formData.first_name.trim())
+    .ilike("last_name", formData.last_name.trim())
+    .limit(1);
+  if (duplicateError) throw new Error("Unable to verify possible duplicate boarder records.");
+  if (possibleDuplicates?.length) {
+    throw new Error("A boarder with the same name and birth date already exists. Review the existing record before adding another.");
+  }
 
   const { data, error } = await supabase
     .from("boarders")

@@ -19,38 +19,14 @@ export default async function ResidentsPage({ searchParams }: ResidentsPageProps
   try {
     initialResidents = await fetchResidents();
   } catch (err) {
-    console.error("Database connection offline. Showing empty fallback state.", err);
-    // Mock local data fallback if migrations have not been applied yet
-    initialResidents = [
-      {
-        id: "1",
-        first_name: "Juan",
-        last_name: "dela Cruz",
-        birth_date: "1990-05-12",
-        gender: "Male",
-        civil_status: "Married",
-        contact_number: "09171234567",
-        voter_status: true,
-        senior_status: false,
-        pwd_status: false,
-        four_ps_status: true,
-        address: { house_number: "12", street: "Rizal St", purok: "4" },
-      },
-      {
-        id: "2",
-        first_name: "Maria",
-        last_name: "Santos",
-        birth_date: "1945-11-23",
-        gender: "Female",
-        civil_status: "Widowed",
-        contact_number: "09187654321",
-        voter_status: true,
-        senior_status: true,
-        pwd_status: false,
-        four_ps_status: false,
-        address: { house_number: "45B", street: "Magsaysay Ave", purok: "2" },
-      },
-    ];
+    console.error("Unable to load resident records:", err);
+    // Never display invented personal records if the registry cannot be loaded.
+    return (
+      <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-5 text-sm text-red-900">
+        Resident records could not be loaded. Please retry or contact an administrator.
+        No registry data is shown while the connection is unavailable.
+      </div>
+    );
   }
 
   return (

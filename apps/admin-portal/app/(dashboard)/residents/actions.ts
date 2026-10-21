@@ -54,30 +54,29 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
       )
     `);
 
-  // Handle Text Search
-  if (search) {
-    query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
-  }
-
-  // Handle Category Filters
-  if (filter === "Voter") {
-    query = query.eq("voter_status", true);
-  } else if (filter === "Senior") {
-    query = query.eq("senior_status", true);
-  } else if (filter === "PWD") {
-    query = query.eq("pwd_status", true);
-  } else if (filter === "4Ps") {
-    query = query.eq("four_ps_status", true);
-  }
-
+  // Some server-side Supabase adapters expose a limited query builder.
+  // Apply registry filters after fetching so these pages do not depend on
+  // optional .eq() chaining methods on the select result.
   const { data, error } = await query;
   if (error) {
     console.error("Error fetching residents from database:", error.message);
     throw new Error(error.message);
   }
 
+  const term = search.trim().toLocaleLowerCase();
+  const filtered = (data || []).filter((resident: any) => {
+    const matchesSearch = !term || `${resident.first_name || ""} ${resident.last_name || ""}`
+      .toLocaleLowerCase().includes(term);
+    const matchesCategory =
+      filter === "Voter" ? resident.voter_status === true :
+      filter === "Senior" ? resident.senior_status === true :
+      filter === "PWD" ? resident.pwd_status === true :
+      filter === "4Ps" ? resident.four_ps_status === true : true;
+    return matchesSearch && matchesCategory;
+  });
+
   // Cast address relation response object safely
-  return (data || []).map((res: any) => ({
+  return filtered.map((res: any) => ({
     ...res,
     address: Array.isArray(res.address) ? res.address[0] : res.address,
   })) as ResidentListItem[];

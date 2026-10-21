@@ -53,6 +53,7 @@ interface Props {
 export function BoardersClient({ initialBoarders }: Props) {
   const [boarders, setBoarders] = useState<BoarderListItem[]>(initialBoarders);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -60,12 +61,13 @@ export function BoardersClient({ initialBoarders }: Props) {
   const [isPending, startTransition] = useTransition();
 
   const filtered = boarders.filter(
-    (b) =>
+    (b) => (statusFilter === "All" || b.status === statusFilter) &&
       `${b.first_name} ${b.last_name} ${b.landlord_name || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
   );
 
+  // Restrict list results by occupancy state without changing stored records.
   function openModal() {
     setForm(EMPTY_FORM);
     setError("");
@@ -76,6 +78,14 @@ export function BoardersClient({ initialBoarders }: Props) {
     e.preventDefault();
     if (!form.first_name.trim() || !form.last_name.trim() || !form.birth_date) {
       setError("First name, last name, and birth date are required.");
+      return;
+    }
+    if (form.birth_date > new Date().toISOString().slice(0, 10)) {
+      setError("Birth date cannot be in the future.");
+      return;
+    }
+    if (form.move_in_date && form.move_in_date > new Date().toISOString().slice(0, 10)) {
+      setError("Move-in date cannot be in the future.");
       return;
     }
     setSaving(true);
@@ -203,6 +213,12 @@ export function BoardersClient({ initialBoarders }: Props) {
           className="w-full rounded-xl border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
       </div>
+
+      <label className="flex items-center gap-2 text-sm">Occupancy status
+        <select aria-label="Filter boarders by occupancy status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2">
+          <option value="All">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Left">Left</option>
+        </select>
+      </label>
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
