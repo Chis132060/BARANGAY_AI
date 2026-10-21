@@ -12,6 +12,7 @@ import { InChatFormCard } from "./InChatFormCard";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
+import { useSoraVoiceConversation } from "@/hooks/useSoraVoiceConversation";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
@@ -78,6 +79,18 @@ export function ChatInterface() {
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
   const { speak, stop: stopSpeaking, speakingId, loadingId } = useTTS();
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
+  const soraVoice = useSoraVoiceConversation({
+    language: ttsLang,
+    onReply: (reply) => {
+      const now = Date.now();
+      const aiId = `ai-voice-${now}`;
+      lastVoiceReplyRef.current = aiId; // voice endpoint already returns spoken audio
+      setMessages((prev) => [...prev,
+        { id: `user-voice-${now}`, sender: "user", text: reply.transcript, timestamp: now },
+        { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1 },
+      ]);
+    },
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const soraIsSpeaking = Boolean(speakingId || loadingId);
@@ -142,22 +155,6 @@ export function ChatInterface() {
     };
     speak("voice-intro", greeting[ttsLang], ttsLang);
   }, [voiceMode, ttsLang, speak]);
-
-  useEffect(() => {
-    if (!voiceMode || !isSupported || isListening || loading || speakingId || loadingId || voiceRequestInFlightRef.current) return;
-    const timer = window.setTimeout(() => {
-      startListening(ttsLang, (transcribedText) => {
-        if (!voiceModeRef.current) return;
-        voiceRequestInFlightRef.current = true;
-        voiceTranscriptRef.current = transcribedText;
-        setInput(transcribedText);
-        window.setTimeout(() => {
-          if (voiceModeRef.current) formRef.current?.requestSubmit();
-        }, 0);
-      });
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [voiceMode, isSupported, isListening, loading, speakingId, loadingId, startListening, ttsLang]);
 
   const selectLanguage = (language: TTSLanguage) => {
     setTtsLang(language);
@@ -350,7 +347,7 @@ export function ChatInterface() {
             type="button"
             onClick={() => {
               setVoiceMode((v) => {
-                if (v) { stopListening(); stopSpeaking(); voiceIntroLanguageRef.current = null; }
+                if (v) { soraVoice.cancel(); stopListening(); stopSpeaking(); voiceIntroLanguageRef.current = null; }
                 return !v;
               });
             }}
@@ -601,14 +598,21 @@ export function ChatInterface() {
               Speak in {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano" : "English"} — AI will respond automatically.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => soraVoice.status === "recording" ? soraVoice.stopRecording() : void soraVoice.startRecording()}
+            disabled={soraVoice.status === "processing" || soraVoice.status === "speaking"}
+            aria-label={soraVoice.status === "recording" ? "Stop recording and ask Ate Sora" : "Record question for Ate Sora"}
+            className="ml-2 shrink-0 rounded-full bg-blue-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
+          >
+            {soraVoice.status === "recording" ? "Stop & Ask" : soraVoice.status === "processing" ? "Thinking..." : soraVoice.status === "speaking" ? "Speaking..." : "Tap to Talk"}
+          </button>
           {isListening && (
             <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 animate-pulse">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Listening
             </span>
           )}
-          {!isSupported && (
-            <span className="text-[10px] text-red-500 font-medium">Browser not supported. Use Chrome.</span>
-          )}
+          {soraVoice.error && <span role="alert" className="text-[10px] text-red-600">{soraVoice.error}</span>}
         </div>
       )}
 
