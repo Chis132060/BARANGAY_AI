@@ -32,7 +32,6 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
   let query = supabase
     .from("residents")
     // Applicants remain in the verification queue until approved.
-    .eq("verification_status", "Verified")
     .select(`
       id,
       first_name,
@@ -52,7 +51,8 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
         street,
         purok
       )
-    `);
+    `)
+    .eq("verification_status", "Verified");
 
   // Some server-side Supabase adapters expose a limited query builder.
   // Apply registry filters after fetching so these pages do not depend on
