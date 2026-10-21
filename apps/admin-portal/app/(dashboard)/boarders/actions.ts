@@ -53,10 +53,21 @@ export async function fetchBoarders(search = ""): Promise<BoarderListItem[]> {
   return (data || []) as BoarderListItem[];
 }
 
+function validateBoarderInput(formData: Omit<BoarderListItem, "id" | "created_at">) {
+  const today = new Date().toISOString().slice(0, 10);
+  const isDate = (value: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+  if (!formData.first_name?.trim() || !formData.last_name?.trim()) throw new Error("First and last names are required.");
+  if (!formData.birth_date || !isDate(formData.birth_date) || formData.birth_date > today) throw new Error("Enter a valid birth date that is not in the future.");
+  if (formData.move_in_date && (!isDate(formData.move_in_date) || formData.move_in_date > today)) throw new Error("Move-in date must be valid and cannot be in the future.");
+  if (formData.monthly_rent != null && (!Number.isFinite(formData.monthly_rent) || formData.monthly_rent < 0)) throw new Error("Monthly rent must be a non-negative amount.");
+  if (!["Active", "Inactive", "Left"].includes(formData.status || "Active")) throw new Error("Invalid boarder status.");
+}
+
 export async function createBoarder(
   formData: Omit<BoarderListItem, "id" | "created_at">
 ): Promise<{ success: boolean; id: string }> {
   await requireBoarderPermission("canCreate");
+  validateBoarderInput(formData);
   const supabase = createClient();
 
   const { data, error } = await supabase
