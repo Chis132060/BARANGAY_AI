@@ -214,6 +214,12 @@ export function BoardersClient({ initialBoarders }: Props) {
         />
       </div>
 
+      <label className="flex items-center gap-2 text-sm">Occupancy status
+        <select aria-label="Filter boarders by occupancy status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2">
+          <option value="All">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Left">Left</option>
+        </select>
+      </label>
+
       {/* Table */}
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <div className="overflow-x-auto">
