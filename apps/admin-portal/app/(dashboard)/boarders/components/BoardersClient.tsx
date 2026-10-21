@@ -53,6 +53,7 @@ interface Props {
 export function BoardersClient({ initialBoarders }: Props) {
   const [boarders, setBoarders] = useState<BoarderListItem[]>(initialBoarders);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -60,12 +61,13 @@ export function BoardersClient({ initialBoarders }: Props) {
   const [isPending, startTransition] = useTransition();
 
   const filtered = boarders.filter(
-    (b) =>
+    (b) => (statusFilter === "All" || b.status === statusFilter) &&
       `${b.first_name} ${b.last_name} ${b.landlord_name || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
   );
 
+  // Restrict list results by occupancy state without changing stored records.
   function openModal() {
     setForm(EMPTY_FORM);
     setError("");
@@ -76,6 +78,14 @@ export function BoardersClient({ initialBoarders }: Props) {
     e.preventDefault();
     if (!form.first_name.trim() || !form.last_name.trim() || !form.birth_date) {
       setError("First name, last name, and birth date are required.");
+      return;
+    }
+    if (form.birth_date > new Date().toISOString().slice(0, 10)) {
+      setError("Birth date cannot be in the future.");
+      return;
+    }
+    if (form.move_in_date && form.move_in_date > new Date().toISOString().slice(0, 10)) {
+      setError("Move-in date cannot be in the future.");
       return;
     }
     setSaving(true);
