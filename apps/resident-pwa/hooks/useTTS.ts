@@ -9,6 +9,7 @@ interface UseTTSReturn {
   stop: () => void;
   speakingId: string | null;
   loadingId: string | null;
+  voiceError: string | null;
 }
 
 function cleanText(text: string): string {
@@ -19,6 +20,7 @@ function cleanText(text: string): string {
 
 export function useTTS(): UseTTSReturn {
   const [ttsState, setTtsState] = useState<TTSState>("IDLE");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -43,6 +45,7 @@ export function useTTS(): UseTTSReturn {
     setSpeakingId(null);
     setLoadingId(null);
     setTtsState("IDLE");
+    setVoiceError(null);
   }, [stopInternal]);
 
   const playBrowserSpeech = useCallback((text: string, language: TTSLanguage, messageId: string, generation: number) =>
@@ -59,11 +62,14 @@ export function useTTS(): UseTTSReturn {
       const feminine = /female|woman|samantha|zira|aria|jenny|susan|karen|moira|tessa/i;
       const preferred = voices.filter((voice) => locale.test(voice.lang)).find((voice) => feminine.test(voice.name))
         ?? voices.find((voice) => feminine.test(voice.name) && /en[-_]/i.test(voice.lang));
-      if (preferred) {
-        utterance.voice = preferred;
-        utterance.lang = preferred.lang;
+      if (!preferred) {
+        console.warn("[TTS] No suitable feminine browser voice; refusing device-default voice.");
+        resolve(false);
+        return;
       }
-      console.info("[TTS] Browser fallback active", { voice: preferred?.name ?? "device default" });
+      utterance.voice = preferred;
+      utterance.lang = preferred.lang;
+      console.info("[TTS] Browser fallback active", { voice: preferred.name });
       utterance.onstart = () => {
         if (generationRef.current !== generation) { window.speechSynthesis.cancel(); resolve(false); return; }
         setLoadingId(null); setSpeakingId(messageId); setTtsState("PLAYING");
@@ -94,6 +100,7 @@ export function useTTS(): UseTTSReturn {
     const generation = ++generationRef.current;
     stopInternal();
     setSpeakingId(null); setLoadingId(messageId); setTtsState("LOADING");
+    setVoiceError(null);
 
     (async () => {
       let played = false;
@@ -121,11 +128,14 @@ export function useTTS(): UseTTSReturn {
       if (generationRef.current !== generation) return;
       if (!played) played = await playBrowserSpeech(text, language, messageId, generation);
       if (generationRef.current !== generation) return;
-      if (!played) console.warn("[TTS] Neither generated audio nor browser speech could play.");
+      if (!played) {
+        console.warn("[TTS] Neither OpenAI audio nor a suitable feminine browser voice could play.");
+        setVoiceError("OpenAI voice is unavailable. Please try again later.");
+      }
       setTtsState(played ? "IDLE" : "ERROR");
       setSpeakingId(null); setLoadingId(null); audioRef.current = null;
     })();
   }, [speakingId, loadingId, stop, stopInternal, playGeneratedAudio, playBrowserSpeech]);
 
-  return { speak, stop, speakingId, loadingId };
+  return { speak, stop, speakingId, loadingId, voiceError };
 }
