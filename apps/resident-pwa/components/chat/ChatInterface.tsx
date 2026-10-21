@@ -76,7 +76,7 @@ export function ChatInterface() {
   const voiceRequestInFlightRef = useRef(false);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
-  const { speak, stop: stopSpeaking, speakingId, loadingId } = useTTS();
+  const { speak, stop: stopSpeaking, speakingId, loadingId, voiceError } = useTTS();
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
@@ -589,6 +589,12 @@ export function ChatInterface() {
           </div>
           {/* Fade-out gradient on the right */}
           <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none" />
+        </div>
+      )}
+
+      {voiceError && (
+        <div role="status" className="px-4 py-2 text-xs text-amber-800 bg-amber-50 border-t border-amber-100">
+          {voiceError} Ate Sora will not switch to an unknown device voice.
         </div>
       )}
 
