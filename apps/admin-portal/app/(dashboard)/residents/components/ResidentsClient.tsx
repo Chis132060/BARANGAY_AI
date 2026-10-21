@@ -49,6 +49,7 @@ function useDebouncedValue(value: string, delay = 300) {
 export function ResidentsClient({ initialResidents, initialSearch = "", onRefresh }: ResidentsClientProps) {
   const [residents, setResidents] = useState<ResidentListItem[]>(initialResidents);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [filters, setFilters] = useState<ResidentFilters>({
     search: initialSearch,
     classification: "All",
@@ -156,6 +157,7 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         icon={Users}
         actions={
           <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setShowImport(true)} className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-accent"><Download className="h-4 w-4 rotate-180" /> Import CSV</button>
             <button type="button" onClick={exportResidentsCsv} className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-accent"><Download className="h-4 w-4" /> Export CSV</button>
           <button
             onClick={() => setShowForm(true)}
@@ -168,7 +170,16 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         }
       />
 
-      <ResidentCsvImport onImported={async () => { setResidents(await onRefresh("", "All")); }} />
+      {showImport && (
+        <div role="dialog" aria-modal="true" aria-label="Import residents from CSV" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowImport(false); }}>
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card shadow-2xl">
+            <div className="flex items-center justify-end border-b px-4 py-2">
+              <button type="button" onClick={() => setShowImport(false)} aria-label="Close import dialog" className="rounded-lg p-2 text-muted-foreground hover:bg-accent"><X className="h-5 w-5" /></button>
+            </div>
+            <ResidentCsvImport onImported={async () => { setResidents(await onRefresh("", "All")); setShowImport(false); }} />
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
