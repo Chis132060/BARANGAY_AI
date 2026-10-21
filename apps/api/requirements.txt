@@ -11,5 +11,6 @@ beautifulsoup4>=4.12.0
 langchain-groq
 langchain-openai
 langchain-core<0.4.0
-sentence-transformers>=3.0.0
+# sentence-transformers is intentionally optional: it pulls in PyTorch/CUDA,
+# which exceeds the 512 MiB Render Free memory limit. Use Gemini embeddings.
 strawberry-graphql[fastapi]
