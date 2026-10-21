@@ -31,6 +31,9 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
   
   let query = supabase
     .from("residents")
+    // Only approved registrations belong in the official registry.
+    // Pending and rejected applicants remain in the verification workflow.
+    .eq("verification_status", "Verified")
     .select(`
       id,
       first_name,
