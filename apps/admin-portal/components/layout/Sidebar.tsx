@@ -86,7 +86,7 @@ export function Sidebar() {
       {/* Navigation Tree */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 sidebar-scroll">
         {filteredModules.map((module) => {
-          const moduleChildren = module.title === "Programs & Councils" ? [...(module.children || []).filter((child) => child.href === "/programs"), ...programLinks.map((p) => ({ title: p.name, href: `/programs?program=${encodeURIComponent(p.id)}`, module: "programs", requiredAction: "canView" }))] : module.children;
+          const moduleChildren = module.title === "Programs & Councils" ? [...(module.children || []).filter((child) => child.href === "/programs"), ...programLinks.map((p) => ({ title: p.name, href: `/programs?program=${encodeURIComponent(p.id)}`, module: "programs", requiredAction: "canView" as const }))] : module.children;
           const hasChildren = !!moduleChildren && moduleChildren.length > 0;
           const isOpen = !!openMenus[module.title];
 
