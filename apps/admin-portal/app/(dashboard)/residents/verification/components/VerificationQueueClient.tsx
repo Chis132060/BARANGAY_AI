@@ -91,7 +91,8 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   });
 
   const pendingCount = residents.filter((r) => r.verification_status === "Pending").length;
-  const reviewedCount = residents.length - pendingCount;
+  // The API returns pending-only registrations, not a historical review log.
+  const reviewedCount = 0;
 
   async function handleApprove(id: string) {
     setProcessingId(id);
@@ -180,7 +181,7 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
           <div className="rounded-lg border bg-card px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2 text-emerald-700">
               <ShieldCheck className="h-4 w-4" />
-              <span className="text-[11px] font-bold uppercase">Reviewed</span>
+              <span className="text-[11px] font-bold uppercase">Reviewed in this queue</span>
             </div>
             <p className="mt-1 text-2xl font-extrabold">{reviewedCount}</p>
           </div>
