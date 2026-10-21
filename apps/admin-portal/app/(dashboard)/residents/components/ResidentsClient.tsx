@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Search, Filter, X, Users, Download } from "lucide-react";
 import { ResidentTable } from "./ResidentTable";
 import { ResidentForm } from "../forms/ResidentForm";
@@ -170,15 +171,16 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         }
       />
 
-      {showImport && (
+      {showImport && createPortal(
         <div role="dialog" aria-modal="true" aria-label="Import residents from CSV" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowImport(false); }}>
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card shadow-2xl">
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-card shadow-2xl">
             <div className="flex items-center justify-end border-b px-4 py-2">
               <button type="button" onClick={() => setShowImport(false)} aria-label="Close import dialog" className="rounded-lg p-2 text-muted-foreground hover:bg-accent"><X className="h-5 w-5" /></button>
             </div>
             <ResidentCsvImport onImported={async () => { setResidents(await onRefresh("", "All")); setShowImport(false); }} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Filter and Search Bar */}
