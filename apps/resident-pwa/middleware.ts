@@ -125,7 +125,7 @@ export async function middleware(request: NextRequest) {
       const isApprovalRoute = pathname.startsWith("/pending-approval");
       const isAuthCallback = pathname.startsWith("/auth");
 
-      if ((!resident || status === "Pending" || status === "Rejected") && !isApprovalRoute && !isAuthCallback) {
+      if (status !== "Verified" && !isApprovalRoute && !isAuthCallback) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = "/pending-approval";
         return NextResponse.redirect(redirectUrl);
