@@ -39,9 +39,14 @@ export async function fetchBoarders(search = ""): Promise<BoarderListItem[]> {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (search) {
+  if (search.trim()) {
+    // PostgREST filter syntax is sensitive to commas and punctuation.
+    // Escape SQL LIKE wildcards and strip filter delimiters from user input.
+    const safeSearch = search.trim().slice(0, 100)
+      .replace(/[,%()]/g, " ")
+      .replace(/[\\%_]/g, (character) => `\\${character}`);
     query = query.or(
-      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,landlord_name.ilike.%${search}%`
+      `first_name.ilike.%${safeSearch}%,last_name.ilike.%${safeSearch}%,landlord_name.ilike.%${safeSearch}%`
     );
   }
 
