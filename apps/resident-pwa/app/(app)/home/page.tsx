@@ -1,5 +1,6 @@
-import { NotificationOnboarding } from "@/components/onboarding/NotificationOnboarding";
 "use client";
+import { NotificationOnboarding } from "@/components/onboarding/NotificationOnboarding";
+
 
 import { useEffect, useState } from "react";
 import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2, FileText, Building2, Bot } from "lucide-react";
