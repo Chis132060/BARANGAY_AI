@@ -1,3 +1,4 @@
+import { NotificationOnboarding } from "@/components/onboarding/NotificationOnboarding";
 "use client";
 
 import { useEffect, useState } from "react";
@@ -82,6 +83,7 @@ export default function HomePage() {
         <p className="text-xs text-blue-100 mt-0.5">Welcome to your online barangay services portal.</p>
       </section>
 
+      <NotificationOnboarding />
       {/* Quick Actions */}
       <section>
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
