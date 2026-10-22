@@ -9,7 +9,7 @@ export default function NotificationsPage(){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [loading,setLoading]=useState(true);
- const supabase=createClient();
+ const [supabase] = useState(() => createClient());
  const load=useCallback(async()=>{
    const {data:{user}}=await supabase.auth.getUser();
    if(!user){setError("Sign in to view notifications.");setLoading(false);return;}
