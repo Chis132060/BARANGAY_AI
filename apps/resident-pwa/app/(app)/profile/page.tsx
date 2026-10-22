@@ -142,33 +142,10 @@ export default function ProfilePage() {
         </button>
       </section>
 
-      {/* Household Info */}
-      <section className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-3">
-          Household Information
-        </p>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Address</span>
-            <span className="font-medium text-gray-800">Zone 4, Main Street</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Purok</span>
-            <span className="font-medium text-gray-800">Purok 2</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Verification</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-              Verified Resident
-            </span>
-          </div>
-        </div>
-      </section>
-
       {/* Menu Options */}
       <section className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50 shadow-sm">
         <button
-          onClick={() => setActiveModal("Notifications")}
+          onClick={() => { setFeedback(""); setActiveModal("Notifications"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -179,7 +156,7 @@ export default function ProfilePage() {
         </button>
 
         <button
-          onClick={() => setActiveModal("Privacy & Security")}
+          onClick={() => { setFeedback(""); setActiveModal("Privacy & Security"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -190,7 +167,7 @@ export default function ProfilePage() {
         </button>
 
         <button
-          onClick={() => setActiveModal("Help & Support")}
+          onClick={() => { setFeedback(""); setActiveModal("Help & Support"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
