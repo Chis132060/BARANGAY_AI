@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 export function TopBar() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     async function load() {
@@ -82,11 +82,11 @@ export function TopBar() {
               )}
             </div>
             <Link
-              href="/announcements"
+              href="/notifications"
               onClick={() => setOpen(false)}
               className="block border-t p-3 text-center text-xs font-bold text-blue-600"
             >
-              View all updates
+              View all notifications
             </Link>
           </div>
         )}
