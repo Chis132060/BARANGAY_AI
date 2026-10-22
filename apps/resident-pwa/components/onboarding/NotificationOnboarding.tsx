@@ -10,7 +10,8 @@ export function NotificationOnboarding() {
  useEffect(()=>{
   if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window))return;
   const supabase=createClient();
-  supabase.auth.getUser().then(({data:{user}})=>{
+  supabase.auth.getUser().then((result: { data: { user: { id: string } | null } })=>{
+   const user=result.data.user;
    if(!user)return;
    const key="barangay-notification-choice:"+user.id;
    setChoiceKey(key);
