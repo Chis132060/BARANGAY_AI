@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getMockSupabaseClient } from "@/lib/supabase/mock-supabase";
 import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 
-const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/auth", "/chat", "/announcements"];
+const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/support", "/auth", "/chat", "/announcements"];
 const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some(
   (route) => pathname === route || pathname.startsWith(`${route}/`)
 );
