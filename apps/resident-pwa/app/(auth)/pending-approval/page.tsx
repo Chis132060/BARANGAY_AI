@@ -89,6 +89,7 @@ export default async function PendingApprovalPage() {
           ) : (
             <RefreshStatusButton />
           )}
+          {status && <Link href="/support" className="block text-sm font-semibold text-blue-700 underline">Need help? Submit a support ticket</Link>}
           {status && <SignOutButton />}
         </div>
       </div>
