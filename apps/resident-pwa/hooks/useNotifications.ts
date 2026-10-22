@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 export function useNotifications() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     let subscription: any;
