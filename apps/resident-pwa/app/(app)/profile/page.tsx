@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check, Loader2 } from "lucide-react";
+import { ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const [userEmail, setUserEmail] = useState<string>("resident@barangay.gov");
@@ -12,6 +13,73 @@ export default function ProfilePage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [fullNameInput, setFullNameInput] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+
+  useEffect(() => {
+    if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) return;
+    setPushSupported(true);
+    navigator.serviceWorker.ready.then(async registration => {
+      setPushEnabled(Boolean(await registration.pushManager.getSubscription()));
+    }).catch(() => {});
+  }, []);
+
+  async function togglePush() {
+    setBusy(true);
+    setFeedback("");
+    try {
+      if (!pushSupported) throw new Error("Browser push is not supported.");
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        const response = await fetch("/api/notifications/subscribe", {
+          method: "DELETE", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: existing.endpoint }),
+        });
+        if (!response.ok) throw new Error("Could not remove the subscription.");
+        if (!(await existing.unsubscribe())) throw new Error("Browser unsubscribe failed.");
+        setPushEnabled(false);
+        setFeedback("Push notifications disabled on this device.");
+      } else {
+        if (await Notification.requestPermission() !== "granted") throw new Error("Allow notifications in browser settings.");
+        const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!key) throw new Error("Push service is not configured.");
+        const padded = (key + "=".repeat((4 - key.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+        const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+        const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes });
+        const response = await fetch("/api/notifications/subscribe", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(subscription),
+        });
+        if (!response.ok) {
+          await subscription.unsubscribe();
+          throw new Error("Could not save subscription.");
+        }
+        setPushEnabled(true);
+        setFeedback("Push notifications enabled on this device.");
+      }
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : "Notification settings failed.");
+    } finally { setBusy(false); }
+  }
+
+  async function sendPasswordReset() {
+    setBusy(true);
+    setFeedback("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("Account email unavailable.");
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: window.location.origin + "/auth/callback?next=/profile",
+      });
+      if (error) throw error;
+      setFeedback("Password reset email requested. Check your inbox.");
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : "Password reset failed.");
+    } finally { setBusy(false); }
+  }
   const supabase = createClient();
 
   useEffect(() => {
@@ -38,9 +106,11 @@ export default function ProfilePage() {
     window.location.replace("/login");
   }
 
-  function handleSaveProfile(e: React.FormEvent) {
+  async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
-    setUserName(fullNameInput);
+    const { error } = await supabase.auth.updateUser({ data: { full_name: fullNameInput.trim() } });
+    if (error) { setFeedback(error.message); return; }
+    setUserName(fullNameInput.trim());
     setIsEditing(false);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -55,6 +125,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {feedback && <p role="status" className="p-3 rounded-xl bg-blue-50 text-blue-800 text-sm">{feedback}</p>}
       {/* Avatar + Name */}
       <section className="flex flex-col items-center py-6 bg-gradient-to-b from-blue-50/50 to-transparent rounded-2xl border border-blue-50">
         <div className="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center mb-3 shadow-md text-white font-bold text-2xl uppercase">
