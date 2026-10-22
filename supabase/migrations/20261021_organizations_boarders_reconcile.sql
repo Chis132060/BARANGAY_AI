@@ -52,18 +52,24 @@ create index if not exists boarders_purok_idx on public.boarders(purok);
 alter table public.boarders enable row level security;
 alter table public.barangay_organizations enable row level security;
 alter table public.organization_members enable row level security;
--- Use existing users/roles staff pattern. Only staff can see boarders or members.
+-- Reconcile old and new policy names before adding the canonical policies.
+-- Avoid permissive duplicate policies that can bypass staff-only access.
 drop policy if exists "staff_boarders" on public.boarders;
-create policy "staff_boarders" on public.boarders for all to authenticated
-using (exists(select 1 from public.users u join public.roles r on r.id=u.role_id where u.id=auth.uid() and r.name in ('Super Admin','Barangay Captain','Secretary','Treasurer','Staff')))
-with check (exists(select 1 from public.users u join public.roles r on r.id=u.role_id where u.id=auth.uid() and r.name in ('Super Admin','Barangay Captain','Secretary','Treasurer','Staff')));
+drop policy if exists "boarders_staff_only" on public.boarders;
+create policy "boarders_staff_only" on public.boarders for all to authenticated
+using (public.is_barangay_staff()) with check (public.is_barangay_staff());
+
 drop policy if exists "staff_organizations_write" on public.barangay_organizations;
-create policy "staff_organizations_write" on public.barangay_organizations for all to authenticated
-using (exists(select 1 from public.users u join public.roles r on r.id=u.role_id where u.id=auth.uid() and r.name in ('Super Admin','Barangay Captain','Secretary','Staff')))
-with check (exists(select 1 from public.users u join public.roles r on r.id=u.role_id where u.id=auth.uid() and r.name in ('Super Admin','Barangay Captain','Secretary','Staff')));
+drop policy if exists "org_staff_write" on public.barangay_organizations;
+create policy "org_staff_write" on public.barangay_organizations for all to authenticated
+using (public.is_barangay_staff()) with check (public.is_barangay_staff());
 drop policy if exists "active_organizations_read" on public.barangay_organizations;
-create policy "active_organizations_read" on public.barangay_organizations for select to authenticated using (status='Active');
+drop policy if exists "org_active_read" on public.barangay_organizations;
+create policy "org_active_read" on public.barangay_organizations for select to authenticated
+using (status = 'Active');
+
 drop policy if exists "staff_organization_members" on public.organization_members;
-create policy "staff_organization_members" on public.organization_members for all to authenticated
-using (exists(select 1 from public.users u join public.roles r on r.id=u.role_id where u.id=auth.uid() and r.name in ('Super Admin','Barangay Captain','Secretary','Staff')))
-with check (exists(select 1 from public.users u join public.roles r on r.id=u.role_id where u.id=auth.uid() and r.name in ('Super Admin','Barangay Captain','Secretary','Staff')));
+drop policy if exists "org_members_staff_only" on public.organization_members;
+drop policy if exists "Authenticated can view org members" on public.organization_members;
+create policy "org_members_staff_only" on public.organization_members for all to authenticated
+using (public.is_barangay_staff()) with check (public.is_barangay_staff());
