@@ -274,6 +274,7 @@ export default function ProfilePage() {
             {activeModal === "Help & Support" && (
               <div className="space-y-3 text-sm text-gray-700">
                 <p>Need help with your account, verification, or document requests? Contact your Barangay Hall for official assistance.</p>
+                <Link href="/support" onClick={() => setActiveModal(null)} className="block text-center rounded-lg bg-blue-600 p-3 text-white font-semibold">Submit or track a support ticket</Link>
                 <Link href="/chat" onClick={() => setActiveModal(null)}
                   className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">
                   Open AI Chat Assistant
