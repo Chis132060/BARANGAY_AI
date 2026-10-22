@@ -31,6 +31,7 @@ export default function ProfilePage() {
     setFeedback("");
     try {
       if (!pushSupported) throw new Error("Browser push is not supported.");
+      if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) throw new Error("Push is not configured. You can still use the in-app Notification Center.");
       const registration = await navigator.serviceWorker.ready;
       const existing = await registration.pushManager.getSubscription();
       if (existing) {
@@ -43,9 +44,9 @@ export default function ProfilePage() {
         setPushEnabled(false);
         setFeedback("Push notifications disabled on this device.");
       } else {
-        if (await Notification.requestPermission() !== "granted") throw new Error("Allow notifications in browser settings.");
         const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!key) throw new Error("Push service is not configured.");
+        if (await Notification.requestPermission() !== "granted") throw new Error("Allow notifications in browser settings.");
         const padded = (key + "=".repeat((4 - key.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
         const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
         const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes });
@@ -253,11 +254,12 @@ export default function ProfilePage() {
               <div className="space-y-3 text-sm text-gray-700">
                 <p>Manage browser push notifications for this device. In-app notifications remain available.</p>
                 <Link href="/notifications" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Open Notification Center</Link>
-                <button type="button" onClick={togglePush} disabled={busy || !pushSupported}
+                <button type="button" onClick={togglePush} disabled={busy || !pushSupported || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
                   aria-pressed={pushEnabled} className="w-full rounded-lg bg-blue-600 text-white px-3 py-2 disabled:opacity-50">
                   {busy ? "Saving..." : pushEnabled ? "Disable push notifications" : "Enable push notifications"}
                 </button>
                 {!pushSupported && <p className="text-xs text-gray-500">Push is not supported on this browser.</p>}
+                {!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && <p className="text-xs text-gray-500">Browser push is not configured. In-app notifications remain available.</p>}
                 {feedback && <p role="status" className="text-xs text-blue-700">{feedback}</p>}
               </div>
             )}
