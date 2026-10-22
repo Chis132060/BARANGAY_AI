@@ -1,25 +1,94 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check, Loader2 } from "lucide-react";
+import { ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 export default function ProfilePage() {
-  const [userEmail, setUserEmail] = useState<string>("resident@barangay.gov");
+  const [userEmail, setUserEmail] = useState<string>("");
   const [userName, setUserName] = useState<string>("Resident");
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [fullNameInput, setFullNameInput] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const supabase = createClient();
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+
+  useEffect(() => {
+    if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) return;
+    setPushSupported(true);
+    navigator.serviceWorker.ready.then(async registration => {
+      setPushEnabled(Boolean(await registration.pushManager.getSubscription()));
+    }).catch(() => {});
+  }, []);
+
+  async function togglePush() {
+    setBusy(true);
+    setFeedback("");
+    try {
+      if (!pushSupported) throw new Error("Browser push is not supported.");
+      if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) throw new Error("Push is not configured. You can still use the in-app Notification Center.");
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        const response = await fetch("/api/notifications/subscribe", {
+          method: "DELETE", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: existing.endpoint }),
+        });
+        if (!response.ok) throw new Error("Could not remove the subscription.");
+        if (!(await existing.unsubscribe())) throw new Error("Browser unsubscribe failed.");
+        setPushEnabled(false);
+        setFeedback("Push notifications disabled on this device.");
+      } else {
+        const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!key) throw new Error("Push service is not configured.");
+        if (await Notification.requestPermission() !== "granted") throw new Error("Allow notifications in browser settings.");
+        const padded = (key + "=".repeat((4 - key.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+        const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+        const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes });
+        const response = await fetch("/api/notifications/subscribe", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(subscription),
+        });
+        if (!response.ok) {
+          await subscription.unsubscribe();
+          throw new Error("Could not save subscription.");
+        }
+        setPushEnabled(true);
+        setFeedback("Push notifications enabled on this device.");
+      }
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : "Notification settings failed.");
+    } finally { setBusy(false); }
+  }
+
+  async function sendPasswordReset() {
+    setBusy(true);
+    setFeedback("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("Account email unavailable.");
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: window.location.origin + "/auth/callback?next=/reset-password",
+      });
+      if (error) throw error;
+      setFeedback("Password reset email requested. Check your inbox.");
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : "Password reset failed.");
+    } finally { setBusy(false); }
+  }
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     async function loadUser() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          setUserEmail(user.email || "resident@barangay.gov");
+          setUserEmail(user.email || "");
           const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Resident";
           setUserName(name);
           setFullNameInput(name);
@@ -38,9 +107,11 @@ export default function ProfilePage() {
     window.location.replace("/login");
   }
 
-  function handleSaveProfile(e: React.FormEvent) {
+  async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
-    setUserName(fullNameInput);
+    const { error } = await supabase.auth.updateUser({ data: { full_name: fullNameInput.trim() } });
+    if (error) { setFeedback(error.message); return; }
+    setUserName(fullNameInput.trim());
     setIsEditing(false);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -55,6 +126,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {feedback && <p role="status" className="p-3 rounded-xl bg-blue-50 text-blue-800 text-sm">{feedback}</p>}
       {/* Avatar + Name */}
       <section className="flex flex-col items-center py-6 bg-gradient-to-b from-blue-50/50 to-transparent rounded-2xl border border-blue-50">
         <div className="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center mb-3 shadow-md text-white font-bold text-2xl uppercase">
@@ -71,33 +143,10 @@ export default function ProfilePage() {
         </button>
       </section>
 
-      {/* Household Info */}
-      <section className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-3">
-          Household Information
-        </p>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Address</span>
-            <span className="font-medium text-gray-800">Zone 4, Main Street</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Purok</span>
-            <span className="font-medium text-gray-800">Purok 2</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Verification</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-              Verified Resident
-            </span>
-          </div>
-        </div>
-      </section>
-
       {/* Menu Options */}
       <section className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50 shadow-sm">
         <button
-          onClick={() => setActiveModal("Notifications")}
+          onClick={() => { setFeedback(""); setActiveModal("Notifications"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -108,7 +157,7 @@ export default function ProfilePage() {
         </button>
 
         <button
-          onClick={() => setActiveModal("Privacy & Security")}
+          onClick={() => { setFeedback(""); setActiveModal("Privacy & Security"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -119,7 +168,7 @@ export default function ProfilePage() {
         </button>
 
         <button
-          onClick={() => setActiveModal("Help & Support")}
+          onClick={() => { setFeedback(""); setActiveModal("Help & Support"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -202,19 +251,45 @@ export default function ProfilePage() {
               </button>
             </div>
             {activeModal === "Notifications" && (
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Push notifications for Barangay announcements and document request status updates are currently enabled for this device.
-              </p>
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>Manage browser push notifications for this device. In-app notifications remain available.</p>
+                <Link href="/notifications" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Open Notification Center</Link>
+                <button type="button" onClick={togglePush} disabled={busy || !pushSupported || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+                  aria-pressed={pushEnabled} className="w-full rounded-lg bg-blue-600 text-white px-3 py-2 disabled:opacity-50">
+                  {busy ? "Saving..." : pushEnabled ? "Disable push notifications" : "Enable push notifications"}
+                </button>
+                {!pushSupported && <p className="text-xs text-gray-500">Push is not supported on this browser.</p>}
+                {!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && <p className="text-xs text-gray-500">Browser push is not configured. In-app notifications remain available.</p>}
+                {feedback && <p role="status" className="text-xs text-blue-700">{feedback}</p>}
+              </div>
             )}
             {activeModal === "Privacy & Security" && (
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Your personal details are encrypted and securely stored. Only authorized Barangay officials have access to resident records.
-              </p>
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>Protect your account. Never share your password or one-time verification codes.</p>
+                <p className="text-xs text-gray-500">Account: {userEmail}</p>
+                <p className="text-xs text-gray-500">You can request access to your personal information or request account closure. Barangay staff must verify requests and review legal records-retention requirements.</p>
+                <Link href="/support?category=Privacy&subject=Request%20a%20copy%20of%20my%20personal%20data" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Request my personal data</Link>
+                <Link href="/support?category=Privacy&subject=Request%20account%20closure" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Request account closure</Link>
+                <button type="button" onClick={sendPasswordReset} disabled={busy}
+                  className="w-full rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold disabled:opacity-50">
+                  {busy ? "Sending..." : "Send password reset email"}
+                </button>
+                {feedback && <p role="status" className="text-xs text-blue-700">{feedback}</p>}
+              </div>
             )}
             {activeModal === "Help & Support" && (
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Need help? Contact the Barangay Hall hotline at (02) 8123-4567 or chat with our 24/7 AI Assistant in the AI Chat tab.
-              </p>
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>Need help with your account, verification, or document requests? Contact your Barangay Hall for official assistance.</p>
+                <Link href="/support" onClick={() => setActiveModal(null)} className="block text-center rounded-lg bg-blue-600 p-3 text-white font-semibold">Submit or track a support ticket</Link>
+                <Link href="/chat" onClick={() => setActiveModal(null)}
+                  className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">
+                  Open AI Chat Assistant
+                </Link>
+                <Link href="/requests" onClick={() => setActiveModal(null)}
+                  className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">
+                  View document requests
+                </Link>
+              </div>
             )}
             <button
               onClick={() => setActiveModal(null)}

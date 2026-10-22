@@ -1,4 +1,6 @@
 "use client";
+import { NotificationOnboarding } from "@/components/onboarding/NotificationOnboarding";
+
 
 import { useEffect, useState } from "react";
 import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2, FileText, Building2, Bot } from "lucide-react";
@@ -82,6 +84,7 @@ export default function HomePage() {
         <p className="text-xs text-blue-100 mt-0.5">Welcome to your online barangay services portal.</p>
       </section>
 
+      <NotificationOnboarding />
       {/* Quick Actions */}
       <section>
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">

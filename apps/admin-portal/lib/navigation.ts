@@ -111,6 +111,7 @@ export const navigationConfig: NavigationModule[] = [
       { title: "Announcements", href: "/communication/announcements", module: "communication" },
       { title: "Appointments", href: "/communication/appointments", module: "communication" },
       { title: "Notifications", href: "/communication/notifications", module: "communication" },
+      { title: "Support Tickets", href: "/communication/support-tickets", module: "communication" },
       { title: "Transaction History", href: "/communication/transactions", module: "communication" },
     ],
   },

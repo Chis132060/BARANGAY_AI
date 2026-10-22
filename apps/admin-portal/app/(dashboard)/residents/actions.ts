@@ -124,7 +124,8 @@ export async function createResident(formData: Omit<ResidentListItem, "id">) {
       voter_status: formData.voter_status,
       senior_status: formData.senior_status,
       pwd_status: formData.pwd_status,
-      four_ps_status: formData.four_ps_status,\n      verification_status: "Verified",
+      four_ps_status: formData.four_ps_status,
+      verification_status: "Verified",
     })
     .select("id")
     .single();

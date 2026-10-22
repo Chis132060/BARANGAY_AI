@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 export function useNotifications() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     let subscription: any;
@@ -47,56 +47,12 @@ export function useNotifications() {
     }
 
     setupNotifications();
-    setupWebPush();
+    // Browser notification permission is requested only from explicit user actions.
 
     return () => {
       if (subscription) supabase.removeChannel(subscription);
     };
   }, [supabase]);
-
-  async function setupWebPush() {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      return;
-    }
-
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      
-      const existingSub = await registration.pushManager.getSubscription();
-      if (existingSub) {
-        await saveSubscriptionToServer(existingSub);
-        return;
-      }
-
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidPublicKey) return;
-
-        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-        const newSub = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedVapidKey,
-        });
-
-        await saveSubscriptionToServer(newSub);
-      }
-    } catch (err) {
-      console.error("Web Push setup failed:", err);
-    }
-  }
-
-  async function saveSubscriptionToServer(subscription: PushSubscription) {
-    try {
-      await fetch("/api/notifications/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(subscription),
-      });
-    } catch (e) {
-      console.error("Failed to save push subscription", e);
-    }
-  }
 
   async function markAsRead(id: string) {
     await supabase.from("notifications").update({ read_status: true }).eq("id", id);
@@ -109,18 +65,3 @@ export function useNotifications() {
   return { notifications, unreadCount, markAsRead };
 }
 
-// Utility to convert Base64 string to Uint8Array for VAPID key
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
