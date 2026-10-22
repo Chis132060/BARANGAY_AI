@@ -1,6 +1,8 @@
 import { fetchResidents } from "./actions";
 import { ResidentsClient } from "./components/ResidentsClient";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Residents Registry",
   description: "Barangay Residents database and registry details.",

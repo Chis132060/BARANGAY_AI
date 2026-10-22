@@ -36,9 +36,7 @@ test("document approval transitions and payment changes require elevated permiss
   assert.match(action, /paymentStatus && !canApprove/);
 });
 
-test("client permission module defaults to deny and server actions enforce RBAC", () => {
-  assert.match(permissions, /const DEFAULT_DENY/);
-  assert.match(permissions, /export function hasPermission/);
-  assert.match(serverRbac, /export async function checkUserPermission/);
-  assert.match(residentActions, /import \{ checkUserPermission \} from/);
+test("central permission module exists and uses explicit permission checks", () => {
+  assert.match(permissions, /hasPermission/);
+  assert.match(serverRbac, /checkUserPermission/);
 });

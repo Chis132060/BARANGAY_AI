@@ -31,7 +31,7 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
   
   let query = supabase
     .from("residents")
-    // Applicants remain in the verification queue until approved.
+    // Approved portal registrations and staff-created records belong in the registry.\n    // Pending accounts linked to a login must stay in the verification queue.
     .select(`
       id,
       first_name,
@@ -124,7 +124,7 @@ export async function createResident(formData: Omit<ResidentListItem, "id">) {
       voter_status: formData.voter_status,
       senior_status: formData.senior_status,
       pwd_status: formData.pwd_status,
-      four_ps_status: formData.four_ps_status,
+      four_ps_status: formData.four_ps_status,\n      verification_status: "Verified",
     })
     .select("id")
     .single();
