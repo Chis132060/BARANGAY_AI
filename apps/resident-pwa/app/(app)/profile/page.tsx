@@ -72,7 +72,7 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) throw new Error("Account email unavailable.");
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: window.location.origin + "/auth/callback?next=/profile",
+        redirectTo: window.location.origin + "/auth/callback?next=/reset-password",
       });
       if (error) throw error;
       setFeedback("Password reset email requested. Check your inbox.");
