@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 export default function ProfilePage() {
-  const [userEmail, setUserEmail] = useState<string>("resident@barangay.gov");
+  const [userEmail, setUserEmail] = useState<string>("");
   const [userName, setUserName] = useState<string>("Resident");
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -81,14 +81,14 @@ export default function ProfilePage() {
       setFeedback(err instanceof Error ? err.message : "Password reset failed.");
     } finally { setBusy(false); }
   }
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     async function loadUser() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          setUserEmail(user.email || "resident@barangay.gov");
+          setUserEmail(user.email || "");
           const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Resident";
           setUserName(name);
           setFullNameInput(name);
