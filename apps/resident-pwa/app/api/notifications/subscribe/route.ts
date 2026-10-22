@@ -43,3 +43,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const supabase = createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { endpoint } = await req.json();
+    if (typeof endpoint !== "string" || !endpoint.startsWith("https://") || endpoint.length > 4096) {
+      return NextResponse.json({ error: "Invalid endpoint" }, { status: 400 });
+    }
+    const { error } = await supabase.from("push_subscriptions")
+      .delete().eq("user_id", user.id).eq("endpoint", endpoint);
+    if (error) return NextResponse.json({ error: "Could not remove subscription" }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+}
