@@ -13,6 +13,7 @@ export default function ResidentSupportPage() {
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const supabase=createClient();
+ useEffect(()=>{const params=new URLSearchParams(window.location.search);const category=params.get("category");if(category==="Privacy")setCategory("Privacy");const requestedSubject=params.get("subject");if(requestedSubject)setSubject(requestedSubject.slice(0,160));},[]);
  async function refresh(){
   const {data:{user}}=await supabase.auth.getUser();
   if(!user){setError("Sign in to submit a ticket.");setLoading(false);return;}
