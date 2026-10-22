@@ -44,6 +44,14 @@ export default function ResidentSupportPage() {
   <header><Link href="/profile" className="text-sm text-blue-600">← Profile</Link>
    <h1 className="text-xl font-bold mt-2">Help & Support Tickets</h1>
    <p className="text-sm text-gray-600">Report an issue to barangay staff. Never include passwords or verification codes.</p></header>
+  <section className="rounded-xl border bg-white p-4 space-y-3">
+   <h2 className="font-semibold">Frequently asked questions</h2>
+   <details className="text-sm border-b pb-2"><summary className="cursor-pointer font-medium">How do I verify my account?</summary><p className="mt-2 text-gray-600">After registration, wait for the barangay staff to review your application. Check the Pending Approval page to see your status.</p></details>
+   <details className="text-sm border-b pb-2"><summary className="cursor-pointer font-medium">How do I track my document request?</summary><p className="mt-2 text-gray-600">Open My Requests to see its status. <Link href="/requests" className="text-blue-700 underline">View requests</Link></p></details>
+   <details className="text-sm border-b pb-2"><summary className="cursor-pointer font-medium">What if my account is rejected?</summary><p className="mt-2 text-gray-600">Check the rejection reason and open a support ticket so staff can advise on the next steps.</p></details>
+   <details className="text-sm"><summary className="cursor-pointer font-medium">How do I protect my data?</summary><p className="mt-2 text-gray-600">Do not share passwords or OTP codes. For access or closure requests, choose Privacy as your ticket category.</p></details>
+   <Link href="/chat" className="block text-center rounded-lg border border-blue-200 p-3 text-sm text-blue-700 font-semibold">Ask AI Assistant</Link>
+  </section>
   <form onSubmit={submit} className="rounded-xl border p-4 space-y-3 bg-white">
    <h2 className="font-semibold">New support ticket</h2>
    <label className="block text-sm">Concern category
