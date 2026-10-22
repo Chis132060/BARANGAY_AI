@@ -265,6 +265,9 @@ export default function ProfilePage() {
               <div className="space-y-3 text-sm text-gray-700">
                 <p>Protect your account. Never share your password or one-time verification codes.</p>
                 <p className="text-xs text-gray-500">Account: {userEmail}</p>
+                <p className="text-xs text-gray-500">You can request access to your personal information or request account closure. Barangay staff must verify requests and review legal records-retention requirements.</p>
+                <Link href="/support?category=Privacy&subject=Request%20a%20copy%20of%20my%20personal%20data" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Request my personal data</Link>
+                <Link href="/support?category=Privacy&subject=Request%20account%20closure" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Request account closure</Link>
                 <button type="button" onClick={sendPasswordReset} disabled={busy}
                   className="w-full rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold disabled:opacity-50">
                   {busy ? "Sending..." : "Send password reset email"}
