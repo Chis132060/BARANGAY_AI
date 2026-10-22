@@ -8,7 +8,7 @@ export function NotificationOnboarding() {
  const [message,setMessage]=useState("");
  const [choiceKey,setChoiceKey]=useState("");
  useEffect(()=>{
-  if(!("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window))return;
+  if(!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !("Notification" in window)||!("serviceWorker" in navigator)||!("PushManager" in window))return;
   const supabase=createClient();
   supabase.auth.getUser().then((result: { data: { user: { id: string } | null } })=>{
    const user=result.data.user;
