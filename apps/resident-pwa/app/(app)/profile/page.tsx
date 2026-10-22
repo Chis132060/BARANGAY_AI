@@ -252,6 +252,7 @@ export default function ProfilePage() {
             {activeModal === "Notifications" && (
               <div className="space-y-3 text-sm text-gray-700">
                 <p>Manage browser push notifications for this device. In-app notifications remain available.</p>
+                <Link href="/notifications" onClick={() => setActiveModal(null)} className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">Open Notification Center</Link>
                 <button type="button" onClick={togglePush} disabled={busy || !pushSupported}
                   aria-pressed={pushEnabled} className="w-full rounded-lg bg-blue-600 text-white px-3 py-2 disabled:opacity-50">
                   {busy ? "Saving..." : pushEnabled ? "Disable push notifications" : "Enable push notifications"}
