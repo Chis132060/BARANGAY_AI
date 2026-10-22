@@ -1,3 +1,4 @@
+import { NotificationOnboarding } from "@/components/onboarding/NotificationOnboarding";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, Clock3, ShieldCheck } from "lucide-react";
@@ -78,6 +79,7 @@ export default async function PendingApprovalPage() {
           </div>
         )}
 
+        <NotificationOnboarding />
         <div className="space-y-3">
           {isVerified ? (
             <Link
