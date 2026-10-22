@@ -47,7 +47,7 @@ export function useNotifications() {
     }
 
     setupNotifications();
-    setupWebPush();
+    // Browser notification permission is requested only by explicit user actions\n    // in NotificationOnboarding or Profile settings, never during app startup.
 
     return () => {
       if (subscription) supabase.removeChannel(subscription);
@@ -68,20 +68,7 @@ export function useNotifications() {
         return;
       }
 
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidPublicKey) return;
-
-        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-        const newSub = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedVapidKey,
-        });
-
-        await saveSubscriptionToServer(newSub);
-      }
-    } catch (err) {
+      // No prompt here. Residents can enable push in Notification Settings.\n    } catch (err) {
       console.error("Web Push setup failed:", err);
     }
   }
