@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const residentActions = read("../app/(dashboard)/residents/actions.ts");
 const documentActions = read("../app/(dashboard)/documents/actions.ts");
 const permissions = read("../lib/permissions.ts");
+const serverRbac = read("../app/(dashboard)/administration/rbac-actions.ts");
 
 test("resident verification actions enforce authorization and pending-only transitions", () => {
   for (const name of ["approveResident", "rejectResident"]) {
@@ -36,5 +37,6 @@ test("document approval transitions and payment changes require elevated permiss
 });
 
 test("central permission module exists and uses explicit permission checks", () => {
-  assert.match(permissions, /checkUserPermission/);
+  assert.match(permissions, /hasPermission/);
+  assert.match(serverRbac, /checkUserPermission/);
 });
