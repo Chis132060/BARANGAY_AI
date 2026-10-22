@@ -52,7 +52,7 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
         purok
       )
     `)
-    .or("verification_status.eq.Verified,and(user_id.is.null,verification_status.eq.Pending)");
+    .eq("verification_status", "Verified");
 
   // Some server-side Supabase adapters expose a limited query builder.
   // Apply registry filters after fetching so these pages do not depend on
