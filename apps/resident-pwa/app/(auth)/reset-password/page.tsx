@@ -12,7 +12,7 @@ export default function ResetPasswordPage() {
  const [authenticated,setAuthenticated]=useState<boolean|null>(null);
  useEffect(()=>{
   const supabase=createClient();
-  void supabase.auth.getUser().then(({data})=>setAuthenticated(Boolean(data?.user))).catch(()=>setAuthenticated(false));
+  void supabase.auth.getUser().then((result: { data: { user: { id: string } | null } })=>setAuthenticated(Boolean(result.data.user))).catch(()=>setAuthenticated(false));
  },[]);
  async function submit(e:React.FormEvent){
   e.preventDefault();
