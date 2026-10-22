@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Search, Filter, X, Users, Download } from "lucide-react";
+import { Plus, Search, Filter, X, Users, Download, Upload } from "lucide-react";
 import { ResidentTable } from "./ResidentTable";
 import { ResidentForm } from "../forms/ResidentForm";
 import { ResidentCsvImport } from "./ResidentCsvImport";
@@ -158,7 +158,7 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         icon={Users}
         actions={
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setShowImport(true)} className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-accent"><Download className="h-4 w-4 rotate-180" /> Import CSV</button>
+            <button type="button" onClick={() => setShowImport(true)} className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-accent"><Upload className="h-4 w-4" /> Import CSV</button>
             <button type="button" onClick={exportResidentsCsv} className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-xs font-bold hover:bg-accent"><Download className="h-4 w-4" /> Export CSV</button>
           <button
             onClick={() => setShowForm(true)}
