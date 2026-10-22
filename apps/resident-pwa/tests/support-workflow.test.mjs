@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const read=path=>readFileSync(new URL(path,import.meta.url),"utf8");
-const admin=read("../app/(dashboard)/communication/support-tickets/actions.ts");
+const admin=read("../../admin-portal/app/(dashboard)/communication/support-tickets/actions.ts");
 const resident=read("../app/(app)/support/page.tsx");
 const api=read("../app/api/notifications/subscribe/route.ts");
 const migration=read("../../../supabase/migrations/20261023000001_support_tickets.sql");
