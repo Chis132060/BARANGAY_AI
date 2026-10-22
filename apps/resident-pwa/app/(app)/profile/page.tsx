@@ -273,19 +273,39 @@ export default function ProfilePage() {
               </button>
             </div>
             {activeModal === "Notifications" && (
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Push notifications for Barangay announcements and document request status updates are currently enabled for this device.
-              </p>
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>Manage browser push notifications for this device. In-app notifications remain available.</p>
+                <button type="button" onClick={togglePush} disabled={busy || !pushSupported}
+                  aria-pressed={pushEnabled} className="w-full rounded-lg bg-blue-600 text-white px-3 py-2 disabled:opacity-50">
+                  {busy ? "Saving..." : pushEnabled ? "Disable push notifications" : "Enable push notifications"}
+                </button>
+                {!pushSupported && <p className="text-xs text-gray-500">Push is not supported on this browser.</p>}
+                {feedback && <p role="status" className="text-xs text-blue-700">{feedback}</p>}
+              </div>
             )}
             {activeModal === "Privacy & Security" && (
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Your personal details are encrypted and securely stored. Only authorized Barangay officials have access to resident records.
-              </p>
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>Protect your account. Never share your password or one-time verification codes.</p>
+                <p className="text-xs text-gray-500">Account: {userEmail}</p>
+                <button type="button" onClick={sendPasswordReset} disabled={busy}
+                  className="w-full rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold disabled:opacity-50">
+                  {busy ? "Sending..." : "Send password reset email"}
+                </button>
+                {feedback && <p role="status" className="text-xs text-blue-700">{feedback}</p>}
+              </div>
             )}
             {activeModal === "Help & Support" && (
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Need help? Contact the Barangay Hall hotline at (02) 8123-4567 or chat with our 24/7 AI Assistant in the AI Chat tab.
-              </p>
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>Need help with your account, verification, or document requests? Contact your Barangay Hall for official assistance.</p>
+                <Link href="/chat" onClick={() => setActiveModal(null)}
+                  className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">
+                  Open AI Chat Assistant
+                </Link>
+                <Link href="/requests" onClick={() => setActiveModal(null)}
+                  className="block text-center rounded-lg border border-blue-200 p-3 text-blue-700 font-semibold">
+                  View document requests
+                </Link>
+              </div>
             )}
             <button
               onClick={() => setActiveModal(null)}
