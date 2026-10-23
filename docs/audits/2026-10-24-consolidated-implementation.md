@@ -75,3 +75,13 @@ Do not mark PR fully done until grant changes are simulated against authenticate
 - [ ] Decide whether to re-enable guest AI chat using a trusted edge-generated identifier and shared limiter.
 
 **Deployment dependency:** `20261024000002_chat_quota.sql` must be applied to the target environment before the new AI API route is deployed. No live DB migration was applied in this PR.
+
+## Follow-up verified evidence
+- [x] GitHub checks on commit `7157e41a9f965adbe1969c6d6778bc9296305735`: seven reported jobs completed successfully.
+- [x] Railway linked project `unique-passion` contains production environment and `BARANGAY_AI` service (service discovered; health not verified).
+- [x] Vercel `barangay-ai` project exists; queried latest deployment reported `CANCELED` and project `live=false`. Not an available preview/production smoke-test result.
+- [ ] Re-run and verify CI for every subsequent commit, not just the previous green SHA.
+- [ ] Confirm all three Vercel projects and Railway app health via authenticated staging smoke tests.
+- [ ] Obtain barangay-approved definition of done for Lupon, DRRM, legislation and finance: forms, permissions, retention, legal templates and approved office processes. Features without these are not production-complete.
+
+**Production gating decision:** Keep this pull request draft until database migrations and app deployment sequencing are tested together. Green code checks alone are insufficient.
