@@ -85,3 +85,13 @@ Do not mark PR fully done until grant changes are simulated against authenticate
 - [ ] Obtain barangay-approved definition of done for Lupon, DRRM, legislation and finance: forms, permissions, retention, legal templates and approved office processes. Features without these are not production-complete.
 
 **Production gating decision:** Keep this pull request draft until database migrations and app deployment sequencing are tested together. Green code checks alone are insufficient.
+
+## Latest direct live Supabase inspection
+Read-only SQL verified:
+- `public.ai_chat_rate_limits` is absent.
+- `public.consume_chat_rate_limit(integer,integer)` is absent.
+- `storage.objects` has no `Residents can delete their own requirements` policy.
+
+**Deploy blocker:** PR's chat API calls a currently absent RPC. Deploying the PR without safely migrating the target environment would cause authenticated AI chat to return 429/fail closed. Do NOT deploy before verified staging migration and integration test. The migration has not been run on the live project.
+
+**Migration test prerequisites:** obtain approved non-production environment with safe synthetic resident identities, test migration ordering, rate-limiter concurrent RPCs, Storage DELETE owner isolation, then record evidence. Do not use actual resident records to simulate missing addresses.
