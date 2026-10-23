@@ -2,15 +2,17 @@
 import base64
 import binascii
 import logging
+from typing import Optional
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 
 from core.config import settings
+from core.auth import require_voice_access
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_voice_access)])
 logger = logging.getLogger(__name__)
 MAX_AUDIO_BYTES = 4 * 1024 * 1024
 ALLOWED_MIME = {"audio/webm", "audio/ogg", "audio/wav", "audio/mp4", "audio/mpeg", "audio/aac", "audio/flac"}
@@ -76,7 +78,7 @@ class VoiceConversationRequest(TranscribeRequest):
 
 
 @router.post("/voice/converse")
-async def converse_voice(request: VoiceConversationRequest):
+async def converse_voice(request: VoiceConversationRequest, authorization: Optional[str] = Header(default=None)):
     """Push-to-talk pipeline: speech -> audited barangay chat -> spoken reply."""
     from routers.rag_router import ChatRequest, chat
     from routers.tts_router import TTSRequest, generate_tts
@@ -85,9 +87,10 @@ async def converse_voice(request: VoiceConversationRequest):
     spoken_text = transcription["data"]["text"].strip()
     if not spoken_text:
         raise HTTPException(status_code=422, detail="No intelligible speech detected.")
+    await require_voice_access(authorization)
     chat_result = await chat(ChatRequest(
         query=spoken_text, language=request.language, session_id=request.session_id
-    ))
+    ), authorization=authorization)
     answer = chat_result.answer
     # A text answer is still useful if the speech provider is unavailable.
     audio = None

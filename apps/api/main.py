@@ -20,8 +20,8 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace with actual Next.js frontend URLs
-    allow_credentials=True,
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "https://barangay-resident-pwa.vercel.app,https://barangay-admin-portal-chis132060s-projects.vercel.app").split(",") if origin.strip()],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

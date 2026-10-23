@@ -1,9 +1,12 @@
 """Supabase token verification and API authorization helpers."""
 
 from typing import Any, Optional
+import asyncio
+import time
+import os
 
 import httpx
-from fastapi import HTTPException
+from fastapi import HTTPException, Header
 
 from core.config import settings
 
@@ -63,3 +66,28 @@ def require_document_manager(user_id: str) -> None:
 
     if role_name not in {"Super Admin", "Barangay Captain", "Secretary", "Staff"}:
         raise HTTPException(status_code=403, detail="Document management permission required")
+
+
+# Best-effort worker-local quota; production also needs a shared edge/Redis quota.
+_voice_quota: dict[str, tuple[int, float]] = {}
+_voice_quota_lock = asyncio.Lock()
+VOICE_WINDOW_SECONDS = 60
+VOICE_QUOTA_PER_MINUTE = max(1, min(120, int(os.getenv("VOICE_QUOTA_PER_MINUTE", "12"))))
+
+
+async def require_voice_access(authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
+    """Require a valid token and bound costly voice requests per worker."""
+    user = await require_user(authorization)
+    now = time.monotonic()
+    async with _voice_quota_lock:
+        if len(_voice_quota) > 10000:
+            for key, (_, expiry) in list(_voice_quota.items()):
+                if expiry <= now:
+                    del _voice_quota[key]
+        count, expiry = _voice_quota.get(user["id"], (0, now + VOICE_WINDOW_SECONDS))
+        if expiry <= now:
+            count, expiry = 0, now + VOICE_WINDOW_SECONDS
+        if count >= VOICE_QUOTA_PER_MINUTE:
+            raise HTTPException(status_code=429, detail="Voice usage limit reached. Please try again shortly.")
+        _voice_quota[user["id"]] = (count + 1, expiry)
+    return user
