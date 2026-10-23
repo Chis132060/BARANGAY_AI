@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type Language = "tgl" | "ceb" | "en";
 type VoiceReply = {
@@ -102,9 +103,11 @@ export function useSoraVoiceConversation(options: {
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
       if (!baseUrl) throw new Error("Voice backend URL is not configured.");
+      const { data: { session } } = await createClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Sign in to use Ate Sora voice.");
       const response = await fetch(`${baseUrl}/api/v1/voice/converse`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         signal: controller.signal,
         body: JSON.stringify({
           audio_base64: await encodeBase64(blob),
