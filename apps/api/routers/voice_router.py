@@ -5,12 +5,13 @@ import logging
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from core.config import settings
+from core.auth import require_voice_access
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_voice_access)])
 logger = logging.getLogger(__name__)
 MAX_AUDIO_BYTES = 4 * 1024 * 1024
 ALLOWED_MIME = {"audio/webm", "audio/ogg", "audio/wav", "audio/mp4", "audio/mpeg", "audio/aac", "audio/flac"}
