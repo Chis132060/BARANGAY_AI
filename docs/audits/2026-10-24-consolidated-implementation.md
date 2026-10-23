@@ -7,6 +7,7 @@ This branch is one **draft PR** for the barangay system audit. It does not claim
 - [x] Uploaded file rollback when a subsequent upload or request insert fails (best effort; Storage DELETE policy required).
 - [x] Unique unpredictable uploaded object identifiers.
 - [x] Regression source checks for these protections.
+- [x] Correct AI database-policy fallback auditRecorded reporting (reflects actual insert result).
 
 ## Unresolved release blockers (do not deploy)
 - [ ] Verify Storage DELETE permission for owner and test rollback with two files and a deliberately failing DB insert.
@@ -34,3 +35,30 @@ This branch is one **draft PR** for the barangay system audit. It does not claim
 4. Obtain barangay staff acceptance and explicit release sign-off.
 
 Observed security findings: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+## Live access audit evidence (read-only, 2026-10-24)
+
+Supabase project `pedevaqxrudflvostpja` was queried directly for public SECURITY DEFINER EXECUTE grants.
+
+| Function | Anonymous EXECUTE | Current action |
+|---|---|---|
+| apply_to_barangay_program | Yes | Review user-identity guard; proposed revoke for anon |
+| has_module_permission | Yes | Review RLS consumers before changing |
+| is_barangay_staff | Yes | Review RLS consumers before changing |
+| log_program_attendance | Yes | Trigger function: review direct grants and trigger call |
+| log_program_changes | Yes | Trigger function: review direct grants and trigger call |
+| notify_document_request_change | Yes | Trigger function: review direct grants and trigger call |
+| review_barangay_program_application | Yes | Review role guard; proposed revoke for anon |
+| sync_request_transaction | Yes | Trigger function: review direct grants and trigger call |
+| verify_document_payment | No | Preserve documented intended grants pending E2E |
+| replace_role_permissions | No | Preserve documented intended grants pending E2E |
+
+No production database grant changes were made. Check dependent RPC callers and RLS policies before staging migrations. Supabase database-linter guidance: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+
+## Connected hosting inventory
+- Vercel projects: `barangay-ai`, `barangay-admin-portal`, `barangay-resident-pwa`.
+- Railway project in the barangay link: `unique-passion`.
+- These are service discoveries, not successful smoke tests or approved deployment evidence.
+
+## Security acceptance constraints
+Do not mark PR fully done until grant changes are simulated against authenticated/unauthenticated roles, backup restoration is proven, all three Vercel builds and Railway services are healthy, and domain-specific barangay modules have staff-approved acceptance tests.
