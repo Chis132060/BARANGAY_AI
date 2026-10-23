@@ -14,3 +14,10 @@ test("quota RPC derives identity from auth and revokes anonymous execution", () 
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.consume_chat_rate_limit/);
   assert.match(migration, /TO authenticated/);
 });
+
+test("quota migration creates private RLS-protected counter and rejects caller selected limits", () => {
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL ON TABLE public\.ai_chat_rate_limits FROM anon, authenticated, public/);
+  assert.match(migration, /p_limit <> 30 OR p_window_seconds <> 60/);
+  assert.match(migration, /SECURITY DEFINER SET search_path = ''/);
+});
