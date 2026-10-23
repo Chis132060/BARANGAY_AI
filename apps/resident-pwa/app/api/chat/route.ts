@@ -27,23 +27,19 @@ async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ ti
   ).slice(0, 3);
 }
 
-// Simple in-memory rate limiter: { key → { count, resetAt } }
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_AUTH = 30;   // requests per minute for logged-in users
-const RATE_LIMIT_GUEST = 10;  // requests per minute for guests
-const WINDOW_MS = 60_000;
-
-function checkRateLimit(key: string, limit: number): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return true; // allowed
+// Fail closed for distributed deployments unless a shared limiter is configured.
+// No per-instance Map: serverless instances cannot enforce a global quota.
+async function checkRateLimit(supabase: any, userId: string | null): Promise<boolean> {
+  if (!userId) return true; // Guest messages are limited to public knowledge without user-specific tools.
+  const { data, error } = await supabase.rpc("consume_chat_rate_limit", {
+    p_limit: 30,
+    p_window_seconds: 60,
+  });
+  if (error) {
+    console.error("Chat rate limiter unavailable:", error.message);
+    return false;
   }
-  if (entry.count >= limit) return false; // blocked
-  entry.count += 1;
-  return true;
+  return data === true;
 }
 
 async function writeFallbackAudit(supabase: any, input: {
@@ -95,10 +91,7 @@ export async function POST(request: NextRequest) {
   // Rate limiting
   // Forwarded IP headers are client-controllable unless normalized by trusted infrastructure.
   // Do not treat them as authenticated identities for quota decisions.
-  const rateLimitKey = user?.id ? `user:${user.id}` : "guest:anonymous";
-  const limit = user ? RATE_LIMIT_AUTH : RATE_LIMIT_GUEST;
-
-  if (!checkRateLimit(rateLimitKey, limit)) {
+  if (!(await checkRateLimit(supabase, user?.id ?? null))) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment before trying again." },
       { status: 429 }
