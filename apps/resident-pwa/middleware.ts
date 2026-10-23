@@ -124,8 +124,10 @@ export async function middleware(request: NextRequest) {
       const status = resident?.verification_status;
       const isApprovalRoute = pathname.startsWith("/pending-approval");
       const isAuthCallback = pathname.startsWith("/auth") || pathname === "/reset-password";
+      // Pending and rejected applicants must be able to request help without verification.
+      const isSupportRoute = pathname === "/support" || pathname.startsWith("/support/");
 
-      if (status !== "Verified" && !isApprovalRoute && !isAuthCallback) {
+      if (status !== "Verified" && !isApprovalRoute && !isAuthCallback && !isSupportRoute) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = "/pending-approval";
         return NextResponse.redirect(redirectUrl);
