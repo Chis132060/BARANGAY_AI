@@ -15,18 +15,16 @@ async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ ti
     .from('barangay_policies')
     .select('title, content')
     .eq('status', 'Published')
-    .limit(3);
+    .limit(100);
 
   if (!data || !data.length) return [];
 
   // Filter to policies whose title or content contains any query keyword
   return data.filter((p: any) =>
-    keywords.some(
-      (kw: string) =>
-        p.title.toLowerCase().includes(kw) ||
-        p.content.toLowerCase().includes(kw)
+    keywords.some((kw: string) =>
+      p.title.toLowerCase().includes(kw) || p.content.toLowerCase().includes(kw)
     )
-  );
+  ).slice(0, 3);
 }
 
 // Simple in-memory rate limiter: { key → { count, resetAt } }
@@ -128,7 +126,7 @@ export async function POST(request: NextRequest) {
       formTitle: match?.formTitle,
       estimatedFee: match?.estimatedFee,
       guestActionTrigger: match?.guestActionTrigger,
-      auditRecorded: agentResponse.audit_recorded ?? true,
+      auditRecorded: agentResponse.audit_recorded === true,
     });
   }
 
@@ -157,7 +155,7 @@ export async function POST(request: NextRequest) {
         formTitle: match?.formTitle,
         estimatedFee: match?.estimatedFee,
         guestActionTrigger: match?.guestActionTrigger,
-        auditRecorded: data.audit_recorded ?? true,
+        auditRecorded: data.audit_recorded === true,
       });
     }
   } catch (err) {
