@@ -4,7 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB per request
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+
+async function validateFileSignature(file: File): Promise<boolean> {
+  const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const starts = (signature: number[]) => signature.every((byte, index) => bytes[index] === byte);
+  if (file.type === "application/pdf") return starts([0x25, 0x50, 0x44, 0x46, 0x2d]);
+  if (file.type === "image/png") return starts([137, 80, 78, 71, 13, 10, 26, 10]);
+  if (file.type === "image/jpeg") return starts([0xff, 0xd8, 0xff]);
+  return false;
+}
+
 
 export async function submitDocumentRequest(formData: FormData) {
   const supabase = createClient();
@@ -40,6 +51,7 @@ export async function submitDocumentRequest(formData: FormData) {
     if (!Array.isArray(parsed) || parsed.length > 20 || !parsed.every((req) => typeof req === "string" && req.length > 0 && req.length <= 120)) {
       throw new Error("Invalid requirements data");
     }
+    if (new Set(parsed).size !== parsed.length) throw new Error("Duplicate attachment requirements");
     requirements = parsed;
   } catch {
     throw new Error("Invalid requirements data");
@@ -47,15 +59,22 @@ export async function submitDocumentRequest(formData: FormData) {
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
 
-  // 3. Validate and upload each requirement
+  // 3. Validate all files before any upload; roll back uploaded objects on later failure.
+  const files: Array<{ requirement: string; file: File }> = [];
+  let totalUploadSize = 0;
   for (const req of requirements) {
     const file = formData.get(`file_${req}`) as File | null;
-    if (!file) {
+    if (!(file instanceof File)) {
       throw new Error(`Missing required attachment: ${req}`);
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      throw new Error(`File ${file.name} exceeds 5MB limit`);
+    if (file.size === 0 || file.size > MAX_FILE_SIZE) {
+      throw new Error(`File ${file.name} must be non-empty and at most 5MB`);
+    }
+
+    totalUploadSize += file.size;
+    if (totalUploadSize > MAX_TOTAL_UPLOAD_SIZE) {
+      throw new Error("Combined attachments exceed the 20MB request limit");
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
@@ -68,8 +87,23 @@ export async function submitDocumentRequest(formData: FormData) {
       throw new Error(`Invalid file extension for ${file.name}`);
     }
 
-    const timestamp = Date.now();
-    const filePath = `${user.id}/req_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const expectedExtension: Record<string, string[]> = {
+      "application/pdf": ["pdf"],
+      "image/jpeg": ["jpg", "jpeg"],
+      "image/png": ["png"],
+    };
+    if (!expectedExtension[file.type]?.includes(ext) || !(await validateFileSignature(file))) {
+      throw new Error(`File content does not match the declared PDF/JPG/PNG format: ${file.name}`);
+    }
+    files.push({ requirement: req, file });
+  }
+
+  const uploadedPaths: string[] = [];
+  try {
+    for (const { requirement: req, file } of files) {
+    const timestamp = crypto.randomUUID();
+    const ext = file.name.split(".").pop()!.toLowerCase();
+    const filePath = `${user.id}/req_${timestamp}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("document-requirements")
@@ -82,13 +116,14 @@ export async function submitDocumentRequest(formData: FormData) {
       throw new Error(`Failed to upload ${req}: ${uploadError.message}`);
     }
 
-    attachments.push({
+    uploadedPaths.push(filePath);
+      attachments.push({
       requirement: req,
       storage_path: `document-requirements/${filePath}`,
       mime_type: file.type,
       size: file.size,
-    });
-  }
+      });
+    }
 
   // 4. Insert document request using resident.id (residents table UUID, not auth UID)
   const { error: reqError } = await supabase
@@ -104,6 +139,16 @@ export async function submitDocumentRequest(formData: FormData) {
 
   if (reqError) {
     throw new Error(`Database error: ${reqError.message}`);
+  }
+
+  } catch (error) {
+    if (uploadedPaths.length) {
+      const { error: cleanupError } = await supabase.storage
+        .from("document-requirements")
+        .remove(uploadedPaths);
+      if (cleanupError) console.error("Document upload rollback failed", cleanupError.message);
+    }
+    throw error;
   }
 
   revalidatePath("/requests");

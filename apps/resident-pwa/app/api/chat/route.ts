@@ -15,37 +15,31 @@ async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ ti
     .from('barangay_policies')
     .select('title, content')
     .eq('status', 'Published')
-    .limit(3);
+    .limit(100);
 
   if (!data || !data.length) return [];
 
   // Filter to policies whose title or content contains any query keyword
   return data.filter((p: any) =>
-    keywords.some(
-      (kw: string) =>
-        p.title.toLowerCase().includes(kw) ||
-        p.content.toLowerCase().includes(kw)
+    keywords.some((kw: string) =>
+      p.title.toLowerCase().includes(kw) || p.content.toLowerCase().includes(kw)
     )
-  );
+  ).slice(0, 3);
 }
 
-// Simple in-memory rate limiter: { key → { count, resetAt } }
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_AUTH = 30;   // requests per minute for logged-in users
-const RATE_LIMIT_GUEST = 10;  // requests per minute for guests
-const WINDOW_MS = 60_000;
-
-function checkRateLimit(key: string, limit: number): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return true; // allowed
+// Fail closed for distributed deployments unless a shared limiter is configured.
+// No per-instance Map: serverless instances cannot enforce a global quota.
+async function checkRateLimit(supabase: any, userId: string | null): Promise<boolean> {
+  if (!userId) return false; // Anonymous requests have no reliable shared identity quota.
+  const { data, error } = await supabase.rpc("consume_chat_rate_limit", {
+    p_limit: 30,
+    p_window_seconds: 60,
+  });
+  if (error) {
+    console.error("Chat rate limiter unavailable:", error.message);
+    return false;
   }
-  if (entry.count >= limit) return false; // blocked
-  entry.count += 1;
-  return true;
+  return data === true;
 }
 
 async function writeFallbackAudit(supabase: any, input: {
@@ -94,13 +88,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Provide a message of 1–4000 characters and a supported language." }, { status: 400 });
   }
 
+  // A reliable anonymous quota requires trusted edge identity and a shared store.
+  // Until that is configured, block anonymous AI calls instead of bypassing quotas.
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to use the AI assistant." }, { status: 401 });
+  }
+
   // Rate limiting
   // Forwarded IP headers are client-controllable unless normalized by trusted infrastructure.
   // Do not treat them as authenticated identities for quota decisions.
-  const rateLimitKey = user?.id ? `user:${user.id}` : "guest:anonymous";
-  const limit = user ? RATE_LIMIT_AUTH : RATE_LIMIT_GUEST;
-
-  if (!checkRateLimit(rateLimitKey, limit)) {
+  if (!(await checkRateLimit(supabase, user?.id ?? null))) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment before trying again." },
       { status: 429 }
@@ -128,7 +125,7 @@ export async function POST(request: NextRequest) {
       formTitle: match?.formTitle,
       estimatedFee: match?.estimatedFee,
       guestActionTrigger: match?.guestActionTrigger,
-      auditRecorded: agentResponse.audit_recorded ?? true,
+      auditRecorded: agentResponse.audit_recorded === true,
     });
   }
 
@@ -157,7 +154,7 @@ export async function POST(request: NextRequest) {
         formTitle: match?.formTitle,
         estimatedFee: match?.estimatedFee,
         guestActionTrigger: match?.guestActionTrigger,
-        auditRecorded: data.audit_recorded ?? true,
+        auditRecorded: data.audit_recorded === true,
       });
     }
   } catch (err) {
@@ -192,8 +189,10 @@ export async function POST(request: NextRequest) {
     const policyContext = dbPolicies.map(p => `**${p.title}**:\n${p.content}`).join('\n\n');
     const answer = `Based on Barangay Records:\n\n${policyContext}`;
     const citations = dbPolicies.map(p => p.title);
-    await writeFallbackAudit(supabase, { userId: user?.id, sessionId, query: message, answer, citations });
-    return NextResponse.json({ answer, citations, context_used: true, auditRecorded: true });
+    const auditRecorded = await writeFallbackAudit(supabase, {
+      userId: user?.id, sessionId, query: message, answer, citations,
+    });
+    return NextResponse.json({ answer, citations, context_used: true, auditRecorded });
   }
 
   const localFallbackGreetings: Record<string, string> = {
