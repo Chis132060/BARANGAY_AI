@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,10 @@ function getApiBaseUrl(): URL | null {
 
 export async function POST(req: Request) {
   try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!user || !session?.access_token) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     let payload: unknown;
     try {
       payload = await req.json();
@@ -71,7 +76,7 @@ export async function POST(req: Request) {
     );
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ text, language: language || "tgl" }),
       signal: AbortSignal.timeout(55000),
       cache: "no-store",
