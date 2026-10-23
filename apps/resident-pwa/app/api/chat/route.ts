@@ -192,8 +192,10 @@ export async function POST(request: NextRequest) {
     const policyContext = dbPolicies.map(p => `**${p.title}**:\n${p.content}`).join('\n\n');
     const answer = `Based on Barangay Records:\n\n${policyContext}`;
     const citations = dbPolicies.map(p => p.title);
-    await writeFallbackAudit(supabase, { userId: user?.id, sessionId, query: message, answer, citations });
-    return NextResponse.json({ answer, citations, context_used: true, auditRecorded: true });
+    const auditRecorded = await writeFallbackAudit(supabase, {
+      userId: user?.id, sessionId, query: message, answer, citations,
+    });
+    return NextResponse.json({ answer, citations, context_used: true, auditRecorded });
   }
 
   const localFallbackGreetings: Record<string, string> = {
