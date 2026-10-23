@@ -50,6 +50,7 @@ export async function submitDocumentRequest(formData: FormData) {
     if (!Array.isArray(parsed) || parsed.length > 20 || !parsed.every((req) => typeof req === "string" && req.length > 0 && req.length <= 120)) {
       throw new Error("Invalid requirements data");
     }
+    if (new Set(parsed).size !== parsed.length) throw new Error("Duplicate attachment requirements");
     requirements = parsed;
   } catch {
     throw new Error("Invalid requirements data");
@@ -61,12 +62,12 @@ export async function submitDocumentRequest(formData: FormData) {
   const files: Array<{ requirement: string; file: File }> = [];
   for (const req of requirements) {
     const file = formData.get(`file_${req}`) as File | null;
-    if (!file) {
+    if (!(file instanceof File)) {
       throw new Error(`Missing required attachment: ${req}`);
     }
 
     if (file.size === 0 || file.size > MAX_FILE_SIZE) {
-      throw new Error(`File ${file.name} exceeds 5MB limit`);
+      throw new Error(`File ${file.name} must be non-empty and at most 5MB`);
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
@@ -92,9 +93,10 @@ export async function submitDocumentRequest(formData: FormData) {
 
   const uploadedPaths: string[] = [];
   try {
-  for (const { requirement: req, file } of files) {
+    for (const { requirement: req, file } of files) {
     const timestamp = crypto.randomUUID();
-    const filePath = `${user.id}/req_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const ext = file.name.split(".").pop()!.toLowerCase();
+    const filePath = `${user.id}/req_${timestamp}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("document-requirements")
@@ -108,13 +110,13 @@ export async function submitDocumentRequest(formData: FormData) {
     }
 
     uploadedPaths.push(filePath);
-    attachments.push({
+      attachments.push({
       requirement: req,
       storage_path: `document-requirements/${filePath}`,
       mime_type: file.type,
       size: file.size,
-    });
-  }
+      });
+    }
 
   // 4. Insert document request using resident.id (residents table UUID, not auth UID)
   const { error: reqError } = await supabase
