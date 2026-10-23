@@ -3,7 +3,7 @@
 from typing import Any, Optional
 
 import httpx
-from fastapi import HTTPException
+from fastapi import HTTPException, Header
 
 from core.config import settings
 
@@ -63,3 +63,8 @@ def require_document_manager(user_id: str) -> None:
 
     if role_name not in {"Super Admin", "Barangay Captain", "Secretary", "Staff"}:
         raise HTTPException(status_code=403, detail="Document management permission required")
+
+
+async def require_voice_access(authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
+    """Require a verified Supabase bearer token before invoking billable speech providers."""
+    return await require_user(authorization)
