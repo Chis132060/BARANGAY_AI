@@ -5,12 +5,13 @@ import re
 import wave
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from core.config import settings
+from core.auth import require_voice_access
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_voice_access)])
 logger = logging.getLogger(__name__)
 
 
