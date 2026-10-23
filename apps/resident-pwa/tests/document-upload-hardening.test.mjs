@@ -18,3 +18,9 @@ test("document submission removes successful uploads when a later operation fail
 test("document submission assigns unpredictable object names", () => {
   assert.match(source, /crypto\.randomUUID\(\)/);
 });
+
+test("rejects duplicate attachment keys and excludes user filenames from stored paths", () => {
+  assert.match(source, /new Set\(parsed\)\.size !== parsed\.length/);
+  assert.match(source, /req_\$\{timestamp\}\.\$\{ext\}/);
+  assert.doesNotMatch(source, /req_\$\{timestamp\}_\$\{file\.name/);
+});
