@@ -30,7 +30,7 @@ async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ ti
 // Fail closed for distributed deployments unless a shared limiter is configured.
 // No per-instance Map: serverless instances cannot enforce a global quota.
 async function checkRateLimit(supabase: any, userId: string | null): Promise<boolean> {
-  if (!userId) return true; // Guest messages are limited to public knowledge without user-specific tools.
+  if (!userId) return false; // Anonymous requests have no reliable shared identity quota.
   const { data, error } = await supabase.rpc("consume_chat_rate_limit", {
     p_limit: 30,
     p_window_seconds: 60,
@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
 
   if (typeof message !== "string" || !message.trim() || message.length > 4000 || !["tgl", "ceb", "en"].includes(language)) {
     return NextResponse.json({ error: "Provide a message of 1–4000 characters and a supported language." }, { status: 400 });
+  }
+
+  // A reliable anonymous quota requires trusted edge identity and a shared store.
+  // Until that is configured, block anonymous AI calls instead of bypassing quotas.
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to use the AI assistant." }, { status: 401 });
   }
 
   // Rate limiting
