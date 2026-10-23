@@ -19,7 +19,8 @@ test("unverified applicants may open private support without unlocking the full 
 
 test("billable speech endpoints enforce verified Supabase bearer token", () => {
   assert.match(backendAuth, /async def require_voice_access/);
-  assert.match(backendAuth, /return await require_user\(authorization\)/);
+  assert.match(backendAuth, /user = await require_user\(authorization\)/);
+  assert.match(backendAuth, /VOICE_QUOTA_PER_MINUTE/);
   for (const file of [voiceRouter, ttsRouter]) {
     assert.match(file, /APIRouter\(dependencies=\[Depends\(require_voice_access\)\]\)/);
   }
