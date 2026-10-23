@@ -1,6 +1,6 @@
 # Consolidated release work and acceptance gates — 2026-10-24
 
-This branch is one **draft PR** for the barangay system audit. It does not claim complete production readiness.
+This branch is a single consolidated PR for the barangay system audit. Regardless of GitHub's draft flag, it does not claim complete production readiness.
 
 ## Implemented in this PR
 - [x] Pre-upload file validation: nonempty files, declared MIME/extension alignment and PDF/PNG/JPEG magic signatures.
@@ -21,7 +21,7 @@ This branch is one **draft PR** for the barangay system audit. It does not claim
 - [ ] Restore-test backups and run payment, document, verification and program E2E tests.
 - [ ] Confirm Vercel and Railway environment and deployment health in staging.
 - [ ] Require MFA and leak-password protection for privileged administrators.
-- [ ] Implement durable distributed API rate limiting.
+- [x] Implement database-backed per-user AI rate-limiting code and SQL migration (deployment still blocked until staging tests and migration application).
 
 ## Barangay-domain expansion backlog
 - [ ] Lupon/Katarungang Pambarangay case registry with confidential access and human jurisdiction review.
@@ -95,3 +95,6 @@ Read-only SQL verified:
 **Deploy blocker:** PR's chat API calls a currently absent RPC. Deploying the PR without safely migrating the target environment would cause authenticated AI chat to return 429/fail closed. Do NOT deploy before verified staging migration and integration test. The migration has not been run on the live project.
 
 **Migration test prerequisites:** obtain approved non-production environment with safe synthetic resident identities, test migration ordering, rate-limiter concurrent RPCs, Storage DELETE owner isolation, then record evidence. Do not use actual resident records to simulate missing addresses.
+
+## Development scope clarification
+The governance backlog is not a claim of implemented modules. Production designs require approval of official barangay forms, retention periods, roles, fee ordinances and Citizen's Charter. Running CI does not prove statutory compliance. Do not merge without domain and security acceptance.
