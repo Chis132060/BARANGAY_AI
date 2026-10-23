@@ -65,3 +65,13 @@ No production database grant changes were made. Check dependent RPC callers and 
 
 ## Security acceptance constraints
 Do not mark PR fully done until grant changes are simulated against authenticated/unauthenticated roles, backup restoration is proven, all three Vercel builds and Railway services are healthy, and domain-specific barangay modules have staff-approved acceptance tests.
+
+## Shared AI rate limiting (2026-10-24)
+- [x] Added atomic per-account Supabase quota RPC with caller identity derived only from `auth.uid()`.
+- [x] API blocks anonymous chat until a trustworthy distributed guest-identity quota is provisioned. This is a **functional restriction**, not feature parity: stakeholder review required.
+- [x] API fails closed when the quota RPC is unavailable.
+- [ ] Apply and test the new migration in staging **before** deploying this branch; otherwise authenticated chat will be rate-limited unavailable.
+- [ ] Run concurrency tests (30 accepted requests per 60s, 31st rejected), distinct user tests, expired-window tests and role grants.
+- [ ] Decide whether to re-enable guest AI chat using a trusted edge-generated identifier and shared limiter.
+
+**Deployment dependency:** `20261024000002_chat_quota.sql` must be applied to the target environment before the new AI API route is deployed. No live DB migration was applied in this PR.
