@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB per request
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 async function validateFileSignature(file: File): Promise<boolean> {
@@ -60,6 +61,7 @@ export async function submitDocumentRequest(formData: FormData) {
 
   // 3. Validate all files before any upload; roll back uploaded objects on later failure.
   const files: Array<{ requirement: string; file: File }> = [];
+  let totalUploadSize = 0;
   for (const req of requirements) {
     const file = formData.get(`file_${req}`) as File | null;
     if (!(file instanceof File)) {
@@ -68,6 +70,11 @@ export async function submitDocumentRequest(formData: FormData) {
 
     if (file.size === 0 || file.size > MAX_FILE_SIZE) {
       throw new Error(`File ${file.name} must be non-empty and at most 5MB`);
+    }
+
+    totalUploadSize += file.size;
+    if (totalUploadSize > MAX_TOTAL_UPLOAD_SIZE) {
+      throw new Error("Combined attachments exceed the 20MB request limit");
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
