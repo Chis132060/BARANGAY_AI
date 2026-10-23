@@ -8,9 +8,12 @@ This branch is one **draft PR** for the barangay system audit. It does not claim
 - [x] Unique unpredictable uploaded object identifiers.
 - [x] Regression source checks for these protections.
 - [x] Correct AI database-policy fallback auditRecorded reporting (reflects actual insert result).
+- [x] Stop asserting audit success when upstream AI/backend omits audit status.
+- [x] Improve published-policy candidate scanning (up to 100, return max 3 matches).
+- [x] Add owner-scoped Storage DELETE migration for failed-upload cleanup (NOT APPLIED).
 
 ## Unresolved release blockers (do not deploy)
-- [ ] Verify Storage DELETE permission for owner and test rollback with two files and a deliberately failing DB insert.
+- [ ] Apply Storage DELETE policy migration in staging; test owner/other-user/anonymous DELETE behavior and rollback with two files and failing DB insert.
 - [ ] RLS allow/deny tests across anonymous, resident, staff, and privileged users.
 - [ ] Review eight anon-callable SECURITY DEFINER functions with caller inventory before altering grants.
 - [ ] Reconcile live Supabase migration history with both repository migration roots.
