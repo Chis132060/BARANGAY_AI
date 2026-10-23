@@ -39,3 +39,13 @@ test("FastAPI CORS does not grant credentialed wildcard origins", () => {
   assert.match(backend, /allow_credentials=False/);
   assert.doesNotMatch(backend, /allow_origins=\["\*"\]/);
 });
+
+const rpcGrants = read("../../../supabase/migrations/20261024000001_privileged_rpc_grants.sql");
+test("privileged RPC grants explicitly restrict anonymous callers", () => {
+  for (const name of ["apply_to_barangay_program","review_barangay_program_application","has_module_permission","is_barangay_staff"]) {
+    assert.match(rpcGrants, new RegExp("revoke execute on function public\\." + name + "\\("));
+  }
+  for (const name of ["log_program_attendance","log_program_changes","notify_document_request_change","sync_request_transaction"]) {
+    assert.match(rpcGrants, new RegExp("revoke execute on function public\\." + name + "\\("));
+  }
+});
