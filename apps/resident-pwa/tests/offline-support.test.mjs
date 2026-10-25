@@ -32,3 +32,9 @@ test("privacy concerns bypass unencrypted offline outbox",()=>{
  assert.match(support,/Privacy concerns require an online connection/);
  assert.ok(support.indexOf('if (category === "Privacy")') < support.indexOf('const item:OfflineTicket'));
 });
+
+test("offline support queue bounds storage and transient retries",()=>{
+ assert.match(outbox,/pending\.length >= 20/);
+ assert.match(outbox,/nextRetryAt > Date\.now\(\)/);
+ assert.match(outbox,/Math\.min\(15 \* 60_000/);
+});
