@@ -30,3 +30,10 @@ test("payment references cannot be reported as submitted while offline",()=>{
  assert.match(requests,/Payment references cannot be submitted offline/);
  assert.match(requests,/if \(!navigator\.onLine\)/);
 });
+
+test("offline fallback provides public cached content without pretending to submit",()=>{
+ const fallback=read("../app/~offline/page.tsx");
+ assert.match(fallback,/loadPublicSnapshot<PublicNotice\[\]>/);
+ assert.match(fallback,/NOT yet submitted to the barangay/);
+ assert.match(fallback,/listTickets\(session.user.id\)/);
+});
