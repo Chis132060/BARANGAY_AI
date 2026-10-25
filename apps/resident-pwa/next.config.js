@@ -19,6 +19,13 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   // Next.js build assets are content-hashed, so cache-first is safe for them.
   runtimeCaching: [
     {
+      // Authenticated HTML must not enter Cache Storage.
+      // The PWA fallback handles offline document navigation.
+      urlPattern: ({ request, url }) =>
+        url.origin === self.location.origin && request.mode === "navigate",
+      handler: "NetworkOnly",
+    },
+    {
       urlPattern: ({ url, request }) =>
         url.origin === self.location.origin &&
         url.pathname.startsWith("/_next/static/") &&
