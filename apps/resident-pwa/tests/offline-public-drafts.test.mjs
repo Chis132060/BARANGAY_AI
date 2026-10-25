@@ -18,3 +18,9 @@ test("document drafts are owner-scoped and cannot masquerade as submitted",()=>{
  assert.match(screen,/NOT submitted to the barangay/);
  assert.match(screen,/Attachments are not stored/);
 });
+
+test("offline AI does not fabricate current official responses",()=>{
+ const chat=read("../components/chat/ChatInterface.tsx");
+ assert.match(chat,/if \(!navigator\.onLine\)/);
+ assert.match(chat,/the online Barangay AI and current official records are unavailable/);
+});
