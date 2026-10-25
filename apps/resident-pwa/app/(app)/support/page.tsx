@@ -57,6 +57,18 @@ export default function ResidentSupportPage() {
    const {data:{session}}=await supabase.auth.getSession();
    const userId=session?.user?.id;
    if(!userId)throw new Error("Sign in before saving a ticket.");
+   if (category === "Privacy") {
+     if (!navigator.onLine) throw new Error("Privacy concerns require an online connection. They are not saved to unencrypted offline storage.");
+     const {data:{user},error:authError} = await supabase.auth.getUser();
+     if (authError || user?.id !== userId) throw new Error("Sign in again to submit your privacy concern.");
+     const {error:insertError}=await supabase.from("support_tickets").insert({
+       resident_user_id:userId, category, subject:subject.trim(), description:description.trim(),
+     });
+     if(insertError)throw new Error("Privacy ticket could not be submitted. Please try again online.");
+     setSubject("");setDescription("");
+     await refresh();
+     return;
+   }
    const item:OfflineTicket={
      id:crypto.randomUUID(), userId, category, subject:subject.trim(),
      description:description.trim(), createdAt:new Date().toISOString(),
