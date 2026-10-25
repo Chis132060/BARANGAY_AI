@@ -36,7 +36,7 @@ export default function ResidentSupportPage() {
    const onVisible=()=>{if(document.visibilityState==="visible" && navigator.onLine)void synchronize();};
    document.addEventListener("visibilitychange",onVisible);
    if(navigator.onLine)void synchronize();
-   return ()=>{window.removeEventListener("online",onOnline);document.removeEventListener("visibilitychange",onVisible);};
+   return ()=>{window.removeEventListener("online",onOnline);window.removeEventListener("barangay-outbox-synced",onSynced);document.removeEventListener("visibilitychange",onVisible);};
  },[]);
  async function synchronize(){
    if(!navigator.onLine) return;
