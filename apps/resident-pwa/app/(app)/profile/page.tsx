@@ -106,17 +106,18 @@ export default function ProfilePage() {
   }, []);
 
   async function handleSignOut() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const ownerId = session?.user?.id;
+    if (ownerId) {
       try {
-        const pending = await listTickets(user.id);
-        const documentDrafts = await loadDocumentDrafts(user.id);
+        const pending = await listTickets(ownerId);
+        const documentDrafts = await loadDocumentDrafts(ownerId);
         if ((pending.length || documentDrafts.length) && !window.confirm(
           "There are " + pending.length + " unsent support tickets and " + documentDrafts.length + " document drafts on this device. Signing out will delete them. Continue?"
         )) return;
-        await clearTickets(user.id);
-        await clearDocumentDrafts(user.id);
-        await clearReads(user.id);
+        await clearTickets(ownerId);
+        await clearDocumentDrafts(ownerId);
+        await clearReads(ownerId);
       } catch {
         setFeedback("Cannot verify or clear offline drafts. Sign-out paused to protect locally saved information.");
         return;
