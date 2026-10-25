@@ -51,3 +51,11 @@ Previous resident unit-test failures included an outdated test asserting the tic
 - No offline private notification history, payment capture, or appointment booking is enabled, to avoid false confirmed states.
 - Next.js routing/browser cache behavior and iOS PWA lifecycle remain unverified in real devices.
 - Automated tests include source contract checks, not authenticated real-device integration tests.
+
+## Additional verified code scope
+- [x] Shared foreground sync runner in authenticated app shell on app-open, reconnect and visibility restoration. Global event refreshes support history.
+- [x] Separate account-scoped IndexedDB outbox for notification read acknowledgements; server action is idempotent `read_status=true` scoped by authenticated `user_id`.
+- [x] Clear support queue, document drafts and notification acknowledgements at logout, with confirmation for unsent documents and tickets.
+- [ ] Do NOT merge until CI is green on the latest commit and end-to-end multi-account tests are done.
+- [ ] Background sync when app is closed is not guaranteed; mobile foreground retry is the supported fallback.
+- [ ] Data-at-rest encryption, quota/expiry policy, browser compatibility and crash recovery need privacy approval and tests.
