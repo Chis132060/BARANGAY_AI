@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
+import { ConnectionBanner } from "@/components/offline/ConnectionBanner";
+import { OfflineSyncRunner } from "@/components/offline/OfflineSyncRunner";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,9 +18,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then((result: { data: { user: unknown } | null }) => {
-      setIsLoggedIn(!!result?.data?.user);
+    let active = true;
+    // getSession reads cached auth context so the offline app shell stays available.
+    void supabase.auth.getSession().then(({data:{session}}: {data:{session:{user:{id:string}}|null}})=>{
+      if(active)setIsLoggedIn(!!session?.user);
     });
+    if(navigator.onLine){
+      void supabase.auth.getUser().then(({data:{user}}: {data:{user:{id:string}|null}})=>{
+        if(active)setIsLoggedIn(!!user);
+      }).catch(()=>{});
+    }
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event:string,session:{user:{id:string}}|null)=>{
+      if(active)setIsLoggedIn(!!session?.user);
+    });
+    return ()=>{active=false;subscription.unsubscribe();};
   }, []);
 
   if (isLoggedIn === null) {
@@ -32,6 +45,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex flex-col h-full max-w-md mx-auto bg-white shadow-xl min-h-screen">
       <TopBar />
+      <ConnectionBanner />
+      <OfflineSyncRunner />
       <main
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: "var(--bottom-nav-height)" }}

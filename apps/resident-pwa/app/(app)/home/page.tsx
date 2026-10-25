@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2, FileText, Building2, Bot } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
 
 const quickActions = [
   { href: "/requests/new", label: "Barangay Clearance", icon: FileText },
@@ -41,6 +42,11 @@ export default function HomePage() {
 
         if (annData && annData.length > 0) {
           setLatestAnnouncement(annData[0]);
+        } else {
+          try {
+            const cached = await loadPublicSnapshot<Array<{id:string;title:string;description:string;category:string;created_at:string}>>("announcements");
+            if (cached?.data.length) setLatestAnnouncement(cached.data[0]);
+          } catch { /* browser storage may be unavailable */ }
         }
 
         // 3. Fetch active document request if any
@@ -125,7 +131,7 @@ export default function HomePage() {
                 {latestAnnouncement.category || "General"}
               </span>
               <span className="text-[10px] text-gray-400 font-mono">
-                {new Date(latestAnnouncement.published_date).toLocaleDateString()}
+                {new Date(latestAnnouncement.published_date || latestAnnouncement.created_at).toLocaleDateString()}
               </span>
             </div>
             <h3 className="text-sm font-bold text-gray-900 leading-snug">{latestAnnouncement.title}</h3>

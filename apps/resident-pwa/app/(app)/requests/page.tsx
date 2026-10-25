@@ -108,6 +108,10 @@ export default function RequestsPage() {
 
   const handlePaymentSubmit = async () => {
     if (!payingRequest || !referenceInput) return;
+    if (!navigator.onLine) {
+      setPaymentError("Payment references cannot be submitted offline. Reconnect and confirm the status before retrying.");
+      return;
+    }
     setSubmittingPayment(true);
     setPaymentError(null);
     try {

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { queueTicket, listTickets, syncTickets, type OfflineTicket } from "@/lib/offline/support-outbox";
 type Ticket={id:string;category:string;subject:string;description:string;status:string;staff_reply:string|null;created_at:string};
 const categories=["Account","Documents","Technical","Privacy","Other"] as const;
 export default function ResidentSupportPage() {
@@ -12,31 +13,76 @@ export default function ResidentSupportPage() {
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
+ const [offlineItems,setOfflineItems]=useState<OfflineTicket[]>([]);
+ const [syncing,setSyncing]=useState(false);
  const [supabase] = useState(() => createClient());
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const category=params.get("category");if(category==="Privacy")setCategory("Privacy");const requestedSubject=params.get("subject");if(requestedSubject)setSubject(requestedSubject.slice(0,160));},[]);
  async function refresh(){
-  const {data:{user}}=await supabase.auth.getUser();
-  if(!user){setError("Sign in to submit a ticket.");setLoading(false);return;}
+  const offline=!navigator.onLine;
+  const {data:{session}}=await supabase.auth.getSession();
+  const userId=offline?session?.user?.id:(await supabase.auth.getUser()).data.user?.id;
+  if(!userId){setError("Sign in to view support tickets.");setLoading(false);return;}
+  try { setOfflineItems(await listTickets(userId)); } catch { setError("Local offline storage is unavailable."); }
+  if(offline){setLoading(false);return;}
   const {data,error:loadError}=await supabase.from("support_tickets")
    .select("id,category,subject,description,status,staff_reply,created_at")
-   .eq("resident_user_id",user.id).order("created_at",{ascending:false}).limit(50);
+   .eq("resident_user_id",userId).order("created_at",{ascending:false}).limit(50);
   if(loadError)setError("Could not load ticket history.");
   else setTickets((data||[]) as Ticket[]);
   setLoading(false);
  }
- useEffect(()=>{void refresh();},[]);
+ useEffect(()=>{
+   void refresh();
+   const onOnline=()=>{void synchronize();};
+   window.addEventListener("online",onOnline);
+   const onSynced=()=>{void refresh();};
+   window.addEventListener("barangay-outbox-synced",onSynced);
+   const onVisible=()=>{if(document.visibilityState==="visible" && navigator.onLine)void synchronize();};
+   document.addEventListener("visibilitychange",onVisible);
+   if(navigator.onLine)void synchronize();
+   return ()=>{window.removeEventListener("online",onOnline);window.removeEventListener("barangay-outbox-synced",onSynced);document.removeEventListener("visibilitychange",onVisible);};
+ },[]);
+ async function synchronize(){
+   if(!navigator.onLine) return;
+   setSyncing(true);
+   try {
+     const {data:{user}}=await supabase.auth.getUser();
+     if(!user) return;
+     const result=await syncTickets(supabase,user.id);
+     if(result.sent || result.failed) await refresh();
+   }catch { setError("Queued tickets could not be synchronized yet."); }
+   finally {setSyncing(false);}
+ }
  async function submit(event:React.FormEvent){
   event.preventDefault();
   if(subject.trim().length<5||description.trim().length<10){setError("Enter a subject and at least 10 characters of details.");return;}
   setBusy(true);setError("");
   try{
-   const {data:{user}}=await supabase.auth.getUser();
-   if(!user)throw new Error("Sign in first.");
-   const {error:insertError}=await supabase.from("support_tickets").insert({
-    resident_user_id:user.id,category,subject:subject.trim(),description:description.trim()
-   });
-   if(insertError)throw new Error("Could not submit ticket. Try again or contact the barangay office.");
-   setSubject("");setDescription("");await refresh();
+   const {data:{session}}=await supabase.auth.getSession();
+   const userId=session?.user?.id;
+   if(!userId)throw new Error("Sign in before saving a ticket.");
+   if (category === "Privacy") {
+     if (!navigator.onLine) throw new Error("Privacy concerns require an online connection. They are not saved to unencrypted offline storage.");
+     const {data:{user},error:authError} = await supabase.auth.getUser();
+     if (authError || user?.id !== userId) throw new Error("Sign in again to submit your privacy concern.");
+     const {error:insertError}=await supabase.from("support_tickets").insert({
+       resident_user_id:userId, category, subject:subject.trim(), description:description.trim(),
+     });
+     if(insertError)throw new Error("Privacy ticket could not be submitted. Please try again online.");
+     setSubject("");setDescription("");
+     await refresh();
+     return;
+   }
+   const item:OfflineTicket={
+     id:crypto.randomUUID(), userId, category, subject:subject.trim(),
+     description:description.trim(), createdAt:new Date().toISOString(),
+     state:"queued", attempts:0,
+   };
+   await queueTicket(item);
+   setSubject("");setDescription("");
+   setOfflineItems(await listTickets(userId));
+   setError("Saved on this device — not yet received by the barangay.");
+   if(navigator.onLine)void synchronize();
   }catch(err){setError(err instanceof Error?err.message:"Ticket submission failed.");}
   finally{setBusy(false);}
  }
@@ -67,6 +113,15 @@ export default function ResidentSupportPage() {
    </label>
    <button disabled={busy} className="rounded-lg bg-blue-600 text-white font-semibold text-sm p-3 w-full disabled:opacity-60">{busy?"Submitting...":"Submit ticket"}</button>
   </form>
+  <section className="rounded-xl border bg-amber-50 p-3 space-y-2">
+   <div className="flex items-center justify-between gap-3">
+    <strong className="text-sm">Pending on this device: {offlineItems.length}</strong>
+    <button type="button" onClick={()=>void synchronize()} disabled={syncing || !offlineItems.length || !navigator.onLine}
+      className="rounded-lg bg-blue-700 text-white text-xs p-2 disabled:opacity-50">{syncing?"Syncing...":"Sync now"}</button>
+   </div>
+   <p className="text-xs text-amber-800">Offline tickets are drafts awaiting server confirmation. Keep this app's data until they sync.</p>
+   {offlineItems.map(item=><p key={item.id} className="text-xs">{item.subject} — {item.state==="needs_attention"?"Action required":"Waiting to sync"}</p>)}
+  </section>
   {error&&<p role="alert" className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 text-sm">{error}</p>}
   <section className="space-y-3"><h2 className="font-semibold">My tickets</h2>
    {loading&&<p className="text-sm">Loading...</p>}

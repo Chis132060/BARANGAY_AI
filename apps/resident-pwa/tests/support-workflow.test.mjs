@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read=path=>readFileSync(new URL(path,import.meta.url),"utf8");
 const admin=read("../../admin-portal/app/(dashboard)/communication/support-tickets/actions.ts");
 const resident=read("../app/(app)/support/page.tsx");
+const outbox=read("../lib/offline/support-outbox.ts");
 const api=read("../app/api/notifications/subscribe/route.ts");
 const migration=read("../../../supabase/migrations/20261023000001_support_tickets.sql");
 
@@ -21,8 +22,9 @@ test("ticket schema restricts resident data by auth uid",()=>{
  assert.doesNotMatch(migration,/support_tickets_resident_update/);
 });
 test("resident ticket submission uses identity from Supabase Auth",()=>{
- assert.match(resident,/supabase.auth.getUser\(\)/);
- assert.match(resident,/resident_user_id:user.id/);
+ assert.match(outbox,/supabase.auth.getUser\(\)/);
+ assert.match(outbox,/user\?\.id !== userId/);
+ assert.match(outbox,/resident_user_id: userId/);
  assert.match(resident,/staff_reply/);
 });
 test("push subscription endpoint requires auth and owns endpoints",()=>{

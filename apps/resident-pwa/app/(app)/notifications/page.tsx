@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { queueRead, syncReads } from "@/lib/offline/notification-outbox";
 
 type Notice={id:string;title:string;message:string;created_at:string;read_status:boolean};
 export default function NotificationsPage(){
@@ -32,10 +33,14 @@ export default function NotificationsPage(){
    setBusy(true);setError("");
    const {data:{user}}=await supabase.auth.getUser();
    if(!user){setError("Sign in first.");setBusy(false);return;}
-   const {error:updateError}=await supabase.from("notifications").update({read_status:true})
-    .eq("user_id",user.id).in("id",ids);
-   if(updateError)setError("Could not update notifications.");
-   else setNotices(prev=>prev.map(n=>ids.includes(n.id)?{...n,read_status:true}:n));
+   try {
+     await queueRead(user.id,ids);
+     setNotices(prev=>prev.map(n=>ids.includes(n.id)?{...n,read_status:true}:n));
+     if(navigator.onLine) {
+       const sent=await syncReads(supabase,user.id);
+       if(sent<ids.length)setError("Some read acknowledgements are queued on this device until sync succeeds.");
+     } else setError("Marked read on this device. The barangay server will update when you reconnect.");
+   } catch {setError("Could not save your read acknowledgements on this device.");}
    setBusy(false);
  }
  const unread=notices.filter(n=>!n.read_status);
