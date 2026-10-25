@@ -35,3 +35,19 @@
 
 ## CI diagnostics
 Previous resident unit-test failures included an outdated test asserting the ticket page inserted directly via Supabase Auth. The implementation now sends tickets from an authenticated outbox, so the test was updated to inspect the outbox identity/owner checks. CI still needs a fresh green run.
+
+## Further committed components
+- [x] Persist and expire public announcements, organizations, and program catalogs in IndexedDB. Fetch errors can display clearly labeled cached public content.
+- [x] Offline AI sends no network request and returns an explicit non-live reference message; official advice must be refreshed online.
+- [x] Save, restore and remove user-scoped document request text drafts; attachments are deliberately **not** stored in browser offline databases.
+- [x] Confirm and delete private support/document drafts on sign-out.
+- [x] Detect offline state in the authenticated app layout.
+
+## Explicit limitations
+- **Offline support-ticket queuing requires the idempotency SQL migration BEFORE frontend deployment.**
+- The first online fetch is needed to populate public snapshots; expiry currently ranges from one hour for announcements/programs to 24 hours for document types.
+- Cached announcements and program listings are reference-only; program registration availability remains server authoritative.
+- No claim of automatic server submission for document requests: these remain local drafts and require user action plus new attachments after reconnection.
+- No offline private notification history, payment capture, or appointment booking is enabled, to avoid false confirmed states.
+- Next.js routing/browser cache behavior and iOS PWA lifecycle remain unverified in real devices.
+- Automated tests include source contract checks, not authenticated real-device integration tests.
