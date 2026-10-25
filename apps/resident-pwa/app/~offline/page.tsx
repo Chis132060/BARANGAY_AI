@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 type PublicNotice = { id:string; title:string; description:string };
 export default function OfflinePage() {
   const [notices,setNotices] = useState<PublicNotice[]>([]);
+  const [programs,setPrograms] = useState<Array<{id:string;name:string;description:string|null}>>([]);
+  const [organizations,setOrganizations] = useState<Array<{id:string;name:string;description:string|null}>>([]);
   const [draftCount,setDraftCount] = useState<number | null>(null);
   const [ticketCount,setTicketCount] = useState<number | null>(null);
   const [lastUpdated,setLastUpdated] = useState<number | null>(null);
@@ -16,6 +18,12 @@ export default function OfflinePage() {
     void (async () => {
       try {
         const snapshot = await loadPublicSnapshot<PublicNotice[]>("announcements");
+        const [programSnapshot, organizationSnapshot] = await Promise.all([
+          loadPublicSnapshot<Array<{id:string;name:string;description:string|null}>>("barangay-programs"),
+          loadPublicSnapshot<Array<{id:string;name:string;description:string|null}>>("barangay-organizations"),
+        ]);
+        if (mounted && programSnapshot) setPrograms(programSnapshot.data.slice(0,5));
+        if (mounted && organizationSnapshot) setOrganizations(organizationSnapshot.data.slice(0,5));
         if (mounted && snapshot) {
           setNotices(snapshot.data.slice(0,5));
           setLastUpdated(snapshot.cachedAt);
@@ -50,6 +58,8 @@ export default function OfflinePage() {
           <p className="text-xs text-slate-600 mt-1">{n.description}</p>
         </article>) : <p className="text-xs text-slate-500">No saved announcements. Open announcements while connected to download them.</p>}
       </section>
+      {programs.length > 0 && <section className="space-y-2"><h2 className="text-sm font-bold">Saved barangay programs</h2>{programs.map(p=><article key={p.id} className="rounded-lg border p-3"><h3 className="text-sm font-semibold">{p.name}</h3>{p.description&&<p className="mt-1 text-xs text-slate-600">{p.description}</p>}</article>)}</section>}
+      {organizations.length > 0 && <section className="space-y-2"><h2 className="text-sm font-bold">Saved barangay organizations</h2>{organizations.map(o=><article key={o.id} className="rounded-lg border p-3"><h3 className="text-sm font-semibold">{o.name}</h3>{o.description&&<p className="mt-1 text-xs text-slate-600">{o.description}</p>}</article>)}</section>}
       <button type="button" onClick={()=>window.location.reload()}
         className="min-h-12 w-full rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white">Retry connection</button>
     </section>
