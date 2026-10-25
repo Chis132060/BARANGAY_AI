@@ -24,3 +24,9 @@ test("offline AI does not fabricate current official responses",()=>{
  assert.match(chat,/if \(!navigator\.onLine\)/);
  assert.match(chat,/the online Barangay AI and current official records are unavailable/);
 });
+
+test("payment references cannot be reported as submitted while offline",()=>{
+ const requests=read("../app/(app)/requests/page.tsx");
+ assert.match(requests,/Payment references cannot be submitted offline/);
+ assert.match(requests,/if \(!navigator\.onLine\)/);
+});
