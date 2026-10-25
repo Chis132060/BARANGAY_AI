@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { syncTickets } from "@/lib/offline/support-outbox";
+import { syncReads } from "@/lib/offline/notification-outbox";
 
 let active = false;
 async function trySync() {
@@ -12,7 +13,8 @@ async function trySync() {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (!error && user) {
       const result = await syncTickets(supabase, user.id);
-      if (result.sent || result.failed) window.dispatchEvent(new Event("barangay-outbox-synced"));
+      const readCount = await syncReads(supabase, user.id);
+      if (result.sent || result.failed || readCount) window.dispatchEvent(new Event("barangay-outbox-synced"));
     }
   } catch (error) {
     console.warn("Offline support queue will retry on reconnect", error);
