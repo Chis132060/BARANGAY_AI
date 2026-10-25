@@ -57,10 +57,19 @@ export async function syncTickets(supabase: any, userId: string): Promise<{ sent
   let sent = 0, failed = 0;
   for (const item of await listTickets(userId)) {
     if (item.state === "needs_attention" || (item.nextRetryAt && item.nextRetryAt > Date.now())) continue;
-    const { error: insertError } = await supabase.from("support_tickets").insert({
+    let insertError: {code?: string} | null = null;
+    try {
+    const result = await supabase.from("support_tickets").insert({
       resident_user_id: userId, category: item.category, subject: item.subject,
       description: item.description, client_operation_id: item.id,
     });
+    insertError = result.error;
+    } catch {
+      await queueTicket({ ...item, attempts: item.attempts + 1,
+        nextRetryAt: Date.now() + Math.min(15 * 60_000, 30_000 * 2 ** Math.min(item.attempts, 5)) });
+      failed++;
+      continue;
+    }
     let confirmed = !insertError;
     if (insertError?.code === "23505") {
       const { data: existing, error: lookupError } = await supabase.from("support_tickets")
