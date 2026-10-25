@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { syncTickets } from "@/lib/offline/support-outbox";
 import { syncReads } from "@/lib/offline/notification-outbox";
 import { syncProgramIntents } from "@/lib/offline/program-intents";
+import { syncQueuedDocuments } from "@/lib/offline/document-outbox";
 
 let active = false;
 async function trySync() {
@@ -16,7 +17,8 @@ async function trySync() {
       const result = await syncTickets(supabase, user.id);
       const readCount = await syncReads(supabase, user.id);
       const programResults = await syncProgramIntents(supabase, user.id);
-      if (result.sent || result.failed || readCount || programResults.sent || programResults.failed) window.dispatchEvent(new Event("barangay-outbox-synced"));
+      const documentResults = await syncQueuedDocuments(supabase, user.id);
+      if (result.sent || result.failed || readCount || programResults.sent || programResults.failed || documentResults.sent || documentResults.failed) window.dispatchEvent(new Event("barangay-outbox-synced"));
     }
   } catch (error) {
     console.warn("Offline support queue will retry on reconnect", error);
