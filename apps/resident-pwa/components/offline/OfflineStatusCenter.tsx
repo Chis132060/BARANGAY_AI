@@ -5,6 +5,7 @@ import { listTickets } from "@/lib/offline/support-outbox";
 import { listQueuedDocuments } from "@/lib/offline/document-outbox";
 import { listProgramIntents } from "@/lib/offline/program-intents";
 import { pendingReads } from "@/lib/offline/notification-outbox";
+import { checkOfflineStorage } from "@/lib/offline/storage-health";
 
 type Counts = { tickets: number; documents: number; programs: number; reads: number; attention: number };
 type SyncDetail = { state: "running" | "success" | "error"; sent?: number; failed?: number; time: number; message?: string };
@@ -23,6 +24,8 @@ export function OfflineStatusCenter() {
         if (!mounted) return;
         const id = session?.user?.id;
         if (!id) { setCounts(null); return; }
+        const health = await checkOfflineStorage();
+        if (!health.available) throw new Error("IndexedDB unavailable");
         const [tickets, documents, programs, reads] = await Promise.all([
           listTickets(id), listQueuedDocuments(id), listProgramIntents(id), pendingReads(id)
         ]);
@@ -32,7 +35,9 @@ export function OfflineStatusCenter() {
             reads: reads.length,
             attention: [...tickets, ...documents, ...programs].filter(item => item.state === "needs_attention").length
           });
-          setStorageError("");
+          setStorageError(health.quota && health.usage && health.usage / health.quota > 0.9
+            ? "Device storage is over 90% full. Export or synchronize pending changes before clearing browser data."
+            : "");
         }
       } catch {
         if (mounted) setStorageError("Local storage is unavailable. Offline changes may not be saved.");
