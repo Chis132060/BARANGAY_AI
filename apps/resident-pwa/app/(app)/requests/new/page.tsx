@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "../actions";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
+import { saveDocumentDraft, loadDocumentDrafts, removeDocumentDraft, type DocumentDraft } from "@/lib/offline/document-drafts";
 
 // Map document names to icons for UI polish
 const getIconForType = (name: string) => {
@@ -29,6 +30,8 @@ export default function NewRequestPage() {
   const supabase = createClient();
 
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [savedDrafts, setSavedDrafts] = useState<DocumentDraft[]>([]);
+  const [draftMessage, setDraftMessage] = useState("");
   const [selectedType, setSelectedType] = useState<DocumentType | null>(null);
   
   const [purpose, setPurpose] = useState("");
@@ -63,6 +66,29 @@ export default function NewRequestPage() {
     }
     fetchDocTypes();
   }, [supabase]);
+
+  async function refreshDrafts() {
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      if (session?.user?.id) setSavedDrafts(await loadDocumentDrafts(session.user.id));
+    } catch { setDraftMessage("Offline draft storage unavailable on this device."); }
+  }
+  useEffect(() => { void refreshDrafts(); }, []);
+
+  async function saveDraft() {
+    if (!selectedType) return;
+    const {data:{session}} = await supabase.auth.getSession();
+    if (!session?.user?.id) { setDraftMessage("Sign in to save an offline draft."); return; }
+    try {
+      await saveDocumentDraft({
+        id: crypto.randomUUID(), userId: session.user.id,
+        documentTypeId: selectedType.id, documentTypeName: selectedType.name,
+        purpose, updatedAt: new Date().toISOString(),
+      });
+      setDraftMessage("Saved on this device — NOT submitted to the barangay. Attachments must be chosen again when online.");
+      await refreshDrafts();
+    } catch { setDraftMessage("Could not save draft. Check device storage."); }
+  }
 
   const handleFileChange = (requirement: string, file: File | null) => {
     if (!file) {
@@ -158,6 +184,20 @@ export default function NewRequestPage() {
         </div>
       </div>
 
+      <section className="rounded-xl border border-blue-200 bg-blue-50 p-3 space-y-2">
+        <p className="text-xs font-semibold text-blue-900">Offline document drafts</p>
+        <p className="text-xs text-blue-800">Save the selected form and purpose locally. Attachments are not stored. No official request is created until online submission succeeds.</p>
+        <button type="button" onClick={()=>void saveDraft()} disabled={!selectedType} className="rounded-lg bg-blue-700 text-white px-3 py-2 text-xs font-bold disabled:opacity-40">Save draft on this device</button>
+        {draftMessage&&<p className="text-xs" role="status">{draftMessage}</p>}
+        {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
+          <button type="button" onClick={()=>{
+            const type=documentTypes.find(t=>t.id===d.documentTypeId);
+            if(type){setSelectedType(type);setPurpose(d.purpose);setFiles({});setDraftMessage("Draft loaded. Reattach files before submission.");}
+            else setDraftMessage("This document type is not currently available. Reconnect and refresh.");
+          }} className="text-left underline">{d.documentTypeName} — {new Date(d.updatedAt).toLocaleString()}</button>
+          <button type="button" onClick={()=>void removeDocumentDraft(d.id).then(refreshDrafts)} className="text-red-700">Delete</button>
+        </div>)}
+      </section>
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
           {errorMsg}
