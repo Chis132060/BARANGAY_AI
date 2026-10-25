@@ -22,3 +22,9 @@ test("owner-scoped idempotency prevents duplicate document requests",()=>{
  assert.match(db,/resident_id, client_operation_id/);
  assert.match(actions,/reqError\.code === "23505"/);
 });
+
+test("replayed document operation IDs cannot change their original payload",()=>{
+ assert.match(actions,/existing\.document_type_id !== documentTypeId/);
+ assert.match(actions,/existing\.remarks !== purpose/);
+ assert.match(actions,/Operation identifier already belongs to a different request/);
+});
