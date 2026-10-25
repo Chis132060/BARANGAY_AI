@@ -38,3 +38,9 @@ test("offline support queue bounds storage and transient retries",()=>{
  assert.match(outbox,/nextRetryAt > Date\.now\(\)/);
  assert.match(outbox,/Math\.min\(15 \* 60_000/);
 });
+
+test("failed network requests preserve queued tickets for later retry", () => {
+ assert.match(outbox, /catch \{/);
+ assert.match(outbox, /nextRetryAt: Date\.now\(\)/);
+ assert.match(outbox, /continue;/);
+});
