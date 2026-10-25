@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "../actions";
+import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 
 // Map document names to icons for UI polish
 const getIconForType = (name: string) => {
@@ -48,8 +49,14 @@ export default function NewRequestPage() {
         
         if (error) throw error;
         setDocumentTypes(data || []);
+        try { await savePublicSnapshot("document-types", data || [], 24 * 60 * 60 * 1000); } catch { /* browser storage disabled */ }
       } catch (err: any) {
         console.error("Failed to fetch doc types", err);
+        try {
+          const cached = await loadPublicSnapshot<DocumentType[]>("document-types");
+          if (cached) setDocumentTypes(cached.data);
+          else setErrorMsg("Document types unavailable offline. Open this page online first.");
+        } catch { setErrorMsg("Document types unavailable offline."); }
       } finally {
         setFetching(false);
       }
@@ -104,6 +111,9 @@ export default function NewRequestPage() {
         formData.append(`file_${req}`, file);
       });
 
+      if (!navigator.onLine) {
+        throw new Error("No internet: document requests with attachments are not queued yet. Keep your form open and reconnect to submit.");
+      }
       // Submit via Server Action (transaction audit is handled server-side)
       await submitDocumentRequest(formData);
 
