@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar, Megaphone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 
 interface Announcement {
   id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
@@ -77,13 +78,36 @@ export default function AnnouncementsPage() {
         if (!ann.error) {
           announcementsRef.current = (ann.data || []) as Announcement[];
           setAnnouncements(announcementsRef.current);
+          try { await savePublicSnapshot("announcements", announcementsRef.current, 60 * 60 * 1000); } catch { /* optional cache */ }
         }
         if (!prog.error) {
           programsRef.current = (prog.data || []) as Program[];
           setPrograms(programsRef.current);
+          try { await savePublicSnapshot("barangay-programs", programsRef.current, 60 * 60 * 1000); } catch { /* optional cache */ }
         }
-        if (!org.error) setOrganizations((org.data || []) as PublicOrganization[]);
-        setErrorMessage([ann.error?.message, prog.error?.message, org.error?.message].filter(Boolean).join("; "));
+        if (!org.error) {
+          setOrganizations((org.data || []) as PublicOrganization[]);
+          try { await savePublicSnapshot("barangay-organizations", org.data || [], 60 * 60 * 1000); } catch { /* optional cache */ }
+        }
+        if (ann.error || prog.error || org.error) {
+          try {
+            if (ann.error) {
+              const cached = await loadPublicSnapshot<Announcement[]>("announcements");
+              if (cached) { announcementsRef.current = cached.data; setAnnouncements(cached.data); }
+            }
+            if (prog.error) {
+              const cached = await loadPublicSnapshot<Program[]>("barangay-programs");
+              if (cached) { programsRef.current = cached.data; setPrograms(cached.data); }
+            }
+            if (org.error) {
+              const cached = await loadPublicSnapshot<PublicOrganization[]>("barangay-organizations");
+              if (cached) setOrganizations(cached.data);
+            }
+          } catch { /* storage unavailable */ }
+        }
+        setErrorMessage([ann.error?.message, prog.error?.message, org.error?.message].filter(Boolean).length
+          ? "Offline or unable to refresh: displaying available public cached information (may be outdated)."
+          : "");
         setLoading(false);
 
         const { data: { user } } = await supabase.auth.getUser();
