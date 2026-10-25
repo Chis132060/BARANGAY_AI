@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Calendar, Megaphone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
-import { queueProgramIntent } from "@/lib/offline/program-intents";
+import { queueProgramIntent, listProgramIntents } from "@/lib/offline/program-intents";
 
 interface Announcement {
   id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
@@ -25,6 +25,7 @@ export default function AnnouncementsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [applications, setApplications] = useState<Record<string, string>>({});
+  const [offlineProgramIds, setOfflineProgramIds] = useState<string[]>([]);
   const [applicationDetails, setApplicationDetails] = useState<Array<{program_id:string;status:string;rejection_reason:string|null;created_at:string}>>([]);
   const [showMyApplications, setShowMyApplications] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export default function AnnouncementsPage() {
         const {data:{session}}=await supabase.auth.getSession();
         if(!session?.user?.id)throw new Error("Sign in before saving an offline program application.");
         await queueProgramIntent(session.user.id,programId);
+        setOfflineProgramIds(prev=>Array.from(new Set([...prev,programId])));
         setApplyMessage("Program application saved on this device — NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
         return;
       }
@@ -62,6 +64,23 @@ export default function AnnouncementsPage() {
       setApplying(null);
     }
   }
+
+  useEffect(() => {
+    const client=createClient();
+    async function refreshOffline(){
+      try{
+        const {data:{session}}=await client.auth.getSession();
+        if(session?.user?.id){
+          const queued=await listProgramIntents(session.user.id);
+          setOfflineProgramIds(queued.map(x=>x.programId));
+        }
+      }catch{/* local storage disabled */}
+    }
+    void refreshOffline();
+    const onSynced=()=>void refreshOffline();
+    window.addEventListener("barangay-outbox-synced",onSynced);
+    return ()=>window.removeEventListener("barangay-outbox-synced",onSynced);
+  },[]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -171,6 +190,7 @@ export default function AnnouncementsPage() {
       {activeTab === "programs" && <>
       <section className="rounded-2xl border bg-white p-3">
         <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "▲" : "▼"}</span></button>
+        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) — not submitted or reserved until the server confirms.</p>}
         {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
       </section>
       <section id="updates-programs-panel" role="tabpanel" aria-labelledby="updates-programs-tab" className="space-y-3">
