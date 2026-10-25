@@ -37,3 +37,10 @@ test("offline fallback provides public cached content without pretending to subm
  assert.match(fallback,/NOT yet submitted to the barangay/);
  assert.match(fallback,/listTickets\(session.user.id\)/);
 });
+
+test("authenticated shell can initialize from cached session when disconnected",()=>{
+ const layout=read("../app/(app)/layout.tsx");
+ assert.match(layout,/supabase\.auth\.getSession\(\)/);
+ assert.match(layout,/onAuthStateChange/);
+ assert.match(layout,/OfflineSyncRunner/);
+});
