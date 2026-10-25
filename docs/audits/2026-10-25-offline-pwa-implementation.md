@@ -2,6 +2,10 @@
 
 ## Implemented in this branch
 - Durable IndexedDB support-ticket outbox keyed by authenticated user.
+- Owner-scoped document request form drafts (without sensitive file blobs); manual upload required when online.
+- Allowlisted expiring public IndexedDB snapshots for document catalogs, published announcements, programs and organizations.
+- Authenticated-shell offline connectivity status banner.
+- Explicit user confirmation and local draft/outbox purge before sign-out.
 - Online and visibility-triggered foreground retries; explicit Sync now.
 - Unique client_operation_id migration to make retries duplicate-safe once applied.
 - Visible message that local tickets are NOT officially received.
@@ -11,7 +15,7 @@
 - Apply and verify migration in staging before deploying the frontend. Otherwise inserts using client_operation_id fail.
 - This is NOT a complete offline-every-feature implementation.
 - IndexedDB is not encrypted by default. Avoid storing highly sensitive support data on shared devices; add secure deletion on sign-out/account change and retention limits before release.
-- Offline editing for documents, uploaded blobs, resident profile, programs and payment draft behavior not yet implemented.
+- Document text drafts are implemented; offline attachments, verified document submission, resident profile, programs and payment workflows are not yet implemented.
 - Full multi-tab mutex, network timeouts and mobile/device validation pending.
 - Browser background sync may be unavailable; foreground retries are provided but not guaranteed if app is closed.
 - Cache strategy currently only supports existing PWA offline fallback; authenticated dynamic data must not be blindly cached.
@@ -28,3 +32,6 @@
 8. Privacy controls, storage quotas, browser/device QA, disaster network test and staged rollout.
 
 **Release rule:** Keep as a draft until all affected workflows are integration-tested and critical privacy requirements pass.
+
+## CI diagnostics
+Previous resident unit-test failures included an outdated test asserting the ticket page inserted directly via Supabase Auth. The implementation now sends tickets from an authenticated outbox, so the test was updated to inspect the outbox identity/owner checks. CI still needs a fresh green run.
