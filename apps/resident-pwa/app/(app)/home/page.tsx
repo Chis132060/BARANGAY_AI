@@ -131,7 +131,7 @@ export default function HomePage() {
                 {latestAnnouncement.category || "General"}
               </span>
               <span className="text-[10px] text-gray-400 font-mono">
-                {new Date(latestAnnouncement.published_date).toLocaleDateString()}
+                {new Date(latestAnnouncement.published_date || latestAnnouncement.created_at).toLocaleDateString()}
               </span>
             </div>
             <h3 className="text-sm font-bold text-gray-900 leading-snug">{latestAnnouncement.title}</h3>
