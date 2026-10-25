@@ -34,7 +34,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
       urlPattern: ({ url, request }) =>
         url.origin === self.location.origin &&
         request.destination === "image" &&
-        (/^\\/(?:icons|onboarding)\\//.test(url.pathname) ||
+        (url.pathname.startsWith("/icons/") ||
+          url.pathname.startsWith("/onboarding/") ||
           ["/logo.png", "/logo-icon.png", "/ate-sora.jpg", "/ate-sora.svg", "/favicon.ico"].includes(url.pathname)),
       handler: "StaleWhileRevalidate",
       options: {
