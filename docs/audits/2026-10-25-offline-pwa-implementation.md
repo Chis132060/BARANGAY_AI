@@ -91,3 +91,15 @@ Previous resident unit-test failures included an outdated test asserting the tic
 - [x] Added corresponding source-contract regression tests.
 - [ ] Verify the latest CI run on the final commit. Prior head `8882ae9` passed seven recorded GitHub checks before follow-up commits.
 - [ ] Do not treat CI source-regex tests as sufficient evidence of lost-response, multiple-device or concurrency behavior; use real backend integration tests.
+
+## Attachment-free document request offline sync
+- [x] Added `supabase/migrations/20261025000002_offline_document_idempotency.sql` with owner-scoped unique client operation identifier.
+- [x] Server validates up-to-date document requirements and verifies existing receipt before retrying.
+- [x] Queue only document types with zero required attachments; all identity files remain online-only.
+- [x] Add foreground replay with retry backoff and account-scoped purge on sign-out.
+- [ ] Apply **both** new offline migrations in staging before a frontend rollout. Deploying before migrations is unsafe and will cause sync failure.
+- [ ] Validate duplicate/lost-ack document requests with an authenticated resident and correct RLS.
+- [ ] Test offline zero-attachment document request against changed requirements and server rejection paths.
+- [ ] Implement approved encrypted attachment storage and attachment submission if privacy sign-off authorizes it; do not silently cache identity scans.
+
+**Never assume a queued document request is submitted until the server confirms.**
