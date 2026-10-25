@@ -84,3 +84,10 @@ Previous resident unit-test failures included an outdated test asserting the tic
 - Offline household onboarding, personal profile modifications, booking, payment transactions.
 - Fully encrypted browser data-at-rest, eviction detection, multi-tab advisory locking, mobile/browser Background Sync validation.
 - Multi-user auth changes and sign-out from routes other than the app's own profile flow.
+
+## 2026-10-25 follow-up hardening
+- [x] Supabase support outbox handles network exceptions without losing pending tickets.
+- [x] Bound resident ticket queue at 20 outstanding items, and use bounded exponential retry delays.
+- [x] Added corresponding source-contract regression tests.
+- [ ] Verify the latest CI run on the final commit. Prior head `8882ae9` passed seven recorded GitHub checks before follow-up commits.
+- [ ] Do not treat CI source-regex tests as sufficient evidence of lost-response, multiple-device or concurrency behavior; use real backend integration tests.
