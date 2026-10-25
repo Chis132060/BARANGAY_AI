@@ -18,13 +18,15 @@ export default function ResidentSupportPage() {
  const [supabase] = useState(() => createClient());
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const category=params.get("category");if(category==="Privacy")setCategory("Privacy");const requestedSubject=params.get("subject");if(requestedSubject)setSubject(requestedSubject.slice(0,160));},[]);
  async function refresh(){
-  const {data:{user}}=await supabase.auth.getUser();
-  if(!user){setError("Sign in to submit a ticket.");setLoading(false);return;}
-  try { setOfflineItems(await listTickets(user.id)); } catch { setError("Local offline storage is unavailable."); }
-  if(!navigator.onLine){setLoading(false);return;}
+  const offline=!navigator.onLine;
+  const {data:{session}}=await supabase.auth.getSession();
+  const userId=offline?session?.user?.id:(await supabase.auth.getUser()).data.user?.id;
+  if(!userId){setError("Sign in to view support tickets.");setLoading(false);return;}
+  try { setOfflineItems(await listTickets(userId)); } catch { setError("Local offline storage is unavailable."); }
+  if(offline){setLoading(false);return;}
   const {data,error:loadError}=await supabase.from("support_tickets")
    .select("id,category,subject,description,status,staff_reply,created_at")
-   .eq("resident_user_id",user.id).order("created_at",{ascending:false}).limit(50);
+   .eq("resident_user_id",userId).order("created_at",{ascending:false}).limit(50);
   if(loadError)setError("Could not load ticket history.");
   else setTickets((data||[]) as Ticket[]);
   setLoading(false);
