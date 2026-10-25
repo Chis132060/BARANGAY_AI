@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "../actions";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { saveDocumentDraft, loadDocumentDrafts, removeDocumentDraft, type DocumentDraft } from "@/lib/offline/document-drafts";
+import { queueDocumentRequest } from "@/lib/offline/document-outbox";
 
 // Map document names to icons for UI polish
 const getIconForType = (name: string) => {
@@ -138,7 +139,18 @@ export default function NewRequestPage() {
       });
 
       if (!navigator.onLine) {
-        throw new Error("No internet: document requests with attachments are not queued yet. Keep your form open and reconnect to submit.");
+        if ((selectedType.requirements_json || []).length > 0) {
+          throw new Error("Attachments require online submission. Save a local draft and reconnect to attach files.");
+        }
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session?.user?.id)throw new Error("Sign in to save an offline request.");
+        await queueDocumentRequest({
+          id:crypto.randomUUID(),userId:session.user.id,documentTypeId:selectedType.id,
+          purpose:purpose || `Requested ${selectedType.name}`,
+          createdAt:Date.now(),attempts:0,state:"queued",
+        });
+        setDraftMessage("Queued on this device — NOT submitted yet. This request will sync after connection returns.");
+        return;
       }
       // Submit via Server Action (transaction audit is handled server-side)
       await submitDocumentRequest(formData);
