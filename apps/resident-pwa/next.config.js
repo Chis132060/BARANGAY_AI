@@ -33,10 +33,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
     {
       urlPattern: ({ url, request }) =>
         url.origin === self.location.origin &&
-        (request.destination === "image" ||
-          (request.destination === "font" && !url.pathname.startsWith("/_next/static/"))) &&
-        !url.pathname.startsWith("/api/") &&
-        !url.pathname.startsWith("/_next/image/"),
+        request.destination === "image" &&
+        (/^\\/(?:icons|onboarding)\\//.test(url.pathname) ||
+          ["/logo.png", "/logo-icon.png", "/ate-sora.jpg", "/ate-sora.svg", "/favicon.ico"].includes(url.pathname)),
       handler: "StaleWhileRevalidate",
       options: {
         cacheName: "resident-pwa-public-media-v1",
