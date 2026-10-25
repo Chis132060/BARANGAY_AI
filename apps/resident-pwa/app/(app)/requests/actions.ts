@@ -78,7 +78,12 @@ export async function submitDocumentRequest(formData: FormData) {
     const { data: existing, error: lookupError } = await supabase.from("document_requests")
       .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
     if (lookupError) throw new Error("Could not verify previous submission.");
-    if (existing) return { success: true };
+    if (existing) {
+      if (existing.document_type_id !== documentTypeId || existing.remarks !== purpose) {
+        throw new Error("Operation identifier already belongs to a different request.");
+      }
+      return { success: true };
+    }
   }
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
@@ -166,7 +171,7 @@ export async function submitDocumentRequest(formData: FormData) {
     if (reqError.code === "23505" && clientOperationId) {
       const { data: existing, error: lookupError } = await supabase.from("document_requests")
         .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
-      if (!lookupError && existing) {
+      if (!lookupError && existing && existing.document_type_id === documentTypeId && existing.remarks === purpose) {
         // Uploads from this retry are unnecessary; delete them on duplicate receipt.
         if (uploadedPaths.length) await supabase.storage.from("document-requirements").remove(uploadedPaths);
         return { success: true };
