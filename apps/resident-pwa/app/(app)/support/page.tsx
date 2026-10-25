@@ -33,6 +33,8 @@ export default function ResidentSupportPage() {
    void refresh();
    const onOnline=()=>{void synchronize();};
    window.addEventListener("online",onOnline);
+   const onSynced=()=>{void refresh();};
+   window.addEventListener("barangay-outbox-synced",onSynced);
    const onVisible=()=>{if(document.visibilityState==="visible" && navigator.onLine)void synchronize();};
    document.addEventListener("visibilitychange",onVisible);
    if(navigator.onLine)void synchronize();
