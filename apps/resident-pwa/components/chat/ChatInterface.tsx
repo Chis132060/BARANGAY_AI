@@ -193,6 +193,18 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    if (!navigator.onLine) {
+      setMessages(prev => [...prev, {
+        id: `offline-answer-${Date.now()}`,
+        sender: "ai",
+        text: "Offline reference mode: the online Barangay AI and current official records are unavailable. You can review previously cached public announcements and document requirements. Reconnect before relying on fees, dates or submitting an official request.",
+        timestamp: Date.now(),
+      }]);
+      setLoading(false);
+      voiceRequestInFlightRef.current = false;
+      return;
+    }
+
     let persistedSessionId: string | null = null;
     if (isLoggedIn) {
       const { data: { user } } = await supabase.auth.getUser();
