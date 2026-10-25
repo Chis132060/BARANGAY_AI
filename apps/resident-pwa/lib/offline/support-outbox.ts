@@ -59,10 +59,16 @@ export async function syncTickets(supabase: any, userId: string): Promise<{ sent
       resident_user_id: userId, category: item.category, subject: item.subject,
       description: item.description, client_operation_id: item.id,
     });
-    if (!insertError || insertError.code === "23505") {
+    let confirmed = !insertError;
+    if (insertError?.code === "23505") {
+      const { data: existing, error: lookupError } = await supabase.from("support_tickets")
+        .select("id").eq("resident_user_id", userId).eq("client_operation_id", item.id).maybeSingle();
+      confirmed = !lookupError && !!existing;
+    }
+    if (confirmed) {
       await removeTicket(item.id);
       sent++;
-    } else if (insertError.code === "42501" || insertError.code === "23514" || insertError.code === "23503") {
+    } else if (insertError?.code === "42501" || insertError?.code === "23514" || insertError?.code === "23503") {
       await queueTicket({ ...item, state: "needs_attention", attempts: item.attempts + 1 });
       failed++;
     } else {
