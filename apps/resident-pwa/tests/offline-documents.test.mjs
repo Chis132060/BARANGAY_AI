@@ -28,3 +28,7 @@ test("replayed document operation IDs cannot change their original payload",()=>
  assert.match(actions,/existing\.remarks !== purpose/);
  assert.match(actions,/Operation identifier already belongs to a different request/);
 });
+
+test("confirmed replay receipt precedes revalidation of changed catalog",()=>{
+ assert.ok(actions.indexOf('if (clientOperationId) {') < actions.indexOf('const { data: type, error: typeError }'));
+});
