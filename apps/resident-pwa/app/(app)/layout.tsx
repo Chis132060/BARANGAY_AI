@@ -18,9 +18,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then((result: { data: { user: unknown } | null }) => {
-      setIsLoggedIn(!!result?.data?.user);
+    let active = true;
+    // getSession reads cached auth context so the offline app shell stays available.
+    void supabase.auth.getSession().then(({data:{session}})=>{
+      if(active)setIsLoggedIn(!!session?.user);
     });
+    if(navigator.onLine){
+      void supabase.auth.getUser().then(({data:{user}})=>{
+        if(active)setIsLoggedIn(!!user);
+      }).catch(()=>{});
+    }
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+      if(active)setIsLoggedIn(!!session?.user);
+    });
+    return ()=>{active=false;subscription.unsubscribe();};
   }, []);
 
   if (isLoggedIn === null) {
