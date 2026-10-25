@@ -8,7 +8,7 @@ test("offline mark-read operations are replay-safe owner-scoped updates",()=>{
  assert.match(queue,/update\(\{read_status:true\}\)/);
  assert.match(queue,/eq\("user_id",userId\)/);
  assert.match(queue,/user\?\.id!==userId/);
- assert.match(queue,/await queueRead\(/g.test(ui) ? /queueRead/ : /queueRead/);
+ assert.match(ui,/await queueRead\(user\.id,ids\)/);
 });
 test("notification page queues before attempting to synchronize",()=>{
  assert.ok(ui.indexOf("await queueRead(user.id,ids)") < ui.indexOf("await syncReads(supabase,user.id)"));
