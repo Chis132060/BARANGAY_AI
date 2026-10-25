@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { queueRead, syncReads } from "@/lib/offline/notification-outbox";
 
 export function TopBar() {
   const [open, setOpen] = useState(false);
@@ -31,7 +32,14 @@ export function TopBar() {
     setNotifications((items) =>
       items.map((n) => (n.id === id ? { ...n, read_status: true } : n))
     );
-    await supabase.from("notifications").update({ read_status: true }).eq("id", id);
+    try {
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session?.user?.id)return;
+      await queueRead(session.user.id,[id]);
+      if(navigator.onLine)await syncReads(supabase,session.user.id);
+    } catch {
+      // Resident notification center still allows explicit retry.
+    }
   }
 
   return (
