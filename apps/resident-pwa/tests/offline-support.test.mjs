@@ -13,7 +13,8 @@ test("outbox persists to IndexedDB with user-specific lookup",()=>{
 test("sync uses stable idempotency key, auth recheck, and never drops transient errors",()=>{
  assert.match(outbox,/client_operation_id: item\.id/);
  assert.match(outbox,/user\?\.id !== userId/);
- assert.match(outbox,/insertError\.code === "23505"/);
+ assert.match(outbox,/insertError\?\.code === "23505"/);
+ assert.match(outbox,/eq\("client_operation_id", item.id\)/);
  assert.match(outbox,/attempts: item\.attempts \+ 1/);
 });
 test("support UI distinguishes locally queued from official submission",()=>{
