@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { listTickets, clearTickets } from "@/lib/offline/support-outbox";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -103,6 +104,19 @@ export default function ProfilePage() {
   }, []);
 
   async function handleSignOut() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      try {
+        const pending = await listTickets(user.id);
+        if (pending.length && !window.confirm(
+          "There are " + pending.length + " unsent support tickets saved only on this device. Signing out will delete them. Continue?"
+        )) return;
+        await clearTickets(user.id);
+      } catch {
+        setFeedback("Cannot verify or clear offline drafts. Sign-out paused to protect locally saved information.");
+        return;
+      }
+    }
     await supabase.auth.signOut();
     window.location.replace("/login");
   }
