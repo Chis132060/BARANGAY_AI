@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Calendar, Megaphone, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
+import { queueProgramIntent } from "@/lib/offline/program-intents";
 
 interface Announcement {
   id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
@@ -42,6 +43,13 @@ export default function AnnouncementsPage() {
     setApplyMessage("");
     try {
       const supabase = createClient();
+      if (!navigator.onLine) {
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session?.user?.id)throw new Error("Sign in before saving an offline program application.");
+        await queueProgramIntent(session.user.id,programId);
+        setApplyMessage("Program application saved on this device — NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
+        return;
+      }
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("Please sign in before applying.");
       const { error } = await supabase.rpc("apply_to_barangay_program", { p_program_id: programId });
