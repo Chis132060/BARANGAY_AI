@@ -13,6 +13,8 @@ async function trySync() {
   window.dispatchEvent(new CustomEvent("barangay-sync-status", { detail: { state: "running", time: Date.now() } }));
   try {
     const supabase = createClient();
+    // Browser connectivity may be true on a captive portal or failed backend.
+    // A verified auth round trip is required before any queue writes.
     const { data: { user }, error } = await supabase.auth.getUser();
     if (!error && user) {
       const result = await syncTickets(supabase, user.id);
@@ -21,7 +23,7 @@ async function trySync() {
       const documentResults = await syncQueuedDocuments(supabase, user.id);
       const sent = result.sent + readCount + programResults.sent + documentResults.sent;
       const failed = result.failed + programResults.failed + documentResults.failed;
-      window.dispatchEvent(new CustomEvent("barangay-sync-status", { detail: { state: "success", sent, failed, time: Date.now() } }));
+      window.dispatchEvent(new CustomEvent("barangay-sync-status", { detail: { state: failed ? "error" : "success", sent, failed, time: Date.now(), message: failed ? "Some changes could not sync. They remain pending or need attention." : undefined } }));
       window.dispatchEvent(new Event("barangay-outbox-synced"));
     } else {
       window.dispatchEvent(new CustomEvent("barangay-sync-status", { detail: { state: "error", time: Date.now(), message: "Sign in and reconnect to synchronize your pending changes." } }));
