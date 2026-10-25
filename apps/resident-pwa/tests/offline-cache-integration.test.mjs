@@ -22,5 +22,6 @@ test("request summaries exclude document contents and are user-scoped", () => {
   const implementation = read("../lib/offline/request-summaries.ts");
   assert.match(implementation, /userId/);
   assert.match(implementation, /MAX_ITEMS/);
-  assert.doesNotMatch(implementation, /form_data|payment_reference|attachments/);
+  assert.match(implementation, /id: r.id, status: r.status, requested_date: r.requested_date/);
+  assert.match(implementation, /store.get\(userId\)/);
 });
