@@ -7,6 +7,7 @@ import { listTickets, clearTickets } from "@/lib/offline/support-outbox";
 import { loadDocumentDrafts, clearDocumentDrafts } from "@/lib/offline/document-drafts";
 import { clearReads } from "@/lib/offline/notification-outbox";
 import { clearProgramIntents, listProgramIntents } from "@/lib/offline/program-intents";
+import { clearQueuedDocuments, listQueuedDocuments } from "@/lib/offline/document-outbox";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -114,13 +115,15 @@ export default function ProfilePage() {
         const pending = await listTickets(ownerId);
         const documentDrafts = await loadDocumentDrafts(ownerId);
         const pendingPrograms = await listProgramIntents(ownerId);
-        if ((pending.length || documentDrafts.length || pendingPrograms.length) && !window.confirm(
-          "There are " + pending.length + " unsent support tickets and " + documentDrafts.length + " document drafts and " + pendingPrograms.length + " program applications on this device. Signing out will delete them. Continue?"
+        const queuedDocuments = await listQueuedDocuments(ownerId);
+        if ((pending.length || documentDrafts.length || pendingPrograms.length || queuedDocuments.length) && !window.confirm(
+          "There are " + pending.length + " unsent support tickets and " + documentDrafts.length + " document drafts and " + pendingPrograms.length + " program applications and " + queuedDocuments.length + " queued document requests on this device. Signing out will delete them. Continue?"
         )) return;
         await clearTickets(ownerId);
         await clearDocumentDrafts(ownerId);
         await clearReads(ownerId);
         await clearProgramIntents(ownerId);
+        await clearQueuedDocuments(ownerId);
       } catch {
         setFeedback("Cannot verify or clear offline drafts. Sign-out paused to protect locally saved information.");
         return;
