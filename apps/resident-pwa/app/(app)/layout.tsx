@@ -11,6 +11,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
 import { ConnectionBanner } from "@/components/offline/ConnectionBanner";
 import { OfflineSyncRunner } from "@/components/offline/OfflineSyncRunner";
+import { OfflineStatusCenter } from "@/components/offline/OfflineStatusCenter";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <TopBar />
       <ConnectionBanner />
       <OfflineSyncRunner />
+      <OfflineStatusCenter />
       <main
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: "var(--bottom-nav-height)" }}
