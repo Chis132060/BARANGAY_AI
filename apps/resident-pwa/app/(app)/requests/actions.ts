@@ -40,6 +40,12 @@ export async function submitDocumentRequest(formData: FormData) {
   const documentTypeId = formData.get("documentTypeId") as string;
   const purpose = formData.get("purpose") as string;
   const requirementsJson = formData.get("requirements") as string;
+  const clientOperationId = formData.get("clientOperationId");
+  if (clientOperationId !== null &&
+      (typeof clientOperationId !== "string" ||
+       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientOperationId))) {
+    throw new Error("Invalid client operation identifier");
+  }
 
   if (!documentTypeId || !purpose?.trim() || purpose.length > 2000) {
     throw new Error("Missing required fields");
@@ -55,6 +61,24 @@ export async function submitDocumentRequest(formData: FormData) {
     requirements = parsed;
   } catch {
     throw new Error("Invalid requirements data");
+  }
+
+  // Never trust cached/client-supplied attachment requirements: the database
+  // catalog is authoritative on replay after an offline period.
+  const { data: type, error: typeError } = await supabase.from("document_types")
+    .select("requirements_json").eq("id", documentTypeId).single();
+  if (typeError || !type) throw new Error("Document type not found. Refresh and try again.");
+  const required = Array.isArray(type.requirements_json) ? type.requirements_json : [];
+  if (required.length !== requirements.length ||
+      !required.every((name: unknown) => typeof name === "string" && requirements.includes(name))) {
+    throw new Error("Document requirements changed. Refresh and attach the current documents.");
+  }
+
+  if (clientOperationId) {
+    const { data: existing, error: lookupError } = await supabase.from("document_requests")
+      .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
+    if (lookupError) throw new Error("Could not verify previous submission.");
+    if (existing) return { success: true };
   }
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
@@ -135,9 +159,19 @@ export async function submitDocumentRequest(formData: FormData) {
       remarks: purpose,
       requested_date: new Date().toISOString(),
       form_data: { attachments },
+      client_operation_id: clientOperationId || null,
     });
 
   if (reqError) {
+    if (reqError.code === "23505" && clientOperationId) {
+      const { data: existing, error: lookupError } = await supabase.from("document_requests")
+        .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
+      if (!lookupError && existing) {
+        // Uploads from this retry are unnecessary; delete them on duplicate receipt.
+        if (uploadedPaths.length) await supabase.storage.from("document-requirements").remove(uploadedPaths);
+        return { success: true };
+      }
+    }
     throw new Error(`Database error: ${reqError.message}`);
   }
 
