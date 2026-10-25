@@ -20,15 +20,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     let active = true;
     // getSession reads cached auth context so the offline app shell stays available.
-    void supabase.auth.getSession().then(({data:{session}})=>{
+    void supabase.auth.getSession().then(({data:{session}}: {data:{session:{user:{id:string}}|null}})=>{
       if(active)setIsLoggedIn(!!session?.user);
     });
     if(navigator.onLine){
-      void supabase.auth.getUser().then(({data:{user}})=>{
+      void supabase.auth.getUser().then(({data:{user}}: {data:{user:{id:string}|null}})=>{
         if(active)setIsLoggedIn(!!user);
       }).catch(()=>{});
     }
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event:string,session:{user:{id:string}}|null)=>{
       if(active)setIsLoggedIn(!!session?.user);
     });
     return ()=>{active=false;subscription.unsubscribe();};
