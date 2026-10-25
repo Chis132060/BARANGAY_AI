@@ -63,17 +63,6 @@ export async function submitDocumentRequest(formData: FormData) {
     throw new Error("Invalid requirements data");
   }
 
-  // Never trust cached/client-supplied attachment requirements: the database
-  // catalog is authoritative on replay after an offline period.
-  const { data: type, error: typeError } = await supabase.from("document_types")
-    .select("requirements_json").eq("id", documentTypeId).single();
-  if (typeError || !type) throw new Error("Document type not found. Refresh and try again.");
-  const required = Array.isArray(type.requirements_json) ? type.requirements_json : [];
-  if (required.length !== requirements.length ||
-      !required.every((name: unknown) => typeof name === "string" && requirements.includes(name))) {
-    throw new Error("Document requirements changed. Refresh and attach the current documents.");
-  }
-
   if (clientOperationId) {
     const { data: existing, error: lookupError } = await supabase.from("document_requests")
       .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
@@ -85,6 +74,18 @@ export async function submitDocumentRequest(formData: FormData) {
       return { success: true };
     }
   }
+
+  // Never trust cached/client-supplied attachment requirements: the database
+  // catalog is authoritative on replay after an offline period.
+  const { data: type, error: typeError } = await supabase.from("document_types")
+    .select("requirements_json").eq("id", documentTypeId).single();
+  if (typeError || !type) throw new Error("Document type not found. Refresh and try again.");
+  const required = Array.isArray(type.requirements_json) ? type.requirements_json : [];
+  if (required.length !== requirements.length ||
+      !required.every((name: unknown) => typeof name === "string" && requirements.includes(name))) {
+    throw new Error("Document requirements changed. Refresh and attach the current documents.");
+  }
+
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
 
