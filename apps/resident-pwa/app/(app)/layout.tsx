@@ -10,6 +10,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
 import { ConnectionBanner } from "@/components/offline/ConnectionBanner";
+import { OfflineSyncRunner } from "@/components/offline/OfflineSyncRunner";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="relative flex flex-col h-full max-w-md mx-auto bg-white shadow-xl min-h-screen">
       <TopBar />
       <ConnectionBanner />
+      <OfflineSyncRunner />
       <main
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: "var(--bottom-nav-height)" }}
