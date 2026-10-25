@@ -36,3 +36,14 @@ test("sync errors are not presented as fully successful", () => {
   const source = read("../components/offline/OfflineSyncRunner.tsx");
   assert.match(source, /state: failed \? "error" : "success"/);
 });
+
+test("private cached request history is cleared on sign out or account switch", () => {
+  const layout = read("../app/(app)/layout.tsx");
+  assert.match(layout, /clearRequestSummaries\(previousUserId\)/);
+  assert.match(layout, /SIGNED_OUT/);
+});
+test("offline fallback renders saved program and organization snapshots", () => {
+  const fallback = read("../app/~offline/page.tsx");
+  assert.match(fallback, /barangay-programs/);
+  assert.match(fallback, /barangay-organizations/);
+});
