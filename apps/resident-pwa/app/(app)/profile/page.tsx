@@ -5,6 +5,7 @@ import { ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check } from "lucide
 import { createClient } from "@/lib/supabase/client";
 import { listTickets, clearTickets } from "@/lib/offline/support-outbox";
 import { loadDocumentDrafts, clearDocumentDrafts } from "@/lib/offline/document-drafts";
+import { clearReads } from "@/lib/offline/notification-outbox";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -115,6 +116,7 @@ export default function ProfilePage() {
         )) return;
         await clearTickets(user.id);
         await clearDocumentDrafts(user.id);
+        await clearReads(user.id);
       } catch {
         setFeedback("Cannot verify or clear offline drafts. Sign-out paused to protect locally saved information.");
         return;
