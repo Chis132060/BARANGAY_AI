@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import QRScanner from "@/components/payments/QRScanner";
 import { submitPaymentReference } from "./payment-actions";
+import { loadRequestSummaries, saveRequestSummaries } from "@/lib/offline/request-summaries";
 
 interface DocRequest {
   id: string;
@@ -32,6 +33,7 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [requestError, setRequestError] = useState("");
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -73,51 +75,45 @@ export default function RequestsPage() {
   async function loadRequests() {
     setLoading(true);
     setRequestError("");
-    if (!navigator.onLine) {
-      setRequestError("Offline: request history needs a connection. Your local document drafts and queued submissions are stored separately.");
-      setLoading(false);
-      return;
-    }
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Please sign in to view your requests.");
-      const { data: resident } = await supabase
-        .from("residents")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!resident) throw new Error("Resident profile not found.");
-      const { data, error } = await supabase
-        .from("document_requests")
-        .select(`
-          id,
-          status,
-          fee_amount,
-          payment_status,
-          session_id,
-          form_data,
-          pickup_date,
-          pickup_instructions,
-          remarks,
-          requested_date,
-          document_type:document_types (
-            name
-          )
-        `)
+      // Cached Supabase session is checked locally; never load another user's data.
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) {
+        setRequests([]);
+        setCachedAt(null);
+        setRequestError("Sign in to view your request history.");
+        return;
+      }
+      const cached = await loadRequestSummaries(userId).catch(() => null);
+      if (cached) {
+        setRequests(cached.requests as DocRequest[]);
+        setCachedAt(cached.updatedAt);
+      }
+      if (!navigator.onLine) {
+        setRequestError(cached
+          ? "Offline: showing previously saved request summaries. Statuses and payments may have changed."
+          : "Offline: no saved request summaries on this device. Visit this page online first.");
+        return;
+      }
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || user?.id !== userId) throw new Error("Unable to verify resident session.");
+      const { data: resident, error: residentError } = await supabase
+        .from("residents").select("id").eq("user_id", userId).maybeSingle();
+      if (residentError || !resident) throw new Error("Resident profile not found.");
+      const { data, error } = await supabase.from("document_requests")
+        .select(`id,status,fee_amount,payment_status,pickup_date,requested_date,document_type:document_types(name)`)
         .eq("resident_id", resident.id)
         .order("requested_date", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching requests:", error);
-        setRequestError("Could not refresh request history. Please try again when connected.");
-      } else if (data && data.length > 0) {
-        setRequests(data as any[]);
-      } else {
-        setRequests([]);
-      }
+      if (error) throw error;
+      const safe = (data || []) as unknown as DocRequest[];
+      setRequests(safe);
+      setCachedAt(Date.now());
+      try { await saveRequestSummaries(userId, safe); }
+      catch { setRequestError("Request history loaded, but this device cannot save it for offline use."); }
     } catch (err) {
-      console.error("Fetch error:", err);
-      setRequestError("Could not load request history. Please try again when connected.");
+      console.error("Request history refresh failed:", err);
+      setRequestError("Could not refresh request history. Saved summaries, if available, may be outdated.");
     } finally {
       setLoading(false);
     }
@@ -208,6 +204,7 @@ export default function RequestsPage() {
         </div>
       </div>
 
+      {cachedAt && <p className="text-xs text-amber-800">Last request history refresh: {new Date(cachedAt).toLocaleString()}. Verify status online before pickup or payment.</p>}
       {requestError && <p role="alert" className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">{requestError}</p>}
 
       {/* Filter tabs */}
