@@ -2,7 +2,7 @@
 
 export type OfflineTicket = {
   id: string; userId: string; category: string; subject: string; description: string;
-  createdAt: string; attempts: number; state: "queued" | "needs_attention";
+  createdAt: string; attempts: number; nextRetryAt?: number; state: "queued" | "needs_attention";
 };
 const DATABASE = "barangay-resident-offline-v1";
 const STORE = "support-outbox";
@@ -35,6 +35,8 @@ async function transaction<T>(mode: IDBTransactionMode, fn: (store: IDBObjectSto
   } finally { db.close(); }
 }
 export async function queueTicket(item: OfflineTicket) {
+  const pending = await listTickets(item.userId);
+  if (pending.length >= 20 && !pending.some(x => x.id === item.id)) throw new Error("At most 20 offline support tickets can be queued.");
   await transaction("readwrite", store => store.put(item));
 }
 export async function listTickets(userId: string): Promise<OfflineTicket[]> {
@@ -54,7 +56,7 @@ export async function syncTickets(supabase: any, userId: string): Promise<{ sent
   if (error || user?.id !== userId) return { sent: 0, failed: 0 };
   let sent = 0, failed = 0;
   for (const item of await listTickets(userId)) {
-    if (item.state === "needs_attention") continue;
+    if (item.state === "needs_attention" || (item.nextRetryAt && item.nextRetryAt > Date.now())) continue;
     const { error: insertError } = await supabase.from("support_tickets").insert({
       resident_user_id: userId, category: item.category, subject: item.subject,
       description: item.description, client_operation_id: item.id,
@@ -72,7 +74,8 @@ export async function syncTickets(supabase: any, userId: string): Promise<{ sent
       await queueTicket({ ...item, state: "needs_attention", attempts: item.attempts + 1 });
       failed++;
     } else {
-      await queueTicket({ ...item, attempts: item.attempts + 1 });
+      await queueTicket({ ...item, attempts: item.attempts + 1,
+        nextRetryAt: Date.now() + Math.min(15 * 60_000, 30_000 * 2 ** Math.min(item.attempts, 5)) });
       failed++;
     }
   }
