@@ -26,3 +26,9 @@ test("server enforces unique owner-scoped replay keys",()=>{
  assert.match(migration,/UNIQUE INDEX IF NOT EXISTS/);
  assert.match(migration,/resident_user_id, client_operation_id/);
 });
+
+test("privacy concerns bypass unencrypted offline outbox",()=>{
+ assert.match(support,/if \(category === "Privacy"\)/);
+ assert.match(support,/Privacy concerns require an online connection/);
+ assert.ok(support.indexOf('if (category === "Privacy")') < support.indexOf('const item:OfflineTicket'));
+});
