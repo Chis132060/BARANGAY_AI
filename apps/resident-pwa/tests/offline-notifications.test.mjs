@@ -13,3 +13,9 @@ test("offline mark-read operations are replay-safe owner-scoped updates",()=>{
 test("notification page queues before attempting to synchronize",()=>{
  assert.ok(ui.indexOf("await queueRead(user.id,ids)") < ui.indexOf("await syncReads(supabase,user.id)"));
 });
+
+test("top-bar read acknowledgements also enter offline queue",()=>{
+ const topBar=read("../components/layout/TopBar.tsx");
+ assert.match(topBar,/queueRead\(session\.user\.id,\[id\]\)/);
+ assert.match(topBar,/syncReads\(supabase,session\.user\.id\)/);
+});
