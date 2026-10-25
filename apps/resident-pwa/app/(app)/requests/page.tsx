@@ -30,7 +30,20 @@ export default function RequestsPage() {
   const [requests, setRequests] = useState<DocRequest[]>([]);
   const [activeTab, setActiveTab] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
+  const [requestError, setRequestError] = useState("");
   const supabase = createClient();
+
+  useEffect(() => {
+    const updateConnection = () => setIsOnline(navigator.onLine);
+    updateConnection();
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    return () => {
+      window.removeEventListener("online", updateConnection);
+      window.removeEventListener("offline", updateConnection);
+    };
+  }, []);
 
   // Payment UI State
   const [payingRequest, setPayingRequest] = useState<DocRequest | null>(null);
@@ -59,6 +72,12 @@ export default function RequestsPage() {
 
   async function loadRequests() {
     setLoading(true);
+    setRequestError("");
+    if (!navigator.onLine) {
+      setRequestError("Offline: request history needs a connection. Your local document drafts and queued submissions are stored separately.");
+      setLoading(false);
+      return;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Please sign in to view your requests.");
@@ -90,6 +109,7 @@ export default function RequestsPage() {
 
       if (error) {
         console.error("Error fetching requests:", error);
+        setRequestError("Could not refresh request history. Please try again when connected.");
       } else if (data && data.length > 0) {
         setRequests(data as any[]);
       } else {
@@ -97,6 +117,7 @@ export default function RequestsPage() {
       }
     } catch (err) {
       console.error("Fetch error:", err);
+      setRequestError("Could not load request history. Please try again when connected.");
     } finally {
       setLoading(false);
     }
@@ -169,13 +190,13 @@ export default function RequestsPage() {
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-blue-600" : ""}`} />
           </button>
-          {/* Realtime Status Indicator */}
-          <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">
+          {/* Connectivity only: online does not guarantee realtime subscription health. */}
+          <div role="status" className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${isOnline ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            Live
+            {isOnline ? "Online" : "Offline"}
           </div>
           <Link
             href="/chat"
@@ -186,6 +207,8 @@ export default function RequestsPage() {
           </Link>
         </div>
       </div>
+
+      {requestError && <p role="alert" className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">{requestError}</p>}
 
       {/* Filter tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
