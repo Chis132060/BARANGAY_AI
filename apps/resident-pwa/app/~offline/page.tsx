@@ -1,23 +1,57 @@
 "use client";
+import { useEffect, useState } from "react";
+import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
+import { listTickets } from "@/lib/offline/support-outbox";
+import { loadDocumentDrafts } from "@/lib/offline/document-drafts";
+import { createClient } from "@/lib/supabase/client";
 
+type PublicNotice = { id:string; title:string; description:string };
 export default function OfflinePage() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 text-slate-900">
-      <section className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
-        <img src="/logo.png" alt="Smart Barangay" className="mx-auto mb-6 h-14 w-auto object-contain" />
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">You are offline</p>
-        <h1 className="mt-3 text-2xl font-bold tracking-tight">No connection right now</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-500">
-          Reconnect to the internet and try again. Pages you opened before may still be available from your app cache.
-        </p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="mt-7 min-h-12 w-full rounded-2xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-700"
-        >
-          Try again
-        </button>
+  const [notices,setNotices] = useState<PublicNotice[]>([]);
+  const [draftCount,setDraftCount] = useState<number | null>(null);
+  const [ticketCount,setTicketCount] = useState<number | null>(null);
+  const [lastUpdated,setLastUpdated] = useState<number | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const snapshot = await loadPublicSnapshot<PublicNotice[]>("announcements");
+        if (mounted && snapshot) {
+          setNotices(snapshot.data.slice(0,5));
+          setLastUpdated(snapshot.cachedAt);
+        }
+      } catch { /* unsupported local storage */ }
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted || !session?.user?.id) return;
+        const [drafts,tickets] = await Promise.all([
+          loadDocumentDrafts(session.user.id), listTickets(session.user.id),
+        ]);
+        if (mounted) {setDraftCount(drafts.length);setTicketCount(tickets.length);}
+      } catch { /* no local session or storage */ }
+    })();
+    return () => { mounted = false; };
+  },[]);
+  return <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
+    <section className="mx-auto w-full max-w-md rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-200 space-y-5">
+      <img src="/logo.png" alt="Smart Barangay" className="h-14 w-auto object-contain"/>
+      <div><p className="text-xs font-bold uppercase tracking-widest text-blue-700">Offline mode</p>
+        <h1 className="mt-2 text-2xl font-bold">No connection right now</h1>
+        <p className="mt-2 text-sm text-slate-600">Saved content may be outdated. Local drafts and queued tickets are NOT yet submitted to the barangay.</p>
+      </div>
+      {draftCount!==null&&<p className="rounded-xl bg-amber-50 p-3 text-sm">Document drafts on this device: <strong>{draftCount}</strong></p>}
+      {ticketCount!==null&&<p className="rounded-xl bg-amber-50 p-3 text-sm">Support tickets waiting to sync: <strong>{ticketCount}</strong></p>}
+      <section className="space-y-2">
+        <h2 className="text-sm font-bold">Previously saved public announcements</h2>
+        {lastUpdated&&<p className="text-xs text-slate-500">Last saved: {new Date(lastUpdated).toLocaleString()}</p>}
+        {notices.length ? notices.map(n=><article key={n.id} className="rounded-lg border p-3">
+          <h3 className="font-semibold text-sm">{n.title}</h3>
+          <p className="text-xs text-slate-600 mt-1">{n.description}</p>
+        </article>) : <p className="text-xs text-slate-500">No saved announcements. Open announcements while connected to download them.</p>}
       </section>
-    </main>
-  );
+      <button type="button" onClick={()=>window.location.reload()}
+        className="min-h-12 w-full rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white">Retry connection</button>
+    </section>
+  </main>;
 }
