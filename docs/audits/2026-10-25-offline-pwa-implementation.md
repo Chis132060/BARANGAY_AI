@@ -59,3 +59,28 @@ Previous resident unit-test failures included an outdated test asserting the tic
 - [ ] Do NOT merge until CI is green on the latest commit and end-to-end multi-account tests are done.
 - [ ] Background sync when app is closed is not guaranteed; mobile foreground retry is the supported fallback.
 - [ ] Data-at-rest encryption, quota/expiry policy, browser compatibility and crash recovery need privacy approval and tests.
+
+## Phase progress: program application and offline fallback
+- [x] Implement local queue for program application **intent** with per-user IndexedDB ownership.
+- [x] Retry against the existing server RPC after reconnect; verify server enrollment before declaring a retry successful.
+- [x] Display local pending program intent counts; never equate pending with registration or reserved slots.
+- [x] Avoid storing any encrypted/private attachments in public snapshot caches.
+- [x] Provide the cached public announcements and pending-action counts on the offline fallback page.
+- [x] Keep payment reference submission online-only.
+- [x] Protect sensitive Privacy-category tickets from unencrypted offline storage.
+- [ ] Add real-device validation for program deadline, revoked identity, full capacity and repeated concurrent queue workers.
+- [ ] Add server-side idempotency contract to program application RPC if the current unique enrollment behavior is insufficient.
+
+## Release dependency order
+1. Run all tests and builds on this PR's final head.
+2. Apply the support-ticket idempotency migration to an isolated test database first; verify existing RLS policies.
+3. Verify support, document draft and program outbox behavior on Android and iOS with Wi-Fi interrupted at request time.
+4. Verify no records are duplicated when server succeeds but network acknowledgement is lost.
+5. Approve privacy / retention and consent for local storage, then stage deploy with staff sign-off.
+6. Do not silently switch on local storage of identity scans or sensitive resident/financial records.
+
+## Outstanding phases not represented as complete
+- Automatic document attachment submission and binary blobs offline.
+- Offline household onboarding, personal profile modifications, booking, payment transactions.
+- Fully encrypted browser data-at-rest, eviction detection, multi-tab advisory locking, mobile/browser Background Sync validation.
+- Multi-user auth changes and sign-out from routes other than the app's own profile flow.
