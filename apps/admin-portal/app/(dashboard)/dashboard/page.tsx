@@ -1,4 +1,8 @@
-import { fetchDashboardMetrics, fetchRecentActivities } from "./actions";
+import {
+  fetchDashboardMetrics, fetchRecentActivities,
+  fetchAgeDistribution, fetchMonthlyTransactions,
+  fetchPurokPopulation, fetchTopDocumentTypes,
+} from "./actions";
 import { StatsGrid } from "./components";
 import { ShieldAlert, Clock, ArrowRight, FileCheck } from "lucide-react";
 import Link from "next/link";
@@ -12,11 +16,28 @@ export const metadata = {
 export default async function DashboardPage() {
   let metrics;
   let recentActivities: any[] = [];
+  let ageDist: any[] = [];
+  let monthlyTrend: any[] = [];
+  let purokPop: any[] = [];
+  let topDocTypes: any[] = [];
   let errorMsg = null;
 
   try {
-    metrics = await fetchDashboardMetrics();
-    recentActivities = await fetchRecentActivities();
+    [
+      metrics,
+      recentActivities,
+      ageDist,
+      monthlyTrend,
+      purokPop,
+      topDocTypes,
+    ] = await Promise.all([
+      fetchDashboardMetrics(),
+      fetchRecentActivities(),
+      fetchAgeDistribution(),
+      fetchMonthlyTransactions(),
+      fetchPurokPopulation(),
+      fetchTopDocumentTypes(),
+    ]);
   } catch (err) {
     errorMsg = "Database connection is unavailable. Showing empty live metrics until the database reconnects.";
     metrics = {
@@ -33,6 +54,17 @@ export default async function DashboardPage() {
       registeredBusinesses: 0,
       pendingRegistrations: 0,
       totalRevenue: 0.0,
+      maleResidents: 0,
+      femaleResidents: 0,
+      otherGenderResidents: 0,
+      singleResidents: 0,
+      marriedResidents: 0,
+      widowedResidents: 0,
+      divorcedResidents: 0,
+      soloParentResidents: 0,
+      dswdResidents: 0,
+      youthResidents: 0,
+      completionRate: 0,
     };
   }
 
@@ -57,7 +89,13 @@ export default async function DashboardPage() {
 
       {/* Main Metrics Grid */}
       <DashboardRealtime />
-      <StatsGrid metrics={metrics} />
+      <StatsGrid
+        metrics={metrics}
+        ageDist={ageDist}
+        monthlyTrend={monthlyTrend}
+        purokPop={purokPop}
+        topDocTypes={topDocTypes}
+      />
 
       {/* Recent Operations — full-width analytics table */}
       <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">

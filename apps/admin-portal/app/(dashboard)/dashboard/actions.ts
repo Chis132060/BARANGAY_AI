@@ -25,6 +25,22 @@ export interface DashboardMetrics {
   registeredBusinesses: number;
   pendingRegistrations: number;
   totalRevenue: number;
+  // Gender breakdown
+  maleResidents: number;
+  femaleResidents: number;
+  otherGenderResidents: number;
+  // Civil status
+  singleResidents: number;
+  marriedResidents: number;
+  widowedResidents: number;
+  divorcedResidents: number;
+  // Sectoral
+  soloParentResidents: number;
+  dswdResidents: number;
+  // Youth (15-30)
+  youthResidents: number;
+  // Completion rate
+  completionRate: number;
 }
 
 export interface MonthlyTransactionItem {
@@ -34,6 +50,21 @@ export interface MonthlyTransactionItem {
 
 export interface AgeDistItem {
   range: string;
+  count: number;
+}
+
+export interface CivilStatusItem {
+  status: string;
+  count: number;
+}
+
+export interface PurokPopItem {
+  purok: string;
+  count: number;
+}
+
+export interface DocTypeItem {
+  name: string;
   count: number;
 }
 
@@ -59,9 +90,20 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     { count: pendingRequests },
     { count: readyForPickupRequests },
     { count: completedRequests },
+    { count: totalRequests },
     { count: registeredBusinesses },
     { count: pendingRegistrations },
     { data: revenueData },
+    { count: maleResidents },
+    { count: femaleResidents },
+    { count: otherGenderResidents },
+    { count: singleResidents },
+    { count: marriedResidents },
+    { count: widowedResidents },
+    { count: divorcedResidents },
+    { count: soloParentResidents },
+    { count: dswdResidents },
+    { data: youthData },
   ] = await Promise.all([
     supabase.from("residents").select("*", { count: "exact", head: true }),
     supabase.from("households").select("*", { count: "exact", head: true }),
@@ -72,12 +114,37 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     supabase.from("document_requests").select("*", { count: "exact", head: true }).eq("status", "Pending"),
     supabase.from("document_requests").select("*", { count: "exact", head: true }).or("status.eq.Ready for Pickup,status.eq.Approved"),
     supabase.from("document_requests").select("*", { count: "exact", head: true }).or("status.eq.Released,status.eq.Completed"),
+    supabase.from("document_requests").select("*", { count: "exact", head: true }),
     supabase.from("businesses").select("*", { count: "exact", head: true }).eq("status", "Active"),
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending"),
     supabase.from("document_requests").select("fee_amount, payment_status").or("payment_status.eq.Paid,status.eq.Completed,status.eq.Released"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("gender", "Male"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("gender", "Female"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("gender", "Other"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Single"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Married"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Widowed"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Divorced"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("solo_parent_status", true),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("dswd_status", true),
+    supabase.from("residents").select("birth_date"),
   ]);
 
   const totalRev = (revenueData || []).reduce((acc: number, curr: any) => acc + (Number(curr.fee_amount) || 0), 0);
+
+  // Compute youth count (age 15-30)
+  const today = new Date();
+  const youthCount = (youthData || []).filter((r: any) => {
+    if (!r.birth_date) return false;
+    const bd = new Date(r.birth_date);
+    let age = today.getFullYear() - bd.getFullYear();
+    if (today < new Date(today.getFullYear(), bd.getMonth(), bd.getDate())) age -= 1;
+    return age >= 15 && age <= 30;
+  }).length;
+
+  const totalReq = totalRequests || 0;
+  const completed = completedRequests || 0;
+  const completionRate = totalReq > 0 ? Math.round((completed / totalReq) * 100) : 0;
 
   return {
     totalPopulation: totalPopulation || 0,
@@ -93,6 +160,17 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     registeredBusinesses: registeredBusinesses || 0,
     pendingRegistrations: pendingRegistrations || 0,
     totalRevenue: totalRev || 0,
+    maleResidents: maleResidents || 0,
+    femaleResidents: femaleResidents || 0,
+    otherGenderResidents: otherGenderResidents || 0,
+    singleResidents: singleResidents || 0,
+    marriedResidents: marriedResidents || 0,
+    widowedResidents: widowedResidents || 0,
+    divorcedResidents: divorcedResidents || 0,
+    soloParentResidents: soloParentResidents || 0,
+    dswdResidents: dswdResidents || 0,
+    youthResidents: youthCount,
+    completionRate,
   };
 }
 
@@ -170,4 +248,43 @@ export async function fetchRecentActivities(): Promise<RecentActivityItem[]> {
       type: "document" as const,
     };
   });
+}
+
+export async function fetchPurokPopulation(): Promise<PurokPopItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("addresses")
+    .select("purok");
+  if (error) return [];
+
+  const tally: Record<string, number> = {};
+  for (const row of data || []) {
+    const p = (row.purok || "Unassigned").trim();
+    tally[p] = (tally[p] || 0) + 1;
+  }
+
+  return Object.entries(tally)
+    .map(([purok, count]) => ({ purok, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
+export async function fetchTopDocumentTypes(): Promise<DocTypeItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("document_requests")
+    .select("document_type:document_types(name)");
+  if (error) return [];
+
+  const tally: Record<string, number> = {};
+  for (const row of data || []) {
+    const dt = Array.isArray(row.document_type) ? row.document_type[0] : row.document_type;
+    const name = dt?.name || "Unknown";
+    tally[name] = (tally[name] || 0) + 1;
+  }
+
+  return Object.entries(tally)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 7);
 }
