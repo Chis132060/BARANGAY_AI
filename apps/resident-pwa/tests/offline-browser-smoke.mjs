@@ -12,7 +12,7 @@ try {
     if (!("serviceWorker" in navigator)) return false;
     const registrations = await navigator.serviceWorker.getRegistrations();
     return registrations.some(registration => Boolean(registration.active));
-  }, { timeout: 20000 });
+  }, null, { timeout: 20000 });
   console.log("Active service worker registration detected");
   if (!(await page.evaluate(() => Boolean(navigator.serviceWorker?.controller)))) {
     await page.reload({ waitUntil: "domcontentloaded" });
