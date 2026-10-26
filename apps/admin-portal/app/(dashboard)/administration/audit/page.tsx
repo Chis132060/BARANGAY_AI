@@ -7,30 +7,7 @@ export const metadata = {
 };
 
 export default async function AuditPage() {
-  let logs = [];
-
-  try {
-    logs = await fetchAuditLogs();
-  } catch (err) {
-    console.error("Database connection offline. Displaying fallback logs.", err);
-    // Mock local data fallback if migrations have not been applied yet
-    logs = [
-      {
-        id: "log1",
-        action: "Updated resident profile (Juan dela Cruz)",
-        module: "Residents",
-        created_at: new Date().toISOString(),
-        operator: { name: "Elena Santos", email: "elena@barangay.gov" },
-      },
-      {
-        id: "log2",
-        action: "Approved business permit request",
-        module: "Business",
-        created_at: new Date().toISOString(),
-        operator: { name: "Elena Santos", email: "elena@barangay.gov" },
-      },
-    ];
-  }
+  const logs = await fetchAuditLogs();
 
   return (
     <div className="space-y-6">

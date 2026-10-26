@@ -51,8 +51,6 @@ export interface BarangayProgram {
   registration_deadline?: string | null;
   registration_opens_at?: string | null;
   event_start_at?: string | null;
-  event_end_at?: string | null;
-  max_participants?: number | null;
   min_age?: number | null;
   max_age?: number | null;
   archived_at?: string | null;
@@ -109,6 +107,7 @@ export async function createProgram(
 ): Promise<{ success: boolean; id: string }> {
   await requireProgramPermission("canCreate");
   const supabase = createClient();
+  const programStatus = formData.status === "Inactive" ? "Inactive" : "Active";
   const { data, error } = await supabase
     .from("barangay_programs")
     .insert({
@@ -121,18 +120,18 @@ export async function createProgram(
       chairperson: formData.chairperson || null,
       contact: formData.contact || null,
       established_date: formData.established_date || null,
-      status: formData.status || "Active",
+      status: programStatus,
       purok: formData.purok || "All Puroks",
       venue: formData.venue || null,
       schedule_details: formData.schedule_details || null,
-      is_public: false,
-      registration_open: false,
+      is_public: programStatus === "Active",
+      registration_open: programStatus === "Active" && formData.registration_open === true,
       requirements: formData.requirements || null,
       registration_deadline: formData.registration_deadline || null,
       registration_opens_at: formData.registration_opens_at || null,
       event_start_at: formData.event_start_at || null,
-      event_end_at: formData.event_end_at || null,
-      max_participants: formData.max_participants || null,
+      event_end_at: null,
+      max_participants: null,
       min_age: formData.min_age ?? null,
       max_age: formData.max_age ?? null,
     })
@@ -225,10 +224,14 @@ export async function editProgram(programId: string, updates: Partial<BarangayPr
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
-  const allowed = ["name","description","image_url","category","purok","venue","schedule_details","requirements","chairperson","contact","status","registration_deadline","registration_opens_at","event_start_at","event_end_at","max_participants","min_age","max_age"] as const;
+  const allowed = ["name","code","description","image_url","category","purok","venue","schedule_details","requirements","chairperson","contact","established_date","status","registration_open","registration_deadline","registration_opens_at","event_start_at","min_age","max_age"] as const;
   const payload: Record<string, unknown> = {};
   for (const key of allowed) if (Object.prototype.hasOwnProperty.call(updates,key)) payload[key] = updates[key] === "" ? null : updates[key];
-  if (updates.status && updates.status !== "Active") { payload.registration_open = false; payload.is_public = false; }
+  if (updates.status) {
+    payload.is_public = updates.status === "Active";
+    if (updates.status !== "Active") payload.registration_open = false;
+    else payload.archived_at = null;
+  }
   const { error } = await supabase.from("barangay_programs").update(payload).eq("id",programId);
   if (error) throw new Error(error.message);
   revalidatePath("/programs");

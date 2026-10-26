@@ -54,17 +54,11 @@ export function AnnouncementList({ announcements: initialAnnouncements }: Announ
       let image_url: string | null = null;
       if (imageFile) {
         const optimizedImage = await optimizeImage(imageFile);
-        if (supabase.storage?.from) {
-          const safeName = optimizedImage.name.replace(/[^a-zA-Z0-9.-]/g, "-");
-          const path = `${Date.now()}-${safeName}`;
-          const upload = await supabase.storage.from("announcement-images").upload(path, optimizedImage, { upsert: false, contentType: optimizedImage.type, cacheControl: "31536000" });
-          if (upload.error) throw new Error(upload.error.message);
-          image_url = supabase.storage.from("announcement-images").getPublicUrl(path).data.publicUrl;
-        } else {
-          // Local mock mode has no object storage; keep the preview so the
-          // announcement flow remains testable without Supabase Storage.
-          image_url = imagePreview;
-        }
+        const safeName = optimizedImage.name.replace(/[^a-zA-Z0-9.-]/g, "-");
+        const path = `${Date.now()}-${safeName}`;
+        const upload = await supabase.storage.from("announcement-images").upload(path, optimizedImage, { upsert: false, contentType: optimizedImage.type, cacheControl: "31536000" });
+        if (upload.error) throw new Error(upload.error.message);
+        image_url = supabase.storage.from("announcement-images").getPublicUrl(path).data.publicUrl;
       }
 
       const { data, error } = await supabase

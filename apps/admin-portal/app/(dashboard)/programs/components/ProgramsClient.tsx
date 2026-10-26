@@ -1,7 +1,6 @@
 "use client";
 
 import { AdminTable } from "@/components/ui/AdminTable";
-import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useTransition } from "react";
 import {
   BookOpen,
@@ -24,19 +23,16 @@ import {
 import {
   BarangayProgram,
   ProgramEnrollee,
-  createProgram,
   deleteProgram,
   fetchEnrollees,
   addEnrollee,
   removeEnrollee,
-  setProgramPublication,
   updateProgramRegistration,
   reviewProgramApplication,
-  editProgram,
-  archiveProgram,
   setProgramAttendance,
   fetchProgramAudit,
 } from "../actions";
+import { ProgramEditorWizard } from "./ProgramEditorWizard";
 
 // ─── Program Icon Map ─────────────────────────────────────────────────────────
 const PROGRAM_ICONS: Record<string, React.ElementType> = {
@@ -291,183 +287,6 @@ function EnrolleesPanel({
 }
 
 // ─── Create Program Modal ──────────────────────────────────────────────────────
-function manilaLocal(value?: string | null) { return value ? new Date(new Date(value).getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0,16) : ""; }
-function CreateProgramModal({ onClose, onCreated, editing }: { onClose: () => void; onCreated: (p: BarangayProgram) => void; editing?: BarangayProgram | null }) {
-  const [form, setForm] = useState({
-    name: editing?.name || "",
-    code: editing?.code || "",
-    description: editing?.description || "",
-    image_url: editing?.image_url || "",
-    category: editing?.category || "Social Services",
-    chairperson: editing?.chairperson || "",
-    contact: editing?.contact || "",
-    established_date: editing?.established_date || "",
-    status: editing?.status || "Active",
-    is_custom: true,
-    purok: editing?.purok || "Purok 3",
-    venue: editing?.venue || "",
-    schedule_details: editing?.schedule_details || "",
-    requirements: editing?.requirements || "",
-    registration_deadline: manilaLocal(editing?.registration_deadline),
-    registration_opens_at: manilaLocal(editing?.registration_opens_at),
-    event_start_at: manilaLocal(editing?.event_start_at),
-    event_end_at: manilaLocal(editing?.event_end_at),
-    max_participants: editing?.max_participants || 0,
-    min_age: editing?.min_age ?? 0,
-    max_age: editing?.max_age ?? 0,
-    registration_open: false,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function uploadProgramImage(file: File) {
-    if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Use JPG, PNG or WebP, up to 5 MB."); return; }
-    setSaving(true); setError("");
-    try {
-      const supabase = createClient();
-      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const path = `${crypto.randomUUID()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from("program-images").upload(path, file, { contentType: file.type, upsert: false });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from("program-images").getPublicUrl(path);
-      setForm((prev) => ({ ...prev, image_url: data.publicUrl }));
-    } catch (error) { setError(error instanceof Error ? error.message : "Upload failed"); }
-    finally { setSaving(false); }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.name.trim()) { setError("Program name is required."); return; }
-    if (form.event_start_at && form.event_end_at && new Date(form.event_end_at) <= new Date(form.event_start_at)) { setError("Event end must be after event start."); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const result = editing ? (await editProgram(editing.id, {...form, registration_deadline: form.registration_deadline ? new Date(form.registration_deadline + ":00+08:00").toISOString() : null, event_start_at: form.event_start_at ? new Date(form.event_start_at + ":00+08:00").toISOString() : null, event_end_at: form.event_end_at ? new Date(form.event_end_at + ":00+08:00").toISOString() : null, registration_opens_at: form.registration_opens_at ? new Date(form.registration_opens_at + ":00+08:00").toISOString() : null, max_participants: form.max_participants || null, min_age: form.min_age || null, max_age: form.max_age || null}), {id: editing.id}) : await createProgram({...form,registration_deadline:form.registration_deadline ? new Date(form.registration_deadline + ":00+08:00").toISOString() : null,event_start_at:form.event_start_at ? new Date(form.event_start_at + ":00+08:00").toISOString() : null,event_end_at:form.event_end_at ? new Date(form.event_end_at + ":00+08:00").toISOString() : null,registration_opens_at:form.registration_opens_at ? new Date(form.registration_opens_at + ":00+08:00").toISOString() : null,max_participants:form.max_participants || null,min_age:form.min_age || null,max_age:form.max_age || null} as any);
-      const newProg: BarangayProgram = { ...editing, ...form, id: result.id, created_at: editing?.created_at || new Date().toISOString(), enrollee_count: editing?.enrollee_count || 0 };
-      onCreated(newProg);
-      onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to create program.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-card border shadow-2xl">
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="font-bold text-base flex items-center gap-2"><Plus className="h-4 w-4 text-primary" />{editing ? "Edit Program" : "Create New Program"}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted transition-colors"><X className="h-5 w-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4">
-            {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold">Program Name *</label>
-                <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Youth Leadership Council"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Code / Acronym</label>
-                <input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-                  placeholder="e.g. YLC"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Category</label>
-                <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                  <option>Social Services</option>
-                  <option>Peace & Order</option>
-                  <option>Youth Development</option>
-                  <option>Health & Wellness</option>
-                  <option>Education</option>
-                  <option>Anti-Drug</option>
-                  <option>Women & Children</option>
-                  <option>Senior Citizens</option>
-                  <option>Livelihood</option>
-                  <option>Environmental</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Purok / Area</label>
-                <input value={form.purok} onChange={(e) => setForm((f) => ({ ...f, purok: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Venue</label>
-                <input value={form.venue} onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
-              </div>
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold">Schedule (if confirmed)</label>
-                <input value={form.schedule_details} onChange={(e) => setForm((f) => ({ ...f, schedule_details: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm" />
-              </div>
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold">Requirements / Eligibility</label>
-                <textarea value={form.requirements} onChange={(e) => setForm((f) => ({ ...f, requirements: e.target.value }))} rows={2} placeholder="Who can join and what to bring" className="w-full rounded-lg border px-3 py-2 text-sm" />
-              </div>
-              <div><label className="mb-1 block text-xs font-semibold">Event Start (PH time)</label><input type="datetime-local" value={form.event_start_at} onChange={(e) => setForm((f) => ({...f,event_start_at:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div><label className="mb-1 block text-xs font-semibold">Event End (PH time)</label><input type="datetime-local" value={form.event_end_at} onChange={(e) => setForm((f) => ({...f,event_end_at:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div><label className="mb-1 block text-xs font-semibold">Registration Opens (PH time)</label><input type="datetime-local" value={form.registration_opens_at} onChange={(e) => setForm((f) => ({...f,registration_opens_at:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div><label className="mb-1 block text-xs font-semibold">Registration Deadline</label><input type="datetime-local" value={form.registration_deadline} onChange={(e) => setForm((f) => ({...f,registration_deadline:e.target.value}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div><label className="mb-1 block text-xs font-semibold">Max Slots (0 = unlimited)</label><input type="number" min="0" value={form.max_participants} onChange={(e) => setForm((f) => ({...f,max_participants:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div><label className="mb-1 block text-xs font-semibold">Min Age (0 = any)</label><input type="number" min="0" value={form.min_age} onChange={(e) => setForm((f) => ({...f,min_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div><label className="mb-1 block text-xs font-semibold">Max Age (0 = any)</label><input type="number" min="0" value={form.max_age} onChange={(e) => setForm((f) => ({...f,max_age:Number(e.target.value)}))} className="w-full rounded-lg border px-3 py-2 text-sm" /></div>
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold">Program cover image (JPG, PNG, WebP; max 5 MB)</label>
-                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadProgramImage(file); }} className="w-full rounded-lg border px-3 py-2 text-sm" />
-                {form.image_url && <img src={form.image_url} alt="Program cover preview" className="mt-2 h-28 rounded-lg object-cover" />}
-              </div>
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold">Description</label>
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={2} placeholder="Brief program description…"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Chairperson</label>
-                <input value={form.chairperson} onChange={(e) => setForm((f) => ({ ...f, chairperson: e.target.value }))}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Contact</label>
-                <input value={form.contact} onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))}
-                  placeholder="09XXXXXXXXX"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Established Date</label>
-                <input type="date" value={form.established_date} onChange={(e) => setForm((f) => ({ ...f, established_date: e.target.value }))}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold">Status</label>
-                <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
-                  <option>Active</option>
-                  <option>Inactive</option>
-                  <option>On Hold</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 border-t px-6 py-4">
-            <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors">Cancel</button>
-            <button type="submit" disabled={saving}
-              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60">
-              <Save className="h-4 w-4" /> {saving ? "Saving…" : editing ? "Save Changes" : "Create Program"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Programs Client ─────────────────────────────────────────────────────
 interface Props {
   initialPrograms: BarangayProgram[];
 }
@@ -484,25 +303,14 @@ export function ProgramsClient({ initialPrograms }: Props) {
     `${p.name} ${p.code || ""} ${p.category}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  async function handlePublication(program: BarangayProgram) {
-    try {
-      await setProgramPublication(program.id, !program.is_public);
-      setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, is_public: !p.is_public } : p));
-    } catch (err: any) { alert(err.message || "Failed to change publication status"); }
-  }
-
   async function handleRegistration(program: BarangayProgram) {
+    if (program.status !== "Active") return;
     try {
       await updateProgramRegistration(program.id, !program.registration_open);
       setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, registration_open: !p.registration_open } : p));
     } catch (err: any) { alert(err.message || "Failed to update registration"); }
   }
 
-  async function handleArchive(program: BarangayProgram) {
-    if (!confirm("Archive this program and close registration?")) return;
-    try { await archiveProgram(program.id); setPrograms((prev) => prev.map((p) => p.id === program.id ? {...p,status:"Archived",is_public:false,registration_open:false} : p)); }
-    catch (err:any) { alert(err.message); }
-  }
   function handleDelete(id: string, isCustom: boolean) {
     if (!isCustom) { alert("Built-in programs cannot be deleted."); return; }
     if (!confirm("Delete this custom program?")) return;
@@ -647,10 +455,8 @@ export function ProgramsClient({ initialPrograms }: Props) {
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" onClick={(e) => {e.stopPropagation();setEditingProgram(program);}} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Edit</button>
-                <button type="button" onClick={(e) => {e.stopPropagation();void handleArchive(program);}} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Archive</button>
                 <span className="text-xs text-muted-foreground">{program.purok || "All Puroks"}</span>
-                <button type="button" onClick={(e) => { e.stopPropagation(); handleRegistration(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.registration_open ? "Close Registration" : "Open Registration"}</button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); handlePublication(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted">{program.is_public ? "Unpublish" : "Publish to PWA"}</button>
+                <button type="button" disabled={program.status !== "Active"} onClick={(e) => { e.stopPropagation(); handleRegistration(program); }} className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50">{program.registration_open ? "Close Registration" : "Open Registration"}</button>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
@@ -689,12 +495,12 @@ export function ProgramsClient({ initialPrograms }: Props) {
         />
       )}
 
-      {editingProgram && <CreateProgramModal key={editingProgram.id} editing={editingProgram} onClose={() => setEditingProgram(null)} onCreated={(p) => setPrograms((prev) => prev.map((item) => item.id === p.id ? p : item))} />}
+      {editingProgram && <ProgramEditorWizard key={editingProgram.id} editing={editingProgram} onClose={() => setEditingProgram(null)} onSaved={(p) => setPrograms((prev) => prev.map((item) => item.id === p.id ? p : item))} />}
       {/* Create Program Modal */}
       {showCreateModal && (
-        <CreateProgramModal
+        <ProgramEditorWizard
           onClose={() => setShowCreateModal(false)}
-          onCreated={(p) => setPrograms((prev) => [...prev, p])}
+          onSaved={(p) => setPrograms((prev) => [p, ...prev])}
         />
       )}
     </div>

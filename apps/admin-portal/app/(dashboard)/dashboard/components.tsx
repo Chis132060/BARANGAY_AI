@@ -3,7 +3,7 @@
 import {
   Users, Home, BadgeCheck, Accessibility, FileText, Building2,
   UserPlus, Receipt, PackageCheck, UserRound, AlertCircle,
-  TrendingDown, TrendingUp, Minus, Venus, Mars,
+  TrendingDown, TrendingUp, Minus,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -82,13 +82,12 @@ function GenderSplitBar({ male, female, other, total }: { male: number; female: 
       </div>
       {/* Legend rows */}
       {[
-        { label: "Male", value: male, pct: pctM, color: "bg-blue-500", dot: "#3b82f6", icon: Mars },
-        { label: "Female", value: female, pct: pctF, color: "bg-rose-400", dot: "#fb7185", icon: Venus },
-        { label: "Other / Unspecified", value: other, pct: pctO, color: "bg-slate-400", dot: "#94a3b8", icon: null },
-      ].map(({ label, value, pct, dot, icon: GIcon }) => (
+        { label: "Male", value: male, pct: pctM, color: "bg-blue-500", dot: "#3b82f6" },
+        { label: "Female", value: female, pct: pctF, color: "bg-rose-400", dot: "#fb7185" },
+        { label: "Other / Unspecified", value: other, pct: pctO, color: "bg-slate-400", dot: "#94a3b8" },
+      ].map(({ label, value, pct, dot }) => (
         <div key={label} className="flex items-center gap-2 text-xs">
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: dot }} />
-          {GIcon && <GIcon className="h-3 w-3 shrink-0" style={{ color: dot }} />}
           <span className="flex-1 font-medium text-muted-foreground">{label}</span>
           <span className="tabular-nums text-muted-foreground">{value.toLocaleString()}</span>
           <span className="tabular-nums font-bold text-foreground w-10 text-right">{Math.round(pct)}%</span>

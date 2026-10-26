@@ -1,0 +1,882 @@
+﻿[
+    {
+        "path":  "apps/resident-pwa/.env.example",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/announcements/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { useEffect, useRef, useState } from \"react\";\r; import { Calendar, Megaphone, RefreshCw } from \"lucide-react\";\r; import { createClient } from \"@/lib/supabase/client\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/chat/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { ChatInterface } from \"@/components/chat/ChatInterface\";\r; export const metadata = {\r; export default function ChatPage() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/home/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2, FileText, Building2, Bot } from \"lucide-react\";\r; import Link from \"next/link\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/layout.tsx",
+        "category":  "Configuration/worker",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import { TopBar } from \"@/components/layout/TopBar\";\r; import { BottomNav } from \"@/components/layout/BottomNav\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/onboarding/actions.ts",
+        "category":  "Server action",
+        "purpose":  "import { createClient } from \"@/lib/supabase/server\";\r; export async function completeResidentOnboarding(input: ResidentOnboardingInput) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/profile/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import { User, ChevronRight, LogOut, Bell, Shield, HelpCircle, X, Check, Loader2 } from \"lucide-react\";\r; import { createClient } from \"@/lib/supabase/client\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/requests/actions.ts",
+        "category":  "Server action",
+        "purpose":  "import { createClient } from \"@/lib/supabase/server\";\r; import { revalidatePath } from \"next/cache\";\r; export async function submitDocumentRequest(formData: FormData) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/requests/new/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { useState, useEffect } from \"react\";\r; import { ArrowLeft, CheckCircle2, Loader2, FileText, Home, ClipboardList, Building2, Upload, Calendar, AlertTriangle } from \"lucide-react\";\r; import Link from \"next/link\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/requests/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import Link from \"next/link\";\r; import {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(app)/requests/payment-actions.ts",
+        "category":  "Configuration/worker",
+        "purpose":  "import { createClient } from \"@/lib/supabase/server\";\r; import { revalidatePath } from \"next/cache\";\r; export async function submitPaymentReference(requestId: string, referenceNumber: string) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/login/actions.ts",
+        "category":  "Server action",
+        "purpose":  "import { redirect } from \"next/navigation\";\r; import { createClient } from \"@/lib/supabase/server\";\r; export async function loginAction(email: string, password: string) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/login/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { LoginForm } from \"@/components/login-form\";\r; import Link from \"next/link\";\r; import { PreAuthWelcome } from \"@/components/auth/PreAuthWelcome\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/pending-approval/page.tsx",
+        "category":  "Page",
+        "purpose":  "import type { Metadata } from \"next\";\r; import Link from \"next/link\";\r; import { AlertTriangle, Clock3, ShieldCheck } from \"lucide-react\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/pending-approval/refresh-status-button.tsx",
+        "category":  "Configuration/worker",
+        "purpose":  "import { useState } from \"react\";\r; import { Loader2, RefreshCw } from \"lucide-react\";\r; import { useRouter } from \"next/navigation\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/pending-approval/sign-out-button.tsx",
+        "category":  "Configuration/worker",
+        "purpose":  "import { LogOut } from \"lucide-react\";\r; import { createClient } from \"@/lib/supabase/client\";\r; export function SignOutButton() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/register/actions.ts",
+        "category":  "Server action",
+        "purpose":  "import { createAdminClient } from \"@/lib/supabase/admin\";\r; import { isMockSupabaseEnabled } from \"@/lib/supabase/config\";\r; import { v4 as uuidv4 } from \"uuid\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/(auth)/register/page.tsx",
+        "category":  "Page",
+        "purpose":  "import type { Metadata } from \"next\";\r; import { RegisterForm } from \"@/components/auth/RegisterForm\";\r; import Link from \"next/link\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/~offline/page.tsx",
+        "category":  "Page",
+        "purpose":  "export default function OfflinePage() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/api/chat/route.ts",
+        "category":  "API route",
+        "purpose":  "import { NextRequest, NextResponse } from \"next/server\";\r; import { createClient } from \"@/lib/supabase/server\";\r; import { findMatchingKnowledge } from \"@/lib/ai/policy-knowledge\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/api/notifications/subscribe/route.ts",
+        "category":  "API route",
+        "purpose":  "import { NextResponse } from \"next/server\";\r; import { createClient } from \"@/lib/supabase/server\";\r; export async function POST(req: Request) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/api/policies/route.ts",
+        "category":  "API route",
+        "purpose":  "import { NextResponse } from \"next/server\";\r; import { readdir, readFile } from \"fs/promises\";\r; import path from \"path\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/api/tts/route.ts",
+        "category":  "API route",
+        "purpose":  "import { NextResponse } from \"next/server\";\r; export const runtime = \"nodejs\";\r; export async function POST(req: Request) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/auth/callback/route.ts",
+        "category":  "API route",
+        "purpose":  "import { createServerClient, type CookieOptions } from \"@supabase/ssr\";\r; import { cookies } from \"next/headers\";\r; import { NextResponse, type NextRequest } from \"next/server\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/globals.css",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/icon.png",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/layout.tsx",
+        "category":  "Configuration/worker",
+        "purpose":  "import type { Metadata, Viewport } from \"next\";\r; import { Inter } from \"next/font/google\";\r; import \"./globals.css\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/app/page.tsx",
+        "category":  "Page",
+        "purpose":  "import { redirect } from \"next/navigation\";\r; export default function RootPage() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Expo Router screen",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/auth/PreAuthWelcome.tsx",
+        "category":  "Component",
+        "purpose":  "import type { ReactNode } from \"react\";\r; import { useEffect, useState } from \"react\";\r; type InstallPromptEvent = Event \u0026 {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/auth/RegisterForm.tsx",
+        "category":  "Component",
+        "purpose":  "import { useState } from \"react\";\r; import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock, Camera, Home, AlertTriangle, Users, Paperclip } from \"lucide-react\";\r; import { createClient } from \"@/lib/supabase/client\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/camera/CameraCapture.tsx",
+        "category":  "Component",
+        "purpose":  "import React, { useRef, useState, useEffect, useCallback } from \"react\";\r; import { Camera, X, Check, RefreshCw } from \"lucide-react\";\r; interface CameraCaptureProps {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/chat/ChatInterface.tsx",
+        "category":  "Component",
+        "purpose":  "import { useState, useEffect, useRef, useCallback } from \"react\";\r; import { v4 as uuidv4 } from \"uuid\";\r; import {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/chat/InChatFormCard.tsx",
+        "category":  "Component",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import {\r; import { createClient } from \"@/lib/supabase/client\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/guest/GuestAuthModal.tsx",
+        "category":  "Component",
+        "purpose":  "import { ShieldAlert, LogIn, UserPlus, X } from \"lucide-react\";\r; import Link from \"next/link\";\r; interface GuestAuthModalProps {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/layout/BottomNav.tsx",
+        "category":  "Component",
+        "purpose":  "import Link from \"next/link\";\r; import { usePathname } from \"next/navigation\";\r; import { Home, ClipboardList, Megaphone, MessageCircle, User } from \"lucide-react\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/layout/TopBar.tsx",
+        "category":  "Component",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import { Bell, CheckCheck } from \"lucide-react\";\r; import Link from \"next/link\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/login-form.tsx",
+        "category":  "Component",
+        "purpose":  "import { useState } from \"react\";\r; import { useForm } from \"react-hook-form\";\r; import { zodResolver } from \"@hookform/resolvers/zod\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/onboarding/ResidentOnboardingDialog.tsx",
+        "category":  "Component",
+        "purpose":  "import { useEffect, useRef, useState, type FormEvent } from \"react\";\r; import { useRouter } from \"next/navigation\";\r; import { createPortal } from \"react-dom\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/payments/QRScanner.tsx",
+        "category":  "Component",
+        "purpose":  "import { useEffect, useRef, useState } from \"react\";\r; import { Html5Qrcode } from \"html5-qrcode\";\r; import { Loader2, X } from \"lucide-react\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/providers.tsx",
+        "category":  "Component",
+        "purpose":  "import { QueryClient, QueryClientProvider } from \"@tanstack/react-query\";\r; import { useState } from \"react\";\r; export function Providers({ children }: { children: React.ReactNode }) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/components/sw-killer.tsx",
+        "category":  "Component",
+        "purpose":  "import { useEffect } from \"react\";\r; export function ServiceWorkerCleanup() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/hooks/useNotifications.ts",
+        "category":  "Hook",
+        "purpose":  "import { useEffect, useState } from \"react\";\r; import { createClient } from \"@/lib/supabase/client\";\r; export function useNotifications() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/hooks/useSTT.ts",
+        "category":  "Hook",
+        "purpose":  "import { useState, useEffect, useRef, useCallback } from \"react\";\r; import { TTSLanguage } from \"./useTTS\";\r; interface UseSTTReturn {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/hooks/useTTS.ts",
+        "category":  "Hook",
+        "purpose":  "import { useState, useCallback, useRef } from \"react\";\r; type TTSState = \"IDLE\" | \"LOADING\" | \"PLAYING\" | \"ERROR\";\r; interface UseTTSReturn {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/ai/config.ts",
+        "category":  "Library/service",
+        "purpose":  "export const AI_NAME = process.env.NEXT_PUBLIC_AI_NAME || \"Ate Sora\";\r; export function getAIGreeting(language: \"english\" | \"tagalog\" | \"cebuano\" = \"english\"): string {\r; export function getVoiceIntro(language: \"english\" | \"tagalog\" | \"cebuano\" = \"english\"): string {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/ai/document-forms.ts",
+        "category":  "Library/service",
+        "purpose":  "export const DOCUMENT_FORMS = {\r; export function isDocumentFormId(value: unknown): value is DocumentFormId {\r; export function requestedDocumentForm(text: string): DocumentFormId | null {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/ai/policy-knowledge.ts",
+        "category":  "Library/service",
+        "purpose":  "export const BARANGAY_KNOWLEDGE: PolicyTopic[] = [\r; export function getVerifiedQuestionSuggestions(lang: \"tgl\" | \"ceb\" | \"en\"): { label: string; query: string; topicId: string }[] {\r; export function findMatchingKnowledge(\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/ai/sora-agent.ts",
+        "category":  "Library/service",
+        "purpose":  "import { Agent, run, tool } from \"@openai/agents\";\r; type SupportedLanguage = \"tgl\" | \"ceb\" | \"en\";\r; interface GroundingResponse {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/capture-quality.cjs",
+        "category":  "Library/service",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/id-image-validation.cjs",
+        "category":  "Library/service",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/id-text-classification.cjs",
+        "category":  "Library/service",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/push.ts",
+        "category":  "Library/service",
+        "purpose":  "import webpush from \"web-push\";\r; import { createClient } from \"@/lib/supabase/server\";\r; export async function sendPushNotification(userId: string, title: string, body: string, url: string = \"/\") {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/registration-validation.cjs",
+        "category":  "Library/service",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/supabase/admin.ts",
+        "category":  "Library/service",
+        "purpose":  "import { createClient } from \"@supabase/supabase-js\";\r; export function createAdminClient() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/supabase/client.ts",
+        "category":  "Library/service",
+        "purpose":  "import { createBrowserClient } from \"@supabase/ssr\";\r; import { getMockSupabaseClient } from \"./mock-supabase\";\r; import { isMockSupabaseEnabled } from \"./config\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/supabase/config.ts",
+        "category":  "Library/service",
+        "purpose":  "export function isMockSupabaseEnabled() {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/supabase/mock-supabase.ts",
+        "category":  "Library/service",
+        "purpose":  "export function getMockSupabaseClient(cookieStore?: any) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/supabase/server.ts",
+        "category":  "Library/service",
+        "purpose":  "import { createServerClient, type CookieOptions } from \"@supabase/ssr\";\r; import { cookies } from \"next/headers\";\r; import { getMockSupabaseClient } from \"./mock-supabase\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/lib/utils.ts",
+        "category":  "Library/service",
+        "purpose":  "import { type ClassValue, clsx } from \"clsx\";\r; import { twMerge } from \"tailwind-merge\";\r; export function cn(...inputs: ClassValue[]) {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native component/hook/service adaptation",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/middleware.ts",
+        "category":  "Configuration/worker",
+        "purpose":  "import { createServerClient, type CookieOptions } from \"@supabase/ssr\";\r; import { NextResponse, type NextRequest } from \"next/server\";\r; import { getMockSupabaseClient } from \"@/lib/supabase/mock-supabase\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/next.config.js",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/next-env.d.ts",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/package.json",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/postcss.config.js",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/ate-sora.jpg",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/ate-sora.svg",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/documents/barangay-business-permitting.txt",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/documents/barangay-clearance-policy.txt",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/documents/barangay-document-services.txt",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/documents/barangay-ordinances.txt",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/documents/README.md",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/favicon.ico",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/icons/pwa-192x192.png",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/icons/pwa-512x512.png",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/logo.png",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/logo-icon.png",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/manifest.json",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/onboarding/community.jpg",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/onboarding/documents.jpg",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/public/onboarding/support.jpg",
+        "category":  "Asset/content",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tailwind.config.js",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tests/capture-quality.test.cjs",
+        "category":  "Test",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tests/id-image-validation.test.cjs",
+        "category":  "Test",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tests/id-text-classification.test.cjs",
+        "category":  "Test",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tests/registration-validation.test.cjs",
+        "category":  "Test",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tests/updates-performance.test.mjs",
+        "category":  "Test",
+        "purpose":  "import test from \"node:test\";\r; import assert from \"node:assert/strict\";\r; import { readFileSync } from \"node:fs\";\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/tsconfig.json",
+        "category":  "Configuration/worker",
+        "purpose":  "Static asset/configuration or regression test; see source",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Mapped by workflow; web-only where server-specific",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    },
+    {
+        "path":  "apps/resident-pwa/worker/index.ts",
+        "category":  "Configuration/worker",
+        "purpose":  "self.addEventListener(\"activate\", (event) =\u003e {\r; self.addEventListener(\"push\", (event) =\u003e {\r; self.addEventListener(\"notificationclick\", (event) =\u003e {\r",
+        "dependencies":  "Source imports; dependency audit",
+        "mobilePlan":  "Native equivalent or kept web-only; details in compatibility audit",
+        "auditStatus":  "Audited (static source inventory)",
+        "implementationStatus":  "Not started",
+        "testStatus":  "Not tested"
+    }
+]

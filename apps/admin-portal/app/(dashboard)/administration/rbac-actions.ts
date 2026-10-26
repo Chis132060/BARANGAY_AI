@@ -192,7 +192,10 @@ export async function fetchSystemUsers(): Promise<SystemUser[]> {
     .order("name");
 
   if (error) throw new Error(error.message);
-  return (data || []) as SystemUser[];
+  return (data || []).map((row: any) => ({
+    ...row,
+    role: Array.isArray(row.role) ? row.role[0] ?? undefined : row.role,
+  })) as SystemUser[];
 }
 
 export async function fetchSystemUser(id: string): Promise<SystemUser | null> {
@@ -212,7 +215,7 @@ export async function fetchSystemUser(id: string): Promise<SystemUser | null> {
     .single();
 
   if (error) return null;
-  return data as SystemUser;
+  return { ...data, role: Array.isArray(data.role) ? data.role[0] : data.role } as SystemUser;
 }
 
 export async function updateSystemUser(id: string, updates: { name?: string; email?: string; role_id?: string }): Promise<void> {

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export interface ResidentOnboardingInput {
   householdNumber?: string;
+  joinExistingHousehold?: boolean;
   householdSize: number;
   monthlyIncome?: number;
   housingType: "Owned" | "Rented" | "Informal Settler" | "Other";
@@ -29,31 +30,48 @@ export async function completeResidentOnboarding(input: ResidentOnboardingInput)
     throw new Error("Your resident account must be verified before completing onboarding.");
   }
 
-  const householdNumber = input.householdNumber?.trim() || `HH-${resident.id.slice(0, 8).toUpperCase()}`;
-  let { data: household, error: householdLookupError } = await supabase
+  const submittedHouseholdNumber = input.householdNumber?.trim();
+  const householdNumber = input.joinExistingHousehold
+    ? submittedHouseholdNumber
+    : submittedHouseholdNumber || `HH-${resident.id.slice(0, 8).toUpperCase()}`;
+  let household: { id: string } | null = null;
+  if (input.joinExistingHousehold) {
+    if (!householdNumber) throw new Error("Enter your household number to join your family.");
+    const { data, error } = await supabase.rpc("join_household_by_number", { p_household_number: householdNumber });
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("We could not join that household. Check the household number with your household head or Barangay staff.");
+    household = { id: data as string };
+    const { data: assigned, error: assignedError } = await supabase.from("household_members").select("household_id").eq("resident_id", resident.id).maybeSingle();
+    if (assignedError) throw new Error(assignedError.message);
+    if (assigned && assigned.household_id !== household.id) throw new Error("This resident is already assigned to a different household. Contact Barangay staff to correct it.");
+  }
+
+  const effectiveHouseholdNumber = householdNumber || "";
+  if (!household) {
+    const { data: existingHousehold, error: householdLookupError } = await supabase
     .from("households")
     .select("id")
     .eq("household_head_id", resident.id)
     .maybeSingle();
-
-  if (householdLookupError) throw new Error(householdLookupError.message);
+    if (householdLookupError) throw new Error(householdLookupError.message);
+    household = existingHousehold;
+  }
 
   if (household) {
-    const { error } = await supabase
-      .from("households")
-      .update({
-        household_number: householdNumber,
+    if (!input.joinExistingHousehold) {
+      const { error } = await supabase.from("households").update({
+        household_number: effectiveHouseholdNumber,
         member_count: Math.max(1, input.householdSize),
         monthly_income: input.monthlyIncome ?? 0,
         housing_type: input.housingType,
-      })
-      .eq("id", household.id);
-    if (error) throw new Error(error.message);
+      }).eq("id", household.id);
+      if (error) throw new Error(error.message);
+    }
   } else {
     const { data: createdHousehold, error } = await supabase
       .from("households")
       .insert({
-        household_number: householdNumber,
+        household_number: effectiveHouseholdNumber,
         household_head_id: resident.id,
         member_count: Math.max(1, input.householdSize),
         monthly_income: input.monthlyIncome ?? 0,
@@ -65,12 +83,13 @@ export async function completeResidentOnboarding(input: ResidentOnboardingInput)
     household = createdHousehold;
   }
 
-  const { data: existingMembership } = await supabase
+  const { data: existingMembership, error: membershipLookupError } = await supabase
     .from("household_members")
     .select("id")
     .eq("household_id", household.id)
     .eq("resident_id", resident.id)
     .maybeSingle();
+  if (membershipLookupError) throw new Error(membershipLookupError.message);
 
   if (existingMembership) {
     const { error } = await supabase

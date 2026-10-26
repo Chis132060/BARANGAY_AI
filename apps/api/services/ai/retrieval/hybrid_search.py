@@ -45,12 +45,6 @@ class HybridRetriever:
         In production, a dedicated RPC `keyword_search_chunks` should be used.
         """
         try:
-            # We mock a keyword search RPC here. If it doesn't exist, we fallback to empty.
-            # A real implementation would execute:
-            # self.supabase.table("knowledge_chunks").select("*").textSearch("content", query).limit(limit).execute()
-            
-            # Since full text search might not be configured on 'content' directly without an index,
-            # we will assume an RPC 'keyword_search_chunks' is created, or we fallback gracefully.
             db_response = self.supabase.rpc("keyword_search_chunks", {"search_term": query, "match_count": limit}).execute()
             return db_response.data or []
         except Exception as e:
