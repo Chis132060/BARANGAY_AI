@@ -47,3 +47,10 @@ test("offline fallback renders saved program and organization snapshots", () => 
   assert.match(fallback, /barangay-programs/);
   assert.match(fallback, /barangay-organizations/);
 });
+
+test("offline document requests bypass online attachment validation only for attachment-free types", () => {
+  const source = read("../app/(app)/requests/new/page.tsx");
+  assert.match(source, /navigator\.onLine && missing && missing\.length > 0/);
+  assert.match(source, /!navigator\.onLine && \(selectedType\.requirements_json \|\| \[\]\)\.length > 0/);
+  assert.match(source, /queueDocumentRequest\(/);
+});
