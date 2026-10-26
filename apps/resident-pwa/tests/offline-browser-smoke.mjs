@@ -8,7 +8,12 @@ const page = await context.newPage();
 try {
   const response = await page.goto(base + "/~offline", { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.equal(response?.status(), 200, "offline fallback page must load while connected");
-  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.waitForFunction(async () => {
+    if (!("serviceWorker" in navigator)) return false;
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    return registrations.some(registration => Boolean(registration.active));
+  }, { timeout: 20000 });
+  console.log("Active service worker registration detected");
   if (!(await page.evaluate(() => Boolean(navigator.serviceWorker?.controller)))) {
     await page.reload({ waitUntil: "domcontentloaded" });
   }
