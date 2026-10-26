@@ -65,7 +65,7 @@ export async function submitDocumentRequest(formData: FormData) {
 
   if (clientOperationId) {
     const { data: existing, error: lookupError } = await supabase.from("document_requests")
-      .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
+      .select("id, document_type_id, remarks").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
     if (lookupError) throw new Error("Could not verify previous submission.");
     if (existing) {
       if (existing.document_type_id !== documentTypeId || existing.remarks !== purpose) {
