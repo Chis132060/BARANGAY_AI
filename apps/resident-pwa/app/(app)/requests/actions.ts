@@ -171,7 +171,7 @@ export async function submitDocumentRequest(formData: FormData) {
   if (reqError) {
     if (reqError.code === "23505" && clientOperationId) {
       const { data: existing, error: lookupError } = await supabase.from("document_requests")
-        .select("id").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
+        .select("id, document_type_id, remarks").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
       if (!lookupError && existing && existing.document_type_id === documentTypeId && existing.remarks === purpose) {
         // Uploads from this retry are unnecessary; delete them on duplicate receipt.
         if (uploadedPaths.length) await supabase.storage.from("document-requirements").remove(uploadedPaths);
