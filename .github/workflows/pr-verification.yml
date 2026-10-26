@@ -67,3 +67,40 @@ jobs:
         env:
           PYTHONPATH: apps/api
         run: python -m pytest -q apps/api/tests/test_voice_auth.py
+
+  pwa-offline-browser:
+    name: Resident PWA Chromium offline smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm ci
+      - name: Install browser test runner
+        run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build production PWA
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm run build:pwa
+      - name: Launch PWA and verify offline behavior
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          npm run start --workspace=apps/resident-pwa -- --hostname 127.0.0.1 --port 5173 > /tmp/resident-pwa.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:5173/~offline >/dev/null; then break; fi
+            sleep 2
+          done
+          node apps/resident-pwa/tests/offline-browser-smoke.mjs
+      - name: Show server logs if failed
+        if: failure()
+        run: tail -n 120 /tmp/resident-pwa.log || true
