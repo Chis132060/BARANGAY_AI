@@ -36,7 +36,7 @@ export function OfflineStatusCenter() {
             attention: [...tickets, ...documents, ...programs].filter(item => item.state === "needs_attention").length
           });
           setStorageError(health.quota && health.usage && health.usage / health.quota > 0.9
-            ? "Device storage is over 90% full. Export or synchronize pending changes before clearing browser data."
+            ? "Device storage is over 90% full. Synchronize pending changes before clearing browser data; clearing storage can permanently lose unsent work."
             : "");
         }
       } catch {
