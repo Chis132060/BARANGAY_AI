@@ -6,13 +6,13 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ serviceWorkers: "allow" });
 const page = await context.newPage();
 try {
-  const response = await page.goto(base + "/~offline", { waitUntil: "networkidle", timeout: 45000 });
+  const response = await page.goto(base + "/~offline", { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.equal(response?.status(), 200, "offline fallback page must load while connected");
-  await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, { timeout: 30000 }).catch(async () => {
-    // First visit may only install the worker; reload after registration/activation.
-    await page.evaluate(() => navigator.serviceWorker?.ready);
-    await page.reload({ waitUntil: "networkidle" });
-  });
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  if (!(await page.evaluate(() => Boolean(navigator.serviceWorker?.controller)))) {
+    await page.reload({ waitUntil: "domcontentloaded" });
+  }
+  await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, { timeout: 15000 });
   const hasController = await page.evaluate(() => Boolean(navigator.serviceWorker?.controller));
   assert.ok(hasController, "production service worker should control the page");
 
