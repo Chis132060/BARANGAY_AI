@@ -367,7 +367,7 @@ export function OrganizationsClient({ initialOrganizations }: Props) {
         </button>
       </div>
 
-      {/* Stats — KPI cards matching dashboard quality */}
+      {/* Stats — comprehensive summary */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           {
@@ -427,6 +427,145 @@ export function OrganizationsClient({ initialOrganizations }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Analytics panels */}
+      {(() => {
+        const totalMembers = orgs.reduce((sum, o) => sum + (o.member_count ?? 0), 0);
+        const maxMembers = Math.max(1, ...orgs.map((o) => o.member_count ?? 0));
+
+        // Tally members by org type
+        const byType: Record<string, number> = {};
+        for (const o of orgs) {
+          const key = o.org_type || "Other";
+          byType[key] = (byType[key] || 0) + (o.member_count ?? 0);
+        }
+        const typeRows = Object.entries(byType)
+          .sort((a, b) => b[1] - a[1]);
+
+        // Top orgs by member count
+        const topOrgs = [...orgs]
+          .sort((a, b) => (b.member_count ?? 0) - (a.member_count ?? 0))
+          .slice(0, 5);
+
+        const TYPE_COLORS: Record<string, string> = {
+          OFW: "bg-blue-500", Cooperative: "bg-amber-500", Community: "bg-emerald-500",
+          Sectoral: "bg-purple-500", Youth: "bg-cyan-500", Women: "bg-pink-500",
+          Senior: "bg-orange-500", Religious: "bg-indigo-500", Other: "bg-gray-400",
+        };
+
+        return (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {/* Total Members KPI */}
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col gap-4">
+              <p className="text-sm font-extrabold text-foreground">Member Summary</p>
+              <div className="flex items-end gap-3">
+                <span className="text-5xl font-extrabold tracking-tight text-foreground leading-none tabular-nums">
+                  {totalMembers.toLocaleString()}
+                </span>
+                <span className="text-sm font-semibold text-muted-foreground mb-1">total members</span>
+              </div>
+              <div className="h-px bg-border" />
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Active vs Inactive Orgs</p>
+                {(() => {
+                  const active = orgs.filter((o) => o.status === "Active");
+                  const inactive = orgs.filter((o) => o.status !== "Active");
+                  const activeMembers = active.reduce((s, o) => s + (o.member_count ?? 0), 0);
+                  const inactiveMembers = inactive.reduce((s, o) => s + (o.member_count ?? 0), 0);
+                  return [
+                    { label: "Active orgs", orgs: active.length, members: activeMembers, color: "bg-emerald-500" },
+                    { label: "Inactive orgs", orgs: inactive.length, members: inactiveMembers, color: "bg-slate-400" },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center gap-2 text-xs">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${row.color}`} />
+                      <span className="flex-1 text-muted-foreground font-medium">{row.label}</span>
+                      <span className="tabular-nums text-muted-foreground">{row.orgs} orgs</span>
+                      <span className="tabular-nums font-bold text-foreground w-12 text-right">{row.members} mbr</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+              <div className="h-px bg-border" />
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Built-in vs Custom</p>
+                {(() => {
+                  const builtin = orgs.filter((o) => !o.is_custom);
+                  const custom = orgs.filter((o) => o.is_custom);
+                  const builtinMembers = builtin.reduce((s, o) => s + (o.member_count ?? 0), 0);
+                  const customMembers = custom.reduce((s, o) => s + (o.member_count ?? 0), 0);
+                  return [
+                    { label: "Built-in orgs", orgs: builtin.length, members: builtinMembers, color: "bg-blue-500" },
+                    { label: "Custom orgs", orgs: custom.length, members: customMembers, color: "bg-violet-500" },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center gap-2 text-xs">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${row.color}`} />
+                      <span className="flex-1 text-muted-foreground font-medium">{row.label}</span>
+                      <span className="tabular-nums text-muted-foreground">{row.orgs} orgs</span>
+                      <span className="tabular-nums font-bold text-foreground w-12 text-right">{row.members} mbr</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Members by org type */}
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col gap-4">
+              <p className="text-sm font-extrabold text-foreground">Members by Type</p>
+              <div className="space-y-2.5">
+                {typeRows.map(([type, count]) => {
+                  const pct = totalMembers > 0 ? Math.round((count / totalMembers) * 100) : 0;
+                  const barColor = TYPE_COLORS[type] || "bg-gray-400";
+                  return (
+                    <div key={type} className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${barColor}`} />
+                        <span className="flex-1 font-medium text-muted-foreground">{type}</span>
+                        <span className="tabular-nums text-muted-foreground">{count.toLocaleString()}</span>
+                        <span className="tabular-nums font-bold text-foreground w-9 text-right">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full ${barColor} rounded-full transition-all duration-700`} style={{ width: pct > 0 ? `${pct}%` : "1%" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                {typeRows.length === 0 && (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No organizations yet.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Top orgs leaderboard */}
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col gap-4">
+              <p className="text-sm font-extrabold text-foreground">Top Organizations</p>
+              <div className="space-y-2">
+                {topOrgs.map((org, idx) => {
+                  const pct = maxMembers > 0 ? Math.round(((org.member_count ?? 0) / maxMembers) * 100) : 0;
+                  const { color, icon: Icon } = getOrgStyle(org.org_type, org.is_custom);
+                  return (
+                    <div key={org.id} className="flex items-center gap-3 py-1.5 rounded-lg px-1 hover:bg-muted/40 transition-colors cursor-pointer group" onClick={() => setSelectedOrg(org)}>
+                      <span className="text-[11px] font-extrabold text-muted-foreground w-4 shrink-0 tabular-nums">#{idx + 1}</span>
+                      <div className={`flex h-7 w-7 items-center justify-center rounded-lg border shrink-0 ${color}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">{org.name}</p>
+                        <div className="mt-1 h-1 w-full bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: pct > 0 ? `${pct}%` : "2%" }} />
+                        </div>
+                      </div>
+                      <span className="tabular-nums text-xs font-bold text-foreground shrink-0">{(org.member_count ?? 0).toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+                {topOrgs.length === 0 && (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No organizations yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Search */}
       <div className="relative max-w-sm">

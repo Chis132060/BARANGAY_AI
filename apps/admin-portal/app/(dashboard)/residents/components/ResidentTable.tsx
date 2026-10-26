@@ -2,8 +2,9 @@
 
 import { AdminTable } from "@/components/ui/AdminTable";
 import type { ResidentListItem } from "../actions";
-import { MapPin, Phone, Eye, UserX, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { fetchVerifiedResidentPhoto } from "../actions";
+import { MapPin, Phone, Eye, UserX, X, CreditCard, ImageOff } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 
 interface ResidentTableProps {
   residents: ResidentListItem[];
@@ -11,6 +12,28 @@ interface ResidentTableProps {
 
 export function ResidentTable({ residents }: ResidentTableProps) {
   const [selectedResident, setSelectedResident] = useState<ResidentListItem | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!selectedResident) {
+      setPhotoUrl(null);
+      return;
+    }
+    if (!selectedResident.id_photo_url) {
+      setPhotoUrl(null);
+      return;
+    }
+    setPhotoLoading(true);
+    setPhotoUrl(null);
+    startTransition(() => {
+      fetchVerifiedResidentPhoto(selectedResident.id)
+        .then((url) => setPhotoUrl(url))
+        .catch(() => setPhotoUrl(null))
+        .finally(() => setPhotoLoading(false));
+    });
+  }, [selectedResident]);
 
   useEffect(() => {
     if (!selectedResident) return;
@@ -144,40 +167,81 @@ export function ResidentTable({ residents }: ResidentTableProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="resident-profile-title"
-          className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl"
+          className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
         >
-          <div className="flex items-start justify-between gap-4">
+          {/* Modal header */}
+          <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 shrink-0">
             <div>
               <h2 id="resident-profile-title" className="text-lg font-bold text-foreground">
                 {selectedResident.last_name}, {selectedResident.first_name} {selectedResident.middle_name || ""}
               </h2>
               <p className="text-xs text-muted-foreground">Resident Profile</p>
             </div>
-            <button type="button" aria-label="Close resident profile" onClick={() => setSelectedResident(null)} className="rounded-lg p-2 hover:bg-muted">
+            <button type="button" aria-label="Close resident profile" onClick={() => setSelectedResident(null)} className="rounded-lg p-2 hover:bg-muted shrink-0">
               <X className="h-5 w-5" />
             </button>
           </div>
-          <dl className="mt-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            {([
-              ["Gender", selectedResident.gender],
-              ["Date of birth", selectedResident.birth_date],
-              ["Civil status", selectedResident.civil_status],
-              ["Contact number", selectedResident.contact_number || "—"],
-              ["House number", selectedResident.address?.house_number || "—"],
-              ["Street", selectedResident.address?.street || "—"],
-              ["Purok", selectedResident.address?.purok || "—"],
-              ["Verification", selectedResident.verification_status || "—"],
-              ["Voter", selectedResident.voter_status ? "Yes" : "No"],
-              ["Senior", selectedResident.senior_status ? "Yes" : "No"],
-              ["PWD", selectedResident.pwd_status ? "Yes" : "No"],
-              ["4Ps", selectedResident.four_ps_status ? "Yes" : "No"],
-            ] as [string, string][]).map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
-                <dd className="mt-1 break-words font-medium text-foreground">{value}</dd>
+
+          {/* Scrollable body */}
+          <div className="overflow-y-auto px-6 pb-6 space-y-5">
+            {/* ID Photo section */}
+            {selectedResident.id_photo_url && (
+              <div className="rounded-xl border border-border bg-muted/30 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/40">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {selectedResident.id_type ? `Submitted ID · ${selectedResident.id_type}` : "Submitted ID Photo"}
+                  </span>
+                </div>
+                <div className="relative w-full min-h-[160px] flex items-center justify-center bg-muted/20">
+                  {photoLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    </div>
+                  )}
+                  {!photoLoading && photoUrl && (
+                    <a href={photoUrl} target="_blank" rel="noopener noreferrer" title="Open full ID image" className="block w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photoUrl}
+                        alt={`ID photo of ${selectedResident.first_name} ${selectedResident.last_name}`}
+                        className="w-full max-h-56 object-contain"
+                      />
+                    </a>
+                  )}
+                  {!photoLoading && !photoUrl && (
+                    <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
+                      <ImageOff className="h-6 w-6" />
+                      <span className="text-xs">Photo unavailable</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
-          </dl>
+            )}
+
+            {/* Details grid */}
+            <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              {([
+                ["Gender", selectedResident.gender],
+                ["Date of birth", selectedResident.birth_date],
+                ["Civil status", selectedResident.civil_status],
+                ["Contact number", selectedResident.contact_number || "—"],
+                ["House number", selectedResident.address?.house_number || "—"],
+                ["Street", selectedResident.address?.street || "—"],
+                ["Purok", selectedResident.address?.purok || "—"],
+                ["Verification", selectedResident.verification_status || "—"],
+                ["Voter", selectedResident.voter_status ? "Yes" : "No"],
+                ["Senior", selectedResident.senior_status ? "Yes" : "No"],
+                ["PWD", selectedResident.pwd_status ? "Yes" : "No"],
+                ["4Ps", selectedResident.four_ps_status ? "Yes" : "No"],
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 break-words font-medium text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </section>
       </div>
     )}

@@ -3,7 +3,7 @@
 import {
   Users, Home, BadgeCheck, Accessibility, FileText, Building2,
   UserPlus, Receipt, PackageCheck, UserRound, AlertCircle,
-  TrendingDown, TrendingUp, Minus,
+  TrendingDown, TrendingUp, Minus, Venus, Mars,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -64,6 +64,37 @@ export function KpiCard({
         </div>
       )}
     </Link>
+  );
+}
+
+// ─── Gender Split Bar ──────────────────────────────────────────────────────────
+function GenderSplitBar({ male, female, other, total }: { male: number; female: number; other: number; total: number }) {
+  const pctM = total > 0 ? (male / total) * 100 : 0;
+  const pctF = total > 0 ? (female / total) * 100 : 0;
+  const pctO = total > 0 ? (other / total) * 100 : 0;
+  return (
+    <div className="space-y-3">
+      {/* Stacked split bar */}
+      <div className="flex h-4 w-full rounded-full overflow-hidden gap-0.5">
+        <div className="h-full bg-blue-500 transition-all duration-700 rounded-l-full" style={{ width: `${pctM}%` }} />
+        <div className="h-full bg-rose-400 transition-all duration-700" style={{ width: `${pctF}%` }} />
+        <div className="h-full bg-slate-400 transition-all duration-700 rounded-r-full" style={{ width: `${pctO}%` }} />
+      </div>
+      {/* Legend rows */}
+      {[
+        { label: "Male", value: male, pct: pctM, color: "bg-blue-500", dot: "#3b82f6", icon: Mars },
+        { label: "Female", value: female, pct: pctF, color: "bg-rose-400", dot: "#fb7185", icon: Venus },
+        { label: "Other / Unspecified", value: other, pct: pctO, color: "bg-slate-400", dot: "#94a3b8", icon: null },
+      ].map(({ label, value, pct, dot, icon: GIcon }) => (
+        <div key={label} className="flex items-center gap-2 text-xs">
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: dot }} />
+          {GIcon && <GIcon className="h-3 w-3 shrink-0" style={{ color: dot }} />}
+          <span className="flex-1 font-medium text-muted-foreground">{label}</span>
+          <span className="tabular-nums text-muted-foreground">{value.toLocaleString()}</span>
+          <span className="tabular-nums font-bold text-foreground w-10 text-right">{Math.round(pct)}%</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -211,9 +242,11 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     { label: "Seniors", value: metrics.seniorCitizens, color: "#f59e0b" },
     { label: "4Ps", value: metrics.fourPsMembers, color: "#10b981" },
     { label: "PWD", value: metrics.pwdResidents, color: "#6366f1" },
+    { label: "Solo Parent", value: metrics.soloParentResidents, color: "#ec4899" },
+    { label: "DSWD", value: metrics.dswdResidents, color: "#0ea5e9" },
     {
       label: "Others",
-      value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents),
+      value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents - metrics.soloParentResidents - metrics.dswdResidents),
       color: "#e2e8f0",
     },
   ];
@@ -272,7 +305,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
       </div>
 
       {/* ── Row 3: Chart panels ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Community breakdown horizontal bar chart */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-1">
           <p className="text-sm font-extrabold text-foreground mb-4">Community Breakdown</p>
@@ -282,7 +315,15 @@ export function StatsGrid({ metrics }: StatsGridProps) {
           <MetricRow label="Senior Citizens" value={metrics.seniorCitizens} max={pop} color="bg-amber-500" href="/residents/senior" />
           <MetricRow label="4Ps Beneficiaries" value={metrics.fourPsMembers} max={pop} color="bg-teal-500" href="/residents" />
           <MetricRow label="PWD Members" value={metrics.pwdResidents} max={pop} color="bg-indigo-500" href="/residents/pwd" />
-          <MetricRow label="Local Businesses" value={metrics.registeredBusinesses} max={pop} color="bg-pink-500" href="/business/registry" />
+          <MetricRow label="Solo Parents" value={metrics.soloParentResidents} max={pop} color="bg-pink-500" href="/residents" />
+          <MetricRow label="DSWD Beneficiaries" value={metrics.dswdResidents} max={pop} color="bg-sky-500" href="/residents" />
+          <MetricRow label="Local Businesses" value={metrics.registeredBusinesses} max={pop} color="bg-orange-400" href="/business/registry" />
+          <div className="pt-2 border-t border-border/50">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">By Gender</p>
+            <MetricRow label="Male" value={metrics.maleResidents} max={pop} color="bg-blue-500" href="/residents" />
+            <MetricRow label="Female" value={metrics.femaleResidents} max={pop} color="bg-rose-400" href="/residents" />
+            <MetricRow label="Other / Unspecified" value={metrics.otherGenderResidents} max={pop} color="bg-slate-400" href="/residents" />
+          </div>
         </div>
 
         {/* Demographic donut + improved legend */}
@@ -298,12 +339,14 @@ export function StatsGrid({ metrics }: StatsGridProps) {
           <div className="space-y-2.5">
             {[
               { label: "Registered Voters", value: metrics.registeredVoters, color: "#7c3aed", barColor: "bg-violet-500" },
-              { label: "Senior Citizens",   value: metrics.seniorCitizens,   color: "#f59e0b", barColor: "bg-amber-500"  },
-              { label: "4Ps Beneficiaries", value: metrics.fourPsMembers,    color: "#10b981", barColor: "bg-emerald-500"},
-              { label: "PWD Members",       value: metrics.pwdResidents,     color: "#6366f1", barColor: "bg-indigo-500" },
+              { label: "Senior Citizens", value: metrics.seniorCitizens, color: "#f59e0b", barColor: "bg-amber-500" },
+              { label: "4Ps Beneficiaries", value: metrics.fourPsMembers, color: "#10b981", barColor: "bg-emerald-500" },
+              { label: "PWD Members", value: metrics.pwdResidents, color: "#6366f1", barColor: "bg-indigo-500" },
+              { label: "Solo Parents", value: metrics.soloParentResidents, color: "#ec4899", barColor: "bg-pink-500" },
+              { label: "DSWD Beneficiaries", value: metrics.dswdResidents, color: "#0ea5e9", barColor: "bg-sky-500" },
               {
                 label: "Others",
-                value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents),
+                value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents - metrics.soloParentResidents - metrics.dswdResidents),
                 color: "#cbd5e1",
                 barColor: "bg-slate-300",
               },
@@ -327,6 +370,54 @@ export function StatsGrid({ metrics }: StatsGridProps) {
               );
             })}
           </div>
+        </div>
+
+        {/* ── Gender Distribution panel ── */}
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-extrabold text-foreground">Gender Distribution</p>
+            <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {metrics.totalPopulation.toLocaleString()} residents
+            </span>
+          </div>
+
+          {/* Donut for gender */}
+          <div className="flex justify-center">
+            <DonutChart
+              segments={[
+                { label: "Male", value: metrics.maleResidents, color: "#3b82f6" },
+                { label: "Female", value: metrics.femaleResidents, color: "#fb7185" },
+                { label: "Other", value: metrics.otherGenderResidents, color: "#94a3b8" },
+              ]}
+              total={metrics.totalPopulation}
+            />
+          </div>
+
+          {/* Split stacked bar + legend */}
+          <GenderSplitBar
+            male={metrics.maleResidents}
+            female={metrics.femaleResidents}
+            other={metrics.otherGenderResidents}
+            total={pop}
+          />
+
+          {/* Male vs Female ratio callout */}
+          {metrics.maleResidents + metrics.femaleResidents > 0 && (
+            <div className="mt-auto pt-3 border-t border-border/50 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex-1">
+                <span className="font-bold text-blue-500">♂ {metrics.maleResidents}</span>
+                <span className="mx-1">vs</span>
+                <span className="font-bold text-rose-400">♀ {metrics.femaleResidents}</span>
+              </div>
+              <span className="font-semibold text-foreground">
+                {metrics.maleResidents > metrics.femaleResidents
+                  ? `+${metrics.maleResidents - metrics.femaleResidents} more male`
+                  : metrics.femaleResidents > metrics.maleResidents
+                    ? `+${metrics.femaleResidents - metrics.maleResidents} more female`
+                    : "Equal ratio"}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -17,6 +17,8 @@ export interface ResidentListItem {
   pwd_status: boolean;
   four_ps_status: boolean;
   verification_status?: "Pending" | "Verified" | "Rejected";
+  id_type?: string;
+  id_photo_url?: string;
   address?: {
     house_number?: string;
     street?: string;
@@ -46,6 +48,8 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
       pwd_status,
       four_ps_status,
       verification_status,
+      id_type,
+      id_photo_url,
       address:addresses (
         house_number,
         street,
@@ -244,6 +248,29 @@ export async function fetchResidentIdPhotoUrl(residentId: string): Promise<strin
   const photo = resident?.id_photo_url;
   if (!photo) return null;
   // IDs must be stored as private storage paths, never public HTTP URLs.
+  if (/^https?:\/\//i.test(photo) || photo.includes("..") || photo.startsWith("/")) throw new Error("Invalid private ID storage path");
+  const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 300);
+  if (signError) throw new Error(signError.message);
+  return data?.signedUrl ?? null;
+}
+
+/** Generate a short-lived signed URL for a verified resident's ID photo. */
+export async function fetchVerifiedResidentPhoto(residentId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const canView = await checkUserPermission(user.id, "residents", "canView");
+  if (!canView) throw new Error("Insufficient permissions");
+  const { data: resident, error } = await supabase
+    .from("residents")
+    .select("id_photo_url")
+    .eq("id", residentId)
+    .eq("verification_status", "Verified")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const photo = resident?.id_photo_url;
+  if (!photo) return null;
+  // Photos must be stored as private storage paths, never raw public HTTP URLs.
   if (/^https?:\/\//i.test(photo) || photo.includes("..") || photo.startsWith("/")) throw new Error("Invalid private ID storage path");
   const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 300);
   if (signError) throw new Error(signError.message);
