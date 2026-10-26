@@ -35,9 +35,11 @@ export async function savePublicSnapshot<T>(key: string, data: T, ttlMs: number)
     throw new Error("Invalid cache duration");
   await perform("readwrite", store => store.put({ key, data, cachedAt: Date.now(), expiresAt: Date.now() + ttlMs }));
 }
-export async function loadPublicSnapshot<T>(key: string): Promise<{ data: T; cachedAt: number } | null> {
+export async function loadPublicSnapshot<T>(key: string): Promise<{ data: T; cachedAt: number; stale: boolean } | null> {
   if (!PUBLIC_KEYS.has(key)) return null;
   const result = await perform<Snapshot<T> | undefined>("readonly", store => store.get(key));
-  if (!result || result.expiresAt < Date.now()) return null;
-  return { data: result.data, cachedAt: result.cachedAt };
+  if (!result) return null;
+  // Expiration means revalidation is needed, not that offline public content disappears.
+  // These allowlisted snapshots are public; callers must label old data as stale.
+  return { data: result.data, cachedAt: result.cachedAt, stale: result.expiresAt < Date.now() };
 }

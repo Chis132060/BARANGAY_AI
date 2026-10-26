@@ -11,7 +11,9 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
 import { ConnectionBanner } from "@/components/offline/ConnectionBanner";
 import { OfflineSyncRunner } from "@/components/offline/OfflineSyncRunner";
+import { OfflineStatusCenter } from "@/components/offline/OfflineStatusCenter";
 import { createClient } from "@/lib/supabase/client";
+import { clearRequestSummaries } from "@/lib/offline/request-summaries";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -28,7 +30,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if(active)setIsLoggedIn(!!user);
       }).catch(()=>{});
     }
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event:string,session:{user:{id:string}}|null)=>{
+    let previousUserId: string | null = null;
+    void supabase.auth.getSession().then(({data:{session}}: {data:{session:{user:{id:string}}|null}})=>{
+      previousUserId = session?.user?.id ?? null;
+    });
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((event:string,session:{user:{id:string}}|null)=>{
+      const nextUserId = session?.user?.id ?? null;
+      // Avoid leaving resident request summaries readable after logout/account switch.
+      // Pending outbox entries are separately user-scoped and deliberately retained.
+      if ((event === "SIGNED_OUT" || (previousUserId && nextUserId && previousUserId !== nextUserId)) && previousUserId) {
+        void clearRequestSummaries(previousUserId).catch(error =>
+          console.warn("[Offline] Could not clear private request summaries:", error)
+        );
+      }
+      previousUserId = nextUserId;
       if(active)setIsLoggedIn(!!session?.user);
     });
     return ()=>{active=false;subscription.unsubscribe();};
@@ -47,6 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <TopBar />
       <ConnectionBanner />
       <OfflineSyncRunner />
+      <OfflineStatusCenter />
       <main
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: "var(--bottom-nav-height)" }}

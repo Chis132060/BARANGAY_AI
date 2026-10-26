@@ -95,6 +95,35 @@ export default function AnnouncementsPage() {
       inFlight.current = true;
       setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
 
+      // Render previously saved public information before attempting the network.
+      // The snapshots remain readable past their TTL, but must be labeled stale.
+      try {
+        const [annCache, progCache, orgCache] = await Promise.all([
+          loadPublicSnapshot<Announcement[]>("announcements"),
+          loadPublicSnapshot<Program[]>("barangay-programs"),
+          loadPublicSnapshot<PublicOrganization[]>("barangay-organizations"),
+        ]);
+        if (!active) return;
+        if (annCache && !announcementsRef.current.length) {
+          announcementsRef.current = annCache.data;
+          setAnnouncements(annCache.data);
+        }
+        if (progCache && !programsRef.current.length) {
+          programsRef.current = progCache.data;
+          setPrograms(progCache.data);
+        }
+        if (orgCache) setOrganizations(orgCache.data);
+        if (!navigator.onLine) {
+          setErrorMessage("Offline: displaying saved public information that may be outdated. Registrations are not confirmed until synchronized.");
+          return;
+        }
+      } catch {
+        if (!navigator.onLine) {
+          setErrorMessage("Offline storage is unavailable. Visit this page while connected to save public information.");
+          return;
+        }
+      }
+
       try {
         const [ann, prog, org] = await Promise.all([
           supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),

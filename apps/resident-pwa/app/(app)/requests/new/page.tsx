@@ -118,9 +118,9 @@ export default function NewRequestPage() {
     e.preventDefault();
     if (!selectedType) return;
 
-    // Check if all required files are provided
+    // Offline drafts do not persist attachments; allow queueing only attachment-free requests.
     const missing = selectedType.requirements_json?.filter(req => !files[req]);
-    if (missing && missing.length > 0) {
+    if (navigator.onLine && missing && missing.length > 0) {
       setErrorMsg(`Missing required attachments: ${missing.join(", ")}`);
       return;
     }
@@ -129,6 +129,9 @@ export default function NewRequestPage() {
     setErrorMsg(null);
 
     try {
+      if (!navigator.onLine && (selectedType.requirements_json || []).length > 0) {
+        throw new Error("Attachments require online submission. Save a draft and reconnect to attach files.");
+      }
       const formData = new FormData();
       formData.append("documentTypeId", selectedType.id);
       formData.append("purpose", purpose || `Requested ${selectedType.name}`);
@@ -139,9 +142,6 @@ export default function NewRequestPage() {
       });
 
       if (!navigator.onLine) {
-        if ((selectedType.requirements_json || []).length > 0) {
-          throw new Error("Attachments require online submission. Save a local draft and reconnect to attach files.");
-        }
         const {data:{session}}=await supabase.auth.getSession();
         if(!session?.user?.id)throw new Error("Sign in to save an offline request.");
         await queueDocumentRequest({
