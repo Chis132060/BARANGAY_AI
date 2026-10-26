@@ -35,3 +35,18 @@ Run the production app in an HTTPS testing environment. In DevTools Application,
 **Known limitation:** Private authenticated route HTML is intentionally NetworkOnly. An offline cold navigation may show the shared offline fallback rather than the full requested page. Achieving complete route-specific offline cold navigation without leaking private HTML requires a separately packaged public app shell and explicit offline data-driven views; do not promise it based on static asset caching alone.
 
 **Other limitations:** AI inference, online payments, live statuses and push delivery require connectivity. `navigator.onLine` is not a guarantee of reachability. Browser storage is best effort and user-device access remains a privacy concern.
+
+## Follow-up fixes (2026-10-26)
+
+- The offline fallback now lists saved public announcements, programs and organizations.
+- Private request-summary cache cleanup is triggered on resident sign-out/account switch; this does not replace cross-account device testing.
+- Offline document-form validation now allows attachment-free requests to enter the existing local outbox. Forms with required attachments still require online submission; file blobs are not persisted offline.
+- The offline status center warns that clearing browser storage can erase unsent work.
+- Additional source-level regression checks cover offline document submission validation.
+- GitHub Actions completed successfully for the preceding branch revision (02fd0e3); **newer commits still require fresh successful checks**.
+
+### Explicit remaining blockers
+- Route-specific full offline cold navigation is not provided: authenticated HTML stays network-only, and the public offline fallback is used when a navigation fails. A completely offline navigable resident app requires a redesigned static shell and rigorously user-scoped client-only views.
+- Verify server-side uniqueness/idempotency constraints for queued operations, Supabase RLS, and cross-account behavior in a realistic environment.
+- Run Android and iOS installed-PWA offline/reconnect tests, especially browser eviction and failed uploads.
+- Do not represent a PWA as offering server AI responses, push deliveries, realtime requests, or confirmed payments while disconnected.
