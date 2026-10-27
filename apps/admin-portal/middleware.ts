@@ -34,13 +34,25 @@ export async function middleware(request: NextRequest) {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
     if (user) {
-      const { data: userData, error } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("roles!inner(name)")
+        .select("role_id")
         .eq("id", user.id)
         .maybeSingle();
-      const roleRelation = userData?.roles as { name: string } | { name: string }[] | null | undefined;
-      userRole = error ? null : Array.isArray(roleRelation) ? roleRelation[0]?.name ?? null : roleRelation?.name ?? null;
+      if (userError) {
+        console.warn("[Admin Middleware] Could not load user role ID:", userError.message);
+      } else if (userData?.role_id) {
+        const { data: roleData, error: roleError } = await supabase
+          .from("roles")
+          .select("name")
+          .eq("id", userData.role_id)
+          .maybeSingle();
+        if (roleError) {
+          console.warn("[Admin Middleware] Could not resolve role name:", roleError.message);
+        } else {
+          userRole = roleData?.name ?? null;
+        }
+      }
     }
   } catch (err) {
     console.warn("[Middleware] Supabase auth check failed:", err);
