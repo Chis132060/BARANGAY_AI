@@ -74,10 +74,12 @@ export async function middleware(request: NextRequest) {
     }
   } catch (err) {
     const authError = err as { code?: string; message?: string };
-    const missingRefreshToken = authError?.code === "refresh_token_not_found"
-      || authError?.message?.includes("Invalid Refresh Token: Refresh Token Not Found");
-    if (missingRefreshToken) {
-      // Drop the stale local Supabase session so subsequent requests start cleanly.
+    const staleSession = authError?.code === "refresh_token_not_found"
+      || authError?.code === "session_not_found"
+      || authError?.message?.includes("Invalid Refresh Token: Refresh Token Not Found")
+      || authError?.message?.includes("Session not found");
+    if (staleSession) {
+      // Drop stale Supabase cookies so the next request can start a clean login.
       for (const cookie of request.cookies.getAll()) {
         if (cookie.name.startsWith("sb-")) {
           request.cookies.delete(cookie.name);
@@ -139,3 +141,4 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
+
