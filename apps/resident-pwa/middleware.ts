@@ -49,13 +49,28 @@ export async function middleware(request: NextRequest) {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
     if (user) {
-      const { data: userData, error } = await supabase
+      // Resolve the role in two steps instead of relying on an embedded
+      // relationship. This avoids treating a relation lookup failure as an
+      // actual non-resident role after a successful login.
+      const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("role:roles!inner(name)")
+        .select("role_id")
         .eq("id", user.id)
         .maybeSingle();
-      const roleRelation = userData?.role as { name: string } | { name: string }[] | null | undefined;
-      userRole = error ? null : Array.isArray(roleRelation) ? roleRelation[0]?.name ?? null : roleRelation?.name ?? null;
+      if (userError) {
+        console.warn("[PWA Middleware] Could not load user profile role:", userError.message);
+      } else if (userData?.role_id) {
+        const { data: roleData, error: roleError } = await supabase
+          .from("roles")
+          .select("name")
+          .eq("id", userData.role_id)
+          .maybeSingle();
+        if (roleError) {
+          console.warn("[PWA Middleware] Could not resolve role name:", roleError.message);
+        } else {
+          userRole = roleData?.name ?? null;
+        }
+      }
     }
   } catch (err) {
     const authError = err as { code?: string; message?: string };
@@ -80,7 +95,7 @@ export async function middleware(request: NextRequest) {
   if (user && userRole !== "Resident" && !isPublic) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("error", "admin_account");
+    redirectUrl.searchParams.set("error", userRole ? "admin_account" : "role_lookup");
     return NextResponse.redirect(redirectUrl);
   }
 
