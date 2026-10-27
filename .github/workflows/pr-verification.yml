@@ -36,8 +36,8 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: 'https://build-only.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-only-placeholder-key'
         run: npm run build --workspace=apps/${{ matrix.app }}
 
   ai-python-syntax:
@@ -87,13 +87,13 @@ jobs:
       - name: Build production PWA
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: 'https://build-only.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-only-placeholder-key'
         run: npm run build:pwa
       - name: Launch PWA and verify offline behavior
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: 'https://build-only.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-only-placeholder-key'
         run: |
           npm run start --workspace=apps/resident-pwa -- --hostname 127.0.0.1 --port 5173 > /tmp/resident-pwa.log 2>&1 &
           for i in $(seq 1 45); do

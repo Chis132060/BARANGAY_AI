@@ -6,6 +6,7 @@ on:
       - 'apps/admin-portal/**'
       - 'packages/**'
       - 'package*.json'
+      - 'scripts/test-report.mjs'
       - '.github/workflows/resident-admin-checks.yml'
   workflow_dispatch:
 jobs:
@@ -27,7 +28,11 @@ jobs:
         run: npm run build:pwa
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://build-only.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-only-placeholder-key'
       - name: Admin build
         run: npm run build:admin
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://build-only.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-only-placeholder-key'
