@@ -27,7 +27,6 @@ export default async function DashboardPage() {
     metrics = {
       totalPopulation: 0,
       totalHouseholds: 0,
-      totalFamilies: 0,
       registeredVoters: 0,
       seniorCitizens: 0,
       pwdResidents: 0,

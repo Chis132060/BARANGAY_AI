@@ -71,6 +71,23 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       if (householdError) return { error: "Could not check the household code. Please try again." };
       if (!requestedHousehold) return { error: "Household code not found. Check it with your household head or Barangay staff." };
       requestedHouseholdId = requestedHousehold.id;
+
+      const { data: memberships, error: membershipError } = await supabase.from("household_members")
+        .select("resident:residents!inner(id,user_id,first_name,middle_name,last_name,birth_date,verification_status)")
+        .eq("household_id", requestedHouseholdId);
+      if (membershipError) return { error: "Could not check household resident records. Please try again." };
+      const normalizeName = (value: unknown) => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+      const hasVerifiedUnlinkedMatch = (memberships || []).some((membership: any) => {
+        const record = Array.isArray(membership.resident) ? membership.resident[0] : membership.resident;
+        return record && !record.user_id && record.verification_status === "Verified"
+          && normalizeName(record.first_name) === normalizeName(firstName)
+          && normalizeName(record.middle_name) === normalizeName(middleName)
+          && normalizeName(record.last_name) === normalizeName(lastName)
+          && String(record.birth_date).slice(0, 10) === birthDate;
+      });
+      if (hasVerifiedUnlinkedMatch) {
+        return { error: "A verified household record matches these details. Please contact Barangay staff to link your account and prevent a duplicate resident record." };
+      }
     }
 
     // 1. Create a new account only. Existing accounts must authenticate through

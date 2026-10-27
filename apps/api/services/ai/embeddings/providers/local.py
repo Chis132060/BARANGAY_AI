@@ -12,15 +12,23 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         self._dimension = 384
         self._space_id = "all-minilm-l6-v2-v1"
         self._client = None
-        
+        self._load_attempted = False
+
+    def ensure_loaded(self) -> bool:
+        """Load the optional model only when embedding work actually needs it."""
+        if self._client is not None:
+            return True
+        if self._load_attempted:
+            return False
+        self._load_attempted = True
         try:
             from sentence_transformers import SentenceTransformer
-            # Load the model on initialization to keep it in memory
             self._client = SentenceTransformer(self._model)
         except ImportError:
             logger.warning("sentence-transformers not installed. Local embeddings disabled.")
         except Exception as e:
-            logger.error(f"Failed to load local embedding model {self._model}: {e}")
+            logger.error("Failed to load local embedding model %s: %s", self._model, e)
+        return self._client is not None
 
     @property
     def name(self) -> str:
@@ -38,7 +46,7 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         return self._client is not None
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        if not self._client:
+        if not self.ensure_loaded():
             raise RuntimeError("Local Embedding Provider not configured or failed to load.")
             
         start = time.time()

@@ -14,7 +14,6 @@ export interface DocumentStats {
 export interface DashboardMetrics {
   totalPopulation: number;
   totalHouseholds: number;
-  totalFamilies: number;
   registeredVoters: number;
   seniorCitizens: number;
   pwdResidents: number;
@@ -80,6 +79,37 @@ export interface RecentActivityItem {
 export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   const supabase = createClient();
 
+  const queryResults = await Promise.all([
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified"),
+    supabase.from("households").select("*", { count: "exact", head: true }),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("voter_status", true),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("senior_status", true),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("pwd_status", true),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("four_ps_status", true),
+    supabase.from("document_requests").select("*", { count: "exact", head: true }).eq("status", "Pending"),
+    supabase.from("document_requests").select("*", { count: "exact", head: true }).or("status.eq.Ready for Pickup,status.eq.Approved"),
+    supabase.from("document_requests").select("*", { count: "exact", head: true }).or("status.eq.Released,status.eq.Completed"),
+    supabase.from("document_requests").select("*", { count: "exact", head: true }),
+    supabase.from("businesses").select("*", { count: "exact", head: true }).eq("status", "Active"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending"),
+    supabase.from("document_requests").select("fee_amount, payment_status").or("payment_status.eq.Paid,status.eq.Completed,status.eq.Released"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("gender", "Male"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("gender", "Female"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("gender", "Other"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Single"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Married"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Widowed"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Divorced"),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("solo_parent_status", true),
+    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("dswd_status", true),
+    supabase.from("residents").select("birth_date").eq("verification_status", "Verified"),
+  ]);
+
+  const dashboardErrors = queryResults.flatMap((result: any) => result.error ? [result.error] : []);
+  if (dashboardErrors.length) {
+    throw new Error(`Dashboard metrics unavailable: ${dashboardErrors.map((error: any) => error.message).join("; ")}`);
+  }
+
   const [
     { count: totalPopulation },
     { count: totalHouseholds },
@@ -104,31 +134,8 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     { count: soloParentResidents },
     { count: dswdResidents },
     { data: youthData },
-  ] = await Promise.all([
-    supabase.from("residents").select("*", { count: "exact", head: true }),
-    supabase.from("households").select("*", { count: "exact", head: true }),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("voter_status", true),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("senior_status", true),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("pwd_status", true),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("four_ps_status", true),
-    supabase.from("document_requests").select("*", { count: "exact", head: true }).eq("status", "Pending"),
-    supabase.from("document_requests").select("*", { count: "exact", head: true }).or("status.eq.Ready for Pickup,status.eq.Approved"),
-    supabase.from("document_requests").select("*", { count: "exact", head: true }).or("status.eq.Released,status.eq.Completed"),
-    supabase.from("document_requests").select("*", { count: "exact", head: true }),
-    supabase.from("businesses").select("*", { count: "exact", head: true }).eq("status", "Active"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Pending"),
-    supabase.from("document_requests").select("fee_amount, payment_status").or("payment_status.eq.Paid,status.eq.Completed,status.eq.Released"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("gender", "Male"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("gender", "Female"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("gender", "Other"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Single"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Married"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Widowed"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("civil_status", "Divorced"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("solo_parent_status", true),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("dswd_status", true),
-    supabase.from("residents").select("birth_date"),
-  ]);
+  ] = queryResults;
+
 
   const totalRev = (revenueData || []).reduce((acc: number, curr: any) => acc + (Number(curr.fee_amount) || 0), 0);
 
@@ -149,7 +156,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   return {
     totalPopulation: totalPopulation || 0,
     totalHouseholds: totalHouseholds || 0,
-    totalFamilies: totalHouseholds || 0,
+    // The current schema stores households, not family units.
     registeredVoters: registeredVoters || 0,
     seniorCitizens: seniorCitizens || 0,
     pwdResidents: pwdResidents || 0,
@@ -203,7 +210,7 @@ export async function fetchMonthlyTransactions(): Promise<MonthlyTransactionItem
 
 export async function fetchAgeDistribution(): Promise<AgeDistItem[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("residents").select("birth_date");
+  const { data, error } = await supabase.from("residents").select("birth_date").eq("verification_status", "Verified");
   if (error) throw new Error(error.message);
   const distribution = [
     { range: "0-12", count: 0 },

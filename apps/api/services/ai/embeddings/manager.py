@@ -14,8 +14,16 @@ class EmbeddingProviderManager:
         
     def get_primary_provider(self) -> EmbeddingProvider:
         provider = self.get_provider(settings.EMBEDDING_PROVIDER_PRIMARY)
+        if provider and not provider.is_available():
+            ensure_loaded = getattr(provider, "ensure_loaded", None)
+            if callable(ensure_loaded):
+                ensure_loaded()
         if not provider or not provider.is_available():
             fallback = self.get_provider(settings.EMBEDDING_PROVIDER_FALLBACK)
+            if fallback and not fallback.is_available():
+                ensure_loaded = getattr(fallback, "ensure_loaded", None)
+                if callable(ensure_loaded):
+                    ensure_loaded()
             if fallback and fallback.is_available():
                 return fallback
             raise RuntimeError("No configured embedding providers are available.")

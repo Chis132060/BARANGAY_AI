@@ -20,11 +20,13 @@ test("resident verification actions enforce authorization and pending-only trans
 });
 
 test("private resident identification images require permission before signing", () => {
-  const action = residentActions.split("export async function fetchResidentIdPhotoUrl")[1]?.split("export async function approveResident")[0];
+  const resolver = residentActions.split("async function resolveResidentIdPhotoUrl")[1]?.split("export async function fetchResidentIdPhotoUrl")[0];
+  const action = residentActions.split("export async function fetchResidentIdPhotoUrl")[1]?.split("export async function fetchVerifiedResidentPhoto")[0];
+  assert.ok(resolver);
   assert.ok(action);
   assert.match(action, /checkUserPermission/);
-  assert.match(action, /createSignedUrl/);
-  assert.ok(action.indexOf("checkUserPermission") < action.indexOf("createSignedUrl"));
+  assert.match(resolver, /createSignedUrl/);
+  assert.ok(action.indexOf("checkUserPermission") < action.indexOf("resolveResidentIdPhotoUrl"));
 });
 
 test("document approval transitions and payment changes require elevated permission", () => {

@@ -62,3 +62,4 @@ services/ai/tts/models/*.zip
 # Generated audio / documents
 services/ai/*/output/**/*.wav
 services/ai/*/output/**/*.mp3
+.test-results/

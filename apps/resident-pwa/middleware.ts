@@ -58,7 +58,20 @@ export async function middleware(request: NextRequest) {
       userRole = error ? null : Array.isArray(roleRelation) ? roleRelation[0]?.name ?? null : roleRelation?.name ?? null;
     }
   } catch (err) {
-    console.warn("[PWA Middleware] Supabase auth check failed:", err);
+    const authError = err as { code?: string; message?: string };
+    const missingRefreshToken = authError?.code === "refresh_token_not_found"
+      || authError?.message?.includes("Invalid Refresh Token: Refresh Token Not Found");
+    if (missingRefreshToken) {
+      // Drop the stale local Supabase session so subsequent requests start cleanly.
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.startsWith("sb-")) {
+          request.cookies.delete(cookie.name);
+          response.cookies.delete(cookie.name);
+        }
+      }
+    } else {
+      console.warn("[PWA Middleware] Supabase auth check failed:", err);
+    }
   }
 
   // API routes authenticate in their own handlers and should keep JSON responses.

@@ -223,6 +223,7 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
       )
     `)
     .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -319,6 +320,7 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .update({ verification_status: "Verified", updated_at: new Date().toISOString() })
     .eq("id", residentId)
     .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .select("id, verification_status")
     .maybeSingle();
 
@@ -385,6 +387,7 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     .update(updateData)
     .eq("id", residentId)
     .eq("verification_status", "Pending")
+    .not("user_id", "is", null)
     .select("id, verification_status")
     .maybeSingle();
 
