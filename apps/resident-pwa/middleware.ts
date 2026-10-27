@@ -51,10 +51,10 @@ export async function middleware(request: NextRequest) {
     if (user) {
       const { data: userData, error } = await supabase
         .from("users")
-        .select("roles!inner(name)")
+        .select("role:roles!inner(name)")
         .eq("id", user.id)
         .maybeSingle();
-      const roleRelation = userData?.roles as { name: string } | { name: string }[] | null | undefined;
+      const roleRelation = userData?.role as { name: string } | { name: string }[] | null | undefined;
       userRole = error ? null : Array.isArray(roleRelation) ? roleRelation[0]?.name ?? null : roleRelation?.name ?? null;
     }
   } catch (err) {
