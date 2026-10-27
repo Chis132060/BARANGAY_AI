@@ -62,21 +62,22 @@ export function OfflineStatusCenter() {
     };
   }, []);
   const pending = counts ? counts.tickets + counts.documents + counts.programs + counts.reads : 0;
-  return <section aria-live="polite" className="border-b border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+  return <section aria-live="polite" className="bg-slate-50 p-3 text-xs text-slate-700">
     <div className="flex items-center justify-between gap-2">
-      <span>{online ? "Device online" : "Device offline"} · {pending} local pending change(s)</span>
+      <span>{online ? "Device online" : "Device offline"} Â· {pending} local pending change(s)</span>
       <button type="button" disabled={!online || detail?.state === "running"}
         onClick={() => window.dispatchEvent(new Event("barangay-sync-request"))}
         className="rounded-lg border bg-white px-3 py-1 disabled:opacity-50">Sync now</button>
     </div>
     {counts && pending > 0 && <p className="mt-1">
-      Documents: {counts.documents} · Tickets: {counts.tickets} · Programs: {counts.programs} · Notifications: {counts.reads}
-      {counts.attention > 0 ? ` · Needs attention: ${counts.attention}` : ""}
+      Documents: {counts.documents} Â· Tickets: {counts.tickets} Â· Programs: {counts.programs} Â· Notifications: {counts.reads}
+      {counts.attention > 0 ? ` Â· Needs attention: ${counts.attention}` : ""}
     </p>}
-    {detail && <p className="mt-1">{detail.state === "running" ? "Syncing pending changes…" :
-      detail.state === "success" ? `Last sync: ${detail.sent || 0} sent, ${detail.failed || 0} failed · ${new Date(detail.time).toLocaleTimeString()}` :
+    {detail && <p className="mt-1">{detail.state === "running" ? "Syncing pending changesâ€¦" :
+      detail.state === "success" ? `Last sync: ${detail.sent || 0} sent, ${detail.failed || 0} failed Â· ${new Date(detail.time).toLocaleTimeString()}` :
       detail.message || "Sync failed; queued changes remain on this device."}</p>}
     {storageError && <p role="alert" className="mt-1 text-red-700">{storageError}</p>}
     {pending > 0 && <p className="mt-1">Saved on device does not mean received by the barangay.</p>}
   </section>;
 }
+
