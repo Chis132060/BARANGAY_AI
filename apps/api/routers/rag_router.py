@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from uuid import UUID
 
-from core.auth import authenticated_user, require_document_manager, require_user
+from core.auth import require_chat_access, require_document_manager, require_user
 from services.orchestrator import rag_service
 from services.audit_service import audit_service
 from services.supabase_service import get_supabase_client
@@ -11,7 +11,7 @@ from services.supabase_service import get_supabase_client
 router = APIRouter()
 
 
-# ── Request / Response Models ────────────────────────────────────────────────
+# â”€â”€ Request / Response Models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class IngestRequest(BaseModel):
     doc_id: str
@@ -20,7 +20,7 @@ class IngestRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    query: str
+    query: str = Field(..., min_length=1, max_length=4000)
     session_id: Optional[str] = None
     user_id: Optional[str] = None  # ignored; identity is derived from the verified token
     language: str = "tgl"
@@ -37,7 +37,7 @@ class ChatResponse(BaseModel):
     audit_recorded: bool = False
 
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
+# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/ingest")
 async def ingest_document(request: IngestRequest, authorization: Optional[str] = Header(default=None)):
@@ -58,13 +58,13 @@ async def ingest_document(request: IngestRequest, authorization: Optional[str] =
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, authorization: Optional[str] = Header(default=None)):
     """
-    Full RAG pipeline: Guard → Retrieve → LLM → Guard output.
+    Full RAG pipeline: Guard â†’ Retrieve â†’ LLM â†’ Guard output.
     Audit logging is completed before the response is returned so every
     successful AI response has a durable audit attempt.
     """
     try:
-        user = await authenticated_user(authorization)
-        user_id = user["id"] if user else None
+        user = await require_chat_access(authorization)
+        user_id = user["id"]
         session_id = None
         if user_id and request.session_id:
             try:
@@ -115,7 +115,7 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
 
 @router.delete("/memory/{session_id}")
 async def clear_session_memory(session_id: str, authorization: Optional[str] = Header(default=None)):
-    """Clear session memory — call on user logout."""
+    """Clear session memory â€” call on user logout."""
     from services.memory.memory_service import memory_service
     user = await require_user(authorization)
     try:
@@ -135,3 +135,4 @@ async def ai_health_check():
     if hasattr(rag_service, 'provider_manager'):
         return rag_service.provider_manager.get_health()
     return {"status": "unknown", "message": "AIProviderManager not initialized"}
+

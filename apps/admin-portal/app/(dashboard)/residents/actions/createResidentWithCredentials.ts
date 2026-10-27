@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkUserPermission } from "../../administration/rbac-actions";
 import nodemailer from "nodemailer";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function generateResidentCode(sequenceNumber: number): string {
   const year = new Date().getFullYear();
@@ -16,9 +16,15 @@ function generateResidentCode(sequenceNumber: number): string {
 function generatePassword(length = 10): string {
   const chars =
     "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
-  return Array.from({ length }, () =>
-    chars.charAt(Math.floor(Math.random() * chars.length))
-  ).join("");
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+  return Array.from(values, (value) => chars[value % chars.length]).join("");
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]!);
 }
 
 async function getNextResidentSequence(supabaseAdmin: ReturnType<typeof createAdminClient>): Promise<number> {
@@ -34,6 +40,7 @@ async function sendCredentialsEmail(
   username: string,
   password: string
 ) {
+  const safeFirstName = escapeHtml(firstName);
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -51,7 +58,7 @@ async function sendCredentialsEmail(
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f8fafc; border-radius: 12px;">
         <h2 style="color: #1e40af; margin-bottom: 8px;">Welcome to Smart Barangay!</h2>
-        <p style="color: #374151; margin-bottom: 24px;">Hi <strong>${firstName}</strong>, your resident account has been created by the Barangay Office. Use the credentials below to log in.</p>
+        <p style="color: #374151; margin-bottom: 24px;">Hi <strong>${safeFirstName}</strong>, your resident account has been created by the Barangay Office. Use the credentials below to log in.</p>
 
         <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
           <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Username</p>
@@ -68,7 +75,7 @@ async function sendCredentialsEmail(
   });
 }
 
-// ─── Main Action ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface CreateResidentWithCredentialsInput {
   first_name: string;
@@ -92,7 +99,7 @@ export interface CreateResidentResult {
   success: boolean;
   residentCode: string;
   emailSent: boolean;
-  /** Only returned when no email — for admin to display/print the credential slip */
+  /** Only returned when no email â€” for admin to display/print the credential slip */
   generatedPassword?: string;
   error?: string;
 }
@@ -131,7 +138,7 @@ export async function createResidentWithCredentials(
     await supabaseAdmin.auth.admin.createUser({
       email: authEmail,
       password,
-      email_confirm: true, // skip email confirmation — admin-created account
+      email_confirm: true, // skip email confirmation â€” admin-created account
     });
 
   if (authError) {
@@ -232,3 +239,4 @@ export async function createResidentWithCredentials(
     generatedPassword: hasEmail ? undefined : password,
   };
 }
+

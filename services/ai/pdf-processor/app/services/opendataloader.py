@@ -10,12 +10,15 @@ OpenDataLoader requires a JDK (Java 11+) available on the host PATH at runtime.
 
 import asyncio
 import json
+import ipaddress
 import logging
 import os
+import socket
 import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -42,10 +45,23 @@ class OpenDataLoaderService:
 
     async def download_pdf(self, url: str) -> bytes:
         """Download a remote PDF with size and timeout guards."""
+        parsed = urlsplit(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+            raise ServiceError("INVALID_URL", "A valid public HTTP(S) URL is required.", status_code=422)
+        try:
+            addresses = await asyncio.get_running_loop().getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+        except (OSError, socket.gaierror) as exc:
+            raise ServiceError("DOWNLOAD_FAILED", "Could not resolve the file host.", status_code=422) from exc
+        if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
+            raise ServiceError("INVALID_URL", "Private or reserved network addresses are not allowed.", status_code=422)
         timeout = httpx.Timeout(settings.PDF_DOWNLOAD_TIMEOUT_SECONDS)
         try:
-            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            # Do not follow redirects: each hop would otherwise bypass the host check above.
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
                 async with client.stream("GET", url) as resp:
+                    if 300 <= resp.status_code < 400:
+                        raise ServiceError("INVALID_URL", "Redirects are not allowed for document downloads.", status_code=422)
+                    resp.raise_for_status()
                     content_length = resp.headers.get("content-length")
                     if content_length and int(content_length) > settings.PDF_MAX_BYTES:
                         raise ServiceError(
@@ -66,6 +82,8 @@ class OpenDataLoaderService:
                         chunks.append(chunk)
         except ServiceError:
             raise
+        except httpx.HTTPStatusError as exc:
+            raise ServiceError("DOWNLOAD_FAILED", "The remote host could not provide the requested document.", status_code=502) from exc
         except (httpx.TimeoutException, httpx.TransportError) as exc:
             logger.warning("download_failed url=%s", url)
             raise ServiceError(
@@ -239,3 +257,4 @@ class OpenDataLoaderService:
 
 
 pdf_service = OpenDataLoaderService()
+

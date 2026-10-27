@@ -73,6 +73,26 @@ _voice_quota: dict[str, tuple[int, float]] = {}
 _voice_quota_lock = asyncio.Lock()
 VOICE_WINDOW_SECONDS = 60
 VOICE_QUOTA_PER_MINUTE = max(1, min(120, int(os.getenv("VOICE_QUOTA_PER_MINUTE", "12"))))
+CHAT_QUOTA_PER_MINUTE = max(1, min(60, int(os.getenv("CHAT_QUOTA_PER_MINUTE", "20"))))
+
+
+async def require_chat_access(authorization: Optional[str]) -> dict[str, Any]:
+    """Require a verified user and bound billable chat requests per worker."""
+    user = await require_user(authorization)
+    now = time.monotonic()
+    async with _voice_quota_lock:
+        if len(_voice_quota) > 10000:
+            for key, (_, expiry) in list(_voice_quota.items()):
+                if expiry <= now:
+                    del _voice_quota[key]
+        key = f"chat:{user['id']}"
+        count, expiry = _voice_quota.get(key, (0, now + VOICE_WINDOW_SECONDS))
+        if expiry <= now:
+            count, expiry = 0, now + VOICE_WINDOW_SECONDS
+        if count >= CHAT_QUOTA_PER_MINUTE:
+            raise HTTPException(status_code=429, detail="Chat usage limit reached. Please try again shortly.")
+        _voice_quota[key] = (count + 1, expiry)
+    return user
 
 
 async def require_voice_access(authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
@@ -91,3 +111,4 @@ async def require_voice_access(authorization: Optional[str] = Header(default=Non
             raise HTTPException(status_code=429, detail="Voice usage limit reached. Please try again shortly.")
         _voice_quota[user["id"]] = (count + 1, expiry)
     return user
+
