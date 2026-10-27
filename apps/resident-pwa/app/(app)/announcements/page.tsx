@@ -50,7 +50,7 @@ export default function AnnouncementsPage() {
         if(!session?.user?.id)throw new Error("Sign in before saving an offline program application.");
         await queueProgramIntent(session.user.id,programId);
         setOfflineProgramIds(prev=>Array.from(new Set([...prev,programId])));
-        setApplyMessage("Program application saved on this device — NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
+        setApplyMessage("Program application saved on this device â€” NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
         return;
       }
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -116,20 +116,26 @@ export default function AnnouncementsPage() {
         if (orgCache) setOrganizations(orgCache.data);
         if (!navigator.onLine) {
           setErrorMessage("Offline: displaying saved public information that may be outdated. Registrations are not confirmed until synchronized.");
+          setLoading(false);
+          inFlight.current = false;
           return;
         }
       } catch {
         if (!navigator.onLine) {
           setErrorMessage("Offline storage is unavailable. Visit this page while connected to save public information.");
+          setLoading(false);
+          inFlight.current = false;
           return;
         }
       }
 
+      const requestController = new AbortController();
+      const requestTimeout = window.setTimeout(() => requestController.abort(), 12_000);
       try {
         const [ann, prog, org] = await Promise.all([
-          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),
-          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
-          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name"),
+          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }).abortSignal(requestController.signal),
+          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }).abortSignal(requestController.signal),
+          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name").abortSignal(requestController.signal),
         ]);
         if (!active) return;
         if (!ann.error) {
@@ -178,8 +184,11 @@ export default function AnnouncementsPage() {
         }
         lastLoadAt.current = Date.now();
       } catch (error) {
-        if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
+        if (active) setErrorMessage(requestController.signal.aborted
+          ? "Updates are taking too long to load. Check your connection and try again."
+          : error instanceof Error ? error.message : "Unable to load updates");
       } finally {
+        window.clearTimeout(requestTimeout);
         inFlight.current = false;
         if (active) {
           setLoading(false);
@@ -192,6 +201,8 @@ export default function AnnouncementsPage() {
     }
 
     void load(true);
+    const handleOnline = () => void load(true);
+    window.addEventListener("online", handleOnline);
     const channel = supabase.channel("resident-updates-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
@@ -199,6 +210,7 @@ export default function AnnouncementsPage() {
       .subscribe();
     return () => {
       active = false;
+      window.removeEventListener("online", handleOnline);
       void supabase.removeChannel(channel);
     };
   }, [refresh]);
@@ -219,8 +231,8 @@ export default function AnnouncementsPage() {
       </div>
       {activeTab === "programs" && <>
       <section className="rounded-2xl border bg-white p-3">
-        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "▲" : "▼"}</span></button>
-        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) — not submitted or reserved until the server confirms.</p>}
+        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "â–²" : "â–¼"}</span></button>
+        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) â€” not submitted or reserved until the server confirms.</p>}
         {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
       </section>
       <section id="updates-programs-panel" role="tabpanel" aria-labelledby="updates-programs-tab" className="space-y-3">
@@ -254,11 +266,11 @@ export default function AnnouncementsPage() {
             {selectedProgram.event_start_at && <p><strong>Program starts:</strong> {new Date(selectedProgram.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}
             {selectedProgram.schedule_details && <p><strong>Schedule:</strong> {selectedProgram.schedule_details}</p>}
             {selectedProgram.requirements && <p className="whitespace-pre-line"><strong>Who can join / what to prepare:</strong><br />{selectedProgram.requirements}</p>}
-            {(selectedProgram.min_age || selectedProgram.max_age) && <p><strong>Age:</strong> {selectedProgram.min_age || "Any"}–{selectedProgram.max_age || "Any"}</p>}
+            {(selectedProgram.min_age || selectedProgram.max_age) && <p><strong>Age:</strong> {selectedProgram.min_age || "Any"}â€“{selectedProgram.max_age || "Any"}</p>}
             {selectedProgram.registration_opens_at && <p><strong>Applications open:</strong> {new Date(selectedProgram.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
             {selectedProgram.registration_deadline && <p><strong>Apply by:</strong> {new Date(selectedProgram.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
           </div>
-          <button type="button" disabled={selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "I’m interested — apply to join"}</button>
+          <button type="button" disabled={selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "Iâ€™m interested â€” apply to join"}</button>
           <p className="mt-2 text-center text-xs text-gray-500">Your application will be reviewed by barangay staff. A submitted application does not guarantee a slot.</p>
         </section>
       </div>}
@@ -280,3 +292,4 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+
