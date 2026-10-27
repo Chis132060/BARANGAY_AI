@@ -14,10 +14,11 @@ try {
     return registrations.some(registration => Boolean(registration.active));
   }, null, { timeout: 20000 });
   console.log("Active service worker registration detected");
-  if (!(await page.evaluate(() => Boolean(navigator.serviceWorker?.controller)))) {
-    await page.reload({ waitUntil: "domcontentloaded" });
-  }
-  await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, { timeout: 15000 });
+  // A newly activated worker controls this page after the next navigation.
+  // Do the navigation directly instead of evaluating controller and then
+  // reloading: activation can trigger the reload between those two operations.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), { timeout: 15000 });
   const hasController = await page.evaluate(() => Boolean(navigator.serviceWorker?.controller));
   assert.ok(hasController, "production service worker should control the page");
 
