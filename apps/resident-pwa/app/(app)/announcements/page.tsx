@@ -86,7 +86,7 @@ export default function AnnouncementsPage() {
         if(!session?.user?.id)throw new Error("Sign in before saving an offline program application.");
         await queueProgramIntent(session.user.id,programId);
         setOfflineProgramIds(prev=>Array.from(new Set([...prev,programId])));
-        setApplyMessage("Program application saved on this device â€” NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
+        setApplyMessage("Program application saved on this device — NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
         setSelectedProgram(null);
         return;
       }
@@ -195,14 +195,14 @@ export default function AnnouncementsPage() {
         if (!navigator.onLine) {
           setErrorMessage("Offline: displaying saved public information that may be outdated. Registrations are not confirmed until synchronized.");
           setLoading(false);
-          inFlight.current = false;
+          inFlight = false;
           return;
         }
       } catch {
         if (!navigator.onLine) {
           setErrorMessage("Offline storage is unavailable. Visit this page while connected to save public information.");
           setLoading(false);
-          inFlight.current = false;
+          inFlight = false;
           return;
         }
       }
@@ -280,7 +280,7 @@ export default function AnnouncementsPage() {
           : error instanceof Error ? error.message : "Unable to load updates");
       } finally {
         window.clearTimeout(requestTimeout);
-        inFlight.current = false;
+        inFlight = false;
         if (active) {
           setLoading(false);
           if (reloadRequested) {
@@ -324,8 +324,8 @@ export default function AnnouncementsPage() {
       </div>
       {activeTab === "programs" && <>
       <section className="rounded-2xl border bg-white p-3">
-        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "â–²" : "â–¼"}</span></button>
-        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) â€” not submitted or reserved until the server confirms.</p>}
+        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "▲" : "▼"}</span></button>
+        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) — not submitted or reserved until the server confirms.</p>}
         {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
       </section>
       <section id="updates-programs-panel" role="tabpanel" aria-labelledby="updates-programs-tab" className="space-y-3">
@@ -360,12 +360,16 @@ export default function AnnouncementsPage() {
             {selectedProgram.event_start_at && <p><strong>Program starts:</strong> {new Date(selectedProgram.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}
             {selectedProgram.schedule_details && <p><strong>Schedule:</strong> {selectedProgram.schedule_details}</p>}
             {selectedProgram.requirements && <p className="whitespace-pre-line"><strong>Who can join / what to prepare:</strong><br />{selectedProgram.requirements}</p>}
-            {(selectedProgram.min_age || selectedProgram.max_age) && <p><strong>Age:</strong> {selectedProgram.min_age || "Any"}â€“{selectedProgram.max_age || "Any"}</p>}
+            {(selectedProgram.min_age || selectedProgram.max_age) && <p><strong>Age:</strong> {selectedProgram.min_age || "Any"}–{selectedProgram.max_age || "Any"}</p>}
             {selectedProgram.registration_opens_at && <p><strong>Applications open:</strong> {new Date(selectedProgram.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
             {selectedProgram.registration_deadline && <p><strong>Apply by:</strong> {new Date(selectedProgram.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
           </div>
-          <button type="button" disabled={selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "Iâ€™m interested â€” apply to join"}</button>
-          <p className="mt-2 text-center text-xs text-gray-500">Your application will be reviewed by barangay staff. A submitted application does not guarantee a slot.</p>
+          </div>
+          <div className="shrink-0 border-t bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-5">
+          {(applyError || selectedEligibilityMessage) && <p role={applyError ? "alert" : "status"} className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{applyError || selectedEligibilityMessage}</p>}
+          <button type="button" disabled={!!selectedEligibilityMessage || selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || applyError.includes("does not meet this age requirement") || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedEligibilityMessage ? selectedEligibilityMessage.includes("Checking") ? "Checking eligibility..." : selectedEligibilityMessage.includes("ages") ? "Age requirement not met" : "Resident profile required" : applyError.includes("does not meet this age requirement") ? "Age requirement not met" : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "I am interested - apply to join"}</button>
+          {!selectedEligibilityMessage && !applyError && <p className="mt-2 text-center text-xs leading-relaxed text-gray-500">Your application will be reviewed by barangay staff. A submitted application does not guarantee a slot.</p>}
+          </div>
         </section>
       </div>}
       {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
@@ -386,4 +390,3 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
-

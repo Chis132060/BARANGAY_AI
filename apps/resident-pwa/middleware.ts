@@ -17,13 +17,16 @@ export async function middleware(request: NextRequest) {
 
   let response = NextResponse.next({ request });
   const refreshedCookies = new Map<string, { value: string; options: CookieOptions }>();
+  const refreshedHeaders = new Map<string, string>();
   const refreshResponse = () => {
     response = NextResponse.next({ request });
     for (const [name, cookie] of refreshedCookies) response.cookies.set({ name, ...cookie });
+    for (const [name, value] of refreshedHeaders) response.headers.set(name, value);
   };
   const redirectWithCookies = (url: URL) => {
     const redirect = NextResponse.redirect(url);
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+    for (const [name, value] of refreshedHeaders) redirect.headers.set(name, value);
     return redirect;
   };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,17 +42,15 @@ export async function middleware(request: NextRequest) {
   const supabase = createServerClient(url, anonKey, {
     cookieOptions: { name: AUTH_COOKIE_NAME },
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value;
+      getAll() {
+        return request.cookies.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
-        request.cookies.set({ name, value, ...options });
-        refreshedCookies.set(name, { value, options });
-        refreshResponse();
-      },
-      remove(name: string, options: CookieOptions) {
-        request.cookies.set({ name, value: "", ...options });
-        refreshedCookies.set(name, { value: "", options });
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[], headers: Record<string, string>) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+          refreshedCookies.set(name, { value, options });
+        });
+        Object.entries(headers).forEach(([name, value]) => refreshedHeaders.set(name, value));
         refreshResponse();
       },
     },
@@ -58,8 +59,29 @@ export async function middleware(request: NextRequest) {
   let user = null;
   let userRole: string | null = null;
   try {
-    const { data } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
     user = data?.user;
+    if (error) {
+      const authError = error as { code?: string; message?: string };
+      const staleSession = authError.code === "refresh_token_not_found"
+        || authError.code === "session_not_found"
+        || authError.message?.includes("Invalid Refresh Token: Refresh Token Not Found")
+        || authError.message?.includes("Session not found");
+      if (staleSession) {
+        for (const cookie of request.cookies.getAll()) {
+          if (
+            cookie.name === AUTH_COOKIE_NAME
+            || cookie.name.startsWith(`${AUTH_COOKIE_NAME}.`)
+            || cookie.name === `${AUTH_COOKIE_NAME}-code-verifier`
+          ) {
+            request.cookies.delete(cookie.name);
+            response.cookies.delete(cookie.name);
+          }
+        }
+      } else {
+        console.warn("[PWA Middleware] Supabase auth check failed:", error.message);
+      }
+    }
     if (user) {
       // Resolve the role in two steps instead of relying on an embedded
       // relationship. This avoids treating a relation lookup failure as an
@@ -177,4 +199,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
-

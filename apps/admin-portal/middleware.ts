@@ -8,13 +8,16 @@ const ADMIN_ROLES = new Set(["Super Admin", "Barangay Captain", "Secretary", "Tr
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
   const refreshedCookies = new Map<string, { value: string; options: CookieOptions }>();
+  const refreshedHeaders = new Map<string, string>();
   const refreshResponse = () => {
     response = NextResponse.next({ request });
     for (const [name, cookie] of refreshedCookies) response.cookies.set({ name, ...cookie });
+    for (const [name, value] of refreshedHeaders) response.headers.set(name, value);
   };
   const redirectWithCookies = (url: URL) => {
     const redirect = NextResponse.redirect(url);
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+    for (const [name, value] of refreshedHeaders) redirect.headers.set(name, value);
     return redirect;
   };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,14 +30,12 @@ export async function middleware(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
-        request.cookies.set({ name, value, ...options });
-        refreshedCookies.set(name, { value, options });
-        refreshResponse();
-      },
-      remove(name: string, options: CookieOptions) {
-        request.cookies.set({ name, value: "", ...options });
-        refreshedCookies.set(name, { value: "", options });
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[], headers: Record<string, string>) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+          refreshedCookies.set(name, { value, options });
+        });
+        Object.entries(headers).forEach(([name, value]) => refreshedHeaders.set(name, value));
         refreshResponse();
       },
     },
