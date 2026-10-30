@@ -20,15 +20,16 @@ class CrossEncoderReranker:
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
         self.model_name = model_name
         self.model = None
-        self._initialize()
+        self._load_attempted = False
 
     def _initialize(self):
+        if self._load_attempted:
+            return
+        self._load_attempted = True
         if CrossEncoder is None:
             logger.warning("sentence-transformers is not installed; reranking disabled.")
             return
         try:
-            # Lazy load the model to save memory if not immediately needed,
-            # but initializing here warms it up for the first request.
             logger.info(f"Loading CrossEncoder reranker model: {self.model_name}")
             self.model = CrossEncoder(self.model_name, max_length=512)
         except Exception as e:
@@ -50,6 +51,9 @@ class CrossEncoderReranker:
         """
         if not candidates:
             return []
+
+        if not self._load_attempted:
+            self._initialize()
             
         if not self.model:
             logger.warning("Reranker model not initialized. Returning original candidates.")

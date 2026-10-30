@@ -60,8 +60,7 @@ class DocumentParser:
             return []
 
     def _parse_image(self, file_path: str) -> List[str]:
-        # Implementation would use pytesseract or an OCR API
-        logger.info(f"Running OCR on Image: {file_path}")
-        return ["Mock extracted OCR text..."]
+        logger.warning("Image OCR is not configured; skipping image file %s", file_path)
+        return []
 
 document_parser = DocumentParser()

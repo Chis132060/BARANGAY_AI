@@ -59,53 +59,6 @@ const CATEGORY_COLORS: Record<PolicyCategory, string> = {
   Other:               "bg-gray-100 text-gray-600",
 };
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const mockPolicies: Policy[] = [
-  {
-    id: "1", policy_number: "ORD-2026-001", title: "Anti-Littering Ordinance",
-    category: "Environment", status: "Active", enacted_by: "Kagawad Maria Santos",
-    effective_date: "2026-01-01", created_at: "2025-12-20",
-    description: "Prohibits improper disposal of garbage and solid waste within the barangay premises.",
-    full_text: "WHEREAS, cleanliness and proper sanitation are essential to the health and welfare of barangay residents...\n\nSection 1. Title - This ordinance shall be known as the Anti-Littering Ordinance of 2026.\nSection 2. Prohibited Acts - No person shall throw, dump, or deposit garbage in any public place.\nSection 3. Penalty - Fine of P500 first offense, P1,000 second offense.",
-  },
-  {
-    id: "2", policy_number: "RES-2026-004", title: "Resolution on Barangay Curfew for Minors",
-    category: "Peace & Order", status: "Active", enacted_by: "Hon. Pedro Reyes, Barangay Captain",
-    effective_date: "2026-02-15", created_at: "2026-01-30",
-    description: "Establishes a 10:00 PM curfew for minors aged 17 and below to ensure safety.",
-    full_text: "RESOLVED, that the Sangguniang Barangay hereby enacts a curfew policy for all minors...\n\nSection 1. Curfew Hours: 10:00 PM to 5:00 AM.\nSection 2. Exceptions: Children accompanied by parents or going to/from school.",
-  },
-  {
-    id: "3", policy_number: "ORD-2025-018", title: "No Smoking Policy in Public Areas",
-    category: "Health & Sanitation", status: "Active", enacted_by: "Kagawad Ana Dela Cruz",
-    effective_date: "2025-03-01", created_at: "2025-02-01",
-    description: "Bans smoking in all public areas and within 10 meters of entrances to public buildings.",
-    full_text: "WHEREAS, secondhand smoke poses significant health risks...\n\nSection 1. Smoking prohibited in all public parks, playgrounds, and waiting sheds.\nSection 2. Fine of P300 per violation.",
-  },
-  {
-    id: "4", policy_number: "EO-2026-002", title: "Executive Order on Barangay Hall Operating Hours",
-    category: "Executive Order", status: "Active", enacted_by: "Hon. Pedro Reyes, Barangay Captain",
-    effective_date: "2026-03-01", created_at: "2026-02-20",
-    description: "Sets official operating hours for the Barangay Hall and all associated offices.",
-    full_text: "BY VIRTUE of the powers vested in me as Barangay Captain...\n\nSection 1. Operating Hours: Monday to Friday, 8:00 AM to 5:00 PM; Saturday, 8:00 AM to 12:00 NN.",
-  },
-  {
-    id: "5", policy_number: "ORD-2024-009", title: "Anti-Noise Pollution Ordinance",
-    category: "Peace & Order", status: "Repealed", enacted_by: "Kagawad Jose Ramos",
-    effective_date: "2024-09-01", created_at: "2024-08-15",
-    description: "Regulates noise levels to maintain peace and quiet, particularly during nighttime hours.",
-    full_text: "WHEREAS, excessive noise affects the well-being of residents...\n\nSection 1. Noise Curfew: 10PM to 6AM.\nNOTE: Repealed and superseded by ORD-2025-022.",
-  },
-  {
-    id: "6", policy_number: "RES-2026-007", title: "Resolution on Barangay Livelihood Assistance Fund",
-    category: "Social Services", status: "Draft", enacted_by: "Kagawad Rosa Mendoza",
-    effective_date: "2026-04-01", created_at: "2026-03-10",
-    description: "Allocates funds for livelihood assistance programs targeting low-income residents.",
-    full_text: "RESOLVED, to allocate funds from the Barangay Development Fund...\n\nSection 1. P200,000 for livelihood grants.\nSection 2. Priority: residents below poverty line, solo parents, PWDs.",
-  },
-];
-
 // ─── Smart Extraction Helpers ─────────────────────────────────────────────────
 
 function guessCategory(text: string): PolicyCategory {

@@ -1,7 +1,5 @@
 import {
   fetchDashboardMetrics, fetchRecentActivities,
-  fetchAgeDistribution, fetchMonthlyTransactions,
-  fetchPurokPopulation, fetchTopDocumentTypes,
 } from "./actions";
 import { StatsGrid } from "./components";
 import { ShieldAlert, Clock, ArrowRight, FileCheck } from "lucide-react";
@@ -16,34 +14,19 @@ export const metadata = {
 export default async function DashboardPage() {
   let metrics;
   let recentActivities: any[] = [];
-  let ageDist: any[] = [];
-  let monthlyTrend: any[] = [];
-  let purokPop: any[] = [];
-  let topDocTypes: any[] = [];
   let errorMsg = null;
 
   try {
-    [
-      metrics,
-      recentActivities,
-      ageDist,
-      monthlyTrend,
-      purokPop,
-      topDocTypes,
-    ] = await Promise.all([
+    [metrics, recentActivities] = await Promise.all([
       fetchDashboardMetrics(),
       fetchRecentActivities(),
-      fetchAgeDistribution(),
-      fetchMonthlyTransactions(),
-      fetchPurokPopulation(),
-      fetchTopDocumentTypes(),
     ]);
   } catch (err) {
+    console.error("Failed to load dashboard data:", err);
     errorMsg = "Database connection is unavailable. Showing empty live metrics until the database reconnects.";
     metrics = {
       totalPopulation: 0,
       totalHouseholds: 0,
-      totalFamilies: 0,
       registeredVoters: 0,
       seniorCitizens: 0,
       pwdResidents: 0,
@@ -91,10 +74,6 @@ export default async function DashboardPage() {
       <DashboardRealtime />
       <StatsGrid
         metrics={metrics}
-        ageDist={ageDist}
-        monthlyTrend={monthlyTrend}
-        purokPop={purokPop}
-        topDocTypes={topDocTypes}
       />
 
       {/* Recent Operations — full-width analytics table */}

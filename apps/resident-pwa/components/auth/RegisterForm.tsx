@@ -34,6 +34,7 @@ export function RegisterForm() {
     houseNumber: "",
     street: "",
     purok: "Purok 1",
+    householdCode: "",
     email: "",
     password: "",
     idType: ID_TYPE_OPTIONS[0],
@@ -283,6 +284,18 @@ export function RegisterForm() {
               onChange={(e) => handleInputChange("houseNumber", e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Household code (optional)</label>
+            <input
+              type="text"
+              placeholder="Ask your household head or Barangay staff"
+              value={formData.householdCode}
+              onChange={(e) => handleInputChange("householdCode", e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="mt-1 text-[10px] text-gray-500">If staff already added your family record, this helps connect your PWA account to it after your details are verified.</p>
           </div>
 
           {/* Boarder Profiling */}

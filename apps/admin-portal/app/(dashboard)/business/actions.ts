@@ -149,7 +149,10 @@ export async function fetchBusinessPermits(statusFilter = "All"): Promise<Busine
   if (statusFilter !== "All") query = query.eq("status", statusFilter);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data || []) as BusinessPermitItem[];
+  return (data || []).map((row: any) => ({
+    ...row,
+    business: Array.isArray(row.business) ? row.business[0] ?? undefined : row.business,
+  })) as BusinessPermitItem[];
 }
 
 export async function issueBusinessPermit(input: {

@@ -15,6 +15,7 @@
     "build:all": "npm run build:admin && npm run build:pwa",
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
+    "test:report": "node scripts/test-report.mjs",
 
     "ai:up": "docker compose up -d --build",
     "ai:down": "docker compose down",

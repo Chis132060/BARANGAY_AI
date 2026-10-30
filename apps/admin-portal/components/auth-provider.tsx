@@ -75,8 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRoleId(rid);
             setRole(roleName);
             if (rid) await loadPermissions(rid);
-          } else if (process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
-            setRole(session.user.user_metadata?.role || "Staff");
           }
         }
       } catch (err) {
@@ -108,8 +106,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRoleId(rid);
             setRole(roleName);
             if (rid) await loadPermissions(rid);
-          } else if (process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
-            setRole(session.user.user_metadata?.role || "Staff");
           }
         } else {
           setUser(null);

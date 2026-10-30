@@ -123,6 +123,7 @@ export const navigationConfig: NavigationModule[] = [
       { title: "Users", href: "/administration/users", module: "administration", requiredAction: "canView" },
       { title: "Roles & Permissions", href: "/administration/roles", module: "administration", requiredAction: "canEdit" },
       { title: "Reports", href: "/administration/reports", module: "administration" },
+      { title: "System Tests", href: "/administration/system-tests", module: "administration", requiredAction: "canView" },
       { title: "Settings", href: "/administration/settings", module: "administration", requiredAction: "canEdit" },
       { title: "Audit Logs", href: "/administration/audit", module: "administration" },
     ],

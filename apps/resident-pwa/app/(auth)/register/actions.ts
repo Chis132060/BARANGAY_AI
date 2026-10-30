@@ -1,7 +1,6 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isMockSupabaseEnabled } from "@/lib/supabase/config";
 import { v4 as uuidv4 } from "uuid";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { validateRegistrationInput, validateIdFile } = require("../../../lib/registration-validation.cjs");
@@ -30,6 +29,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     const houseNumber = formData.get("houseNumber") as string;
     const street = formData.get("street") as string;
     const purok = formData.get("purok") as string;
+    const householdCode = String(formData.get("householdCode") || "").trim();
     const idType = formData.get("idType") as string;
     const idBlob = formData.get("idBlob") as Blob | null;
 
@@ -39,6 +39,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
 
     const inputErrors = validateRegistrationInput({ email, password, firstName, lastName, birthDate, contactNumber, street, purok, idType });
     if (inputErrors.length) return { error: inputErrors[0] };
+    if (householdCode.length > 80) return { error: "Household code is too long." };
     const fileErrors = validateIdFile({ type: idBlob.type, size: idBlob.size });
     if (fileErrors.length) return { error: fileErrors[0] };
 
@@ -62,17 +63,32 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       return { error: "Identification image content does not match its file format." };
     }
 
-    // Local development uses a placeholder Supabase URL. Keep the full form
-    // validation above, but do not attempt a network call until real Supabase
-    // credentials are configured.
-    if (isMockSupabaseEnabled()) {
-      if (process.env.NODE_ENV === "production") {
-        return { error: "Registration is temporarily unavailable. Please contact support." };
-      }
-      return { success: true };
-    }
-
     const supabase = createAdminClient();
+    let requestedHouseholdId: string | null = null;
+    if (householdCode) {
+      const { data: requestedHousehold, error: householdError } = await supabase
+        .from("households").select("id").eq("household_number", householdCode).maybeSingle();
+      if (householdError) return { error: "Could not check the household code. Please try again." };
+      if (!requestedHousehold) return { error: "Household code not found. Check it with your household head or Barangay staff." };
+      requestedHouseholdId = requestedHousehold.id;
+
+      const { data: memberships, error: membershipError } = await supabase.from("household_members")
+        .select("resident:residents!inner(id,user_id,first_name,middle_name,last_name,birth_date,verification_status)")
+        .eq("household_id", requestedHouseholdId);
+      if (membershipError) return { error: "Could not check household resident records. Please try again." };
+      const normalizeName = (value: unknown) => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+      const hasVerifiedUnlinkedMatch = (memberships || []).some((membership: any) => {
+        const record = Array.isArray(membership.resident) ? membership.resident[0] : membership.resident;
+        return record && !record.user_id && record.verification_status === "Verified"
+          && normalizeName(record.first_name) === normalizeName(firstName)
+          && normalizeName(record.middle_name) === normalizeName(middleName)
+          && normalizeName(record.last_name) === normalizeName(lastName)
+          && String(record.birth_date).slice(0, 10) === birthDate;
+      });
+      if (hasVerifiedUnlinkedMatch) {
+        return { error: "A verified household record matches these details. Please contact Barangay staff to link your account and prevent a duplicate resident record." };
+      }
+    }
 
     // 1. Create a new account only. Existing accounts must authenticate through
     // the normal login/recovery flow; public registration must never adopt them.
@@ -83,6 +99,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       user_metadata: {
         role: "Resident",
         full_name: `${firstName} ${lastName}`.trim(),
+        ...(householdCode ? { household_code: householdCode } : {}),
       },
     });
 
@@ -123,33 +140,62 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       });
       if (userError) throw new Error("Unable to create user profile.");
 
-      const { data: resident, error: residentError } = await supabase
-        .from("residents")
-        .insert({
-          user_id: authUserId,
-          email,
-          first_name: firstName,
-          middle_name: middleName || null,
-          last_name: lastName,
-          birth_date: birthDate,
-          gender,
-          contact_number: contactNumber || null,
-          civil_status: "Single",
-          verification_status: "Pending",
-          id_type: idType,
-          id_photo_url: storagePath,
-          updated_at: new Date().toISOString(),
-        })
-        .select("id").single();
-      if (residentError || !resident) throw new Error("Unable to create resident profile.");
+      let matchedResidentId: string | null = null;
+      if (requestedHouseholdId) {
+        const { data: memberships, error: membershipError } = await supabase.from("household_members")
+          .select("resident:residents!inner(id,user_id,first_name,middle_name,last_name,birth_date,verification_status)")
+          .eq("household_id", requestedHouseholdId);
+        if (membershipError) throw new Error("Unable to check household family records.");
+        const normalizeName = (value: unknown) => String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+        const matchingResidents = (memberships || []).flatMap((membership: any) => {
+          const record = Array.isArray(membership.resident) ? membership.resident[0] : membership.resident;
+          if (!record || record.user_id || record.verification_status !== "Pending") return [];
+          const matches = normalizeName(record.first_name) === normalizeName(firstName)
+            && normalizeName(record.middle_name) === normalizeName(middleName)
+            && normalizeName(record.last_name) === normalizeName(lastName)
+            && String(record.birth_date).slice(0, 10) === birthDate;
+          return matches ? [record] : [];
+        });
+        if (matchingResidents.length > 1) throw new Error("More than one family record matches your details. Please ask Barangay staff to review it.");
+        matchedResidentId = matchingResidents[0]?.id || null;
+      }
 
-      const { error: addressError } = await supabase.from("addresses").insert({
-        resident_id: resident.id,
+      const residentId = matchedResidentId || (await supabase.from("residents").insert({
+        user_id: authUserId,
+        email,
+        first_name: firstName,
+        middle_name: middleName || null,
+        last_name: lastName,
+        birth_date: birthDate,
+        gender,
+        contact_number: contactNumber || null,
+        civil_status: "Single",
+        verification_status: "Pending",
+        id_type: idType,
+        id_photo_url: storagePath,
+        updated_at: new Date().toISOString(),
+      }).select("id").single()).data?.id;
+      if (!residentId) throw new Error("Unable to create resident profile.");
+
+      const { error: addressError } = await supabase.from("addresses").upsert({
+        resident_id: residentId,
         house_number: houseNumber || null,
         street: street || null,
         purok: purok || "Purok 1",
-      });
+      }, { onConflict: "resident_id" });
       if (addressError) throw new Error("Unable to save residential address.");
+
+      if (matchedResidentId) {
+        const { data: linkedResident, error: linkError } = await supabase.from("residents").update({
+          user_id: authUserId,
+          email,
+          contact_number: contactNumber || null,
+          id_type: idType,
+          id_photo_url: storagePath,
+          updated_at: new Date().toISOString(),
+        }).eq("id", matchedResidentId).is("user_id", null).eq("verification_status", "Pending").select("id").maybeSingle();
+        if (linkError || !linkedResident) throw new Error("That family record was linked by another registration. Please contact Barangay staff.");
+      }
     } catch (registrationError) {
       if (uploadedPath) {
         await supabase.storage.from("resident-ids").remove([uploadedPath]);

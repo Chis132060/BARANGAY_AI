@@ -21,10 +21,8 @@ async def ingest_web(url: str):
         scraped_data = await scraper.scrape(url)
         logger.info(f"Successfully scraped {scraped_data['title']}. Content Hash: {scraped_data['content_hash']}")
         
-        # Here we would normally call an orchestrator to chunk and embed, preserving metadata
-        # For now, we mock the final ingest call to rag_service
         chunks = await rag_service.ingest_document(
-            doc_id=scraped_data["content_hash"][:16], # mock id
+            doc_id=scraped_data["content_hash"][:16],
             text=scraped_data["text"],
             metadata={
                 "source_type": "WEB",

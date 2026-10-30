@@ -14,6 +14,9 @@ export function ResidentOnboardingDialog() {
   const savingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [householdMode, setHouseholdMode] = useState<"create" | "join">("create");
+  const [householdNumber, setHouseholdNumber] = useState("");
+  const [relationshipToHead, setRelationshipToHead] = useState("Household Head");
   const [error, setError] = useState<string | null>(null);
 
   const closeProfile = () => {
@@ -37,10 +40,11 @@ export function ResidentOnboardingDialog() {
     try {
       await completeResidentOnboarding({
         householdNumber: String(formData.get("householdNumber") || ""),
+        joinExistingHousehold: formData.get("householdMode") === "join",
         householdSize: Math.max(1, Number(formData.get("householdSize")) || 1),
         monthlyIncome: Math.max(0, Number(formData.get("monthlyIncome")) || 0),
         housingType,
-        relationshipToHead: String(formData.get("relationshipToHead") || "Household Head"),
+        relationshipToHead: String(formData.get("relationshipToHead") || (householdMode === "create" ? "Household Head" : "Household Member")),
         seniorStatus: formData.has("seniorStatus"),
         pwdStatus: formData.has("pwdStatus"),
         fourPsStatus: formData.has("fourPsStatus"),
@@ -66,11 +70,22 @@ export function ResidentOnboardingDialog() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data: resident } = await supabase
-          .from("residents")
-          .select("verification_status, household_onboarding_completed")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data: resident } = await supabase.from("residents")
+          .select("id, verification_status, household_onboarding_completed")
+          .eq("user_id", user.id).maybeSingle();
+        let savedHouseholdCode = String(user.user_metadata?.household_code || "");
+        if (!savedHouseholdCode && resident?.id) {
+          const { data: membership } = await supabase.from("household_members").select("household_id").eq("resident_id", resident.id).maybeSingle();
+          if (membership?.household_id) {
+            const { data: household } = await supabase.from("households").select("household_number").eq("id", membership.household_id).maybeSingle();
+            savedHouseholdCode = household?.household_number || "";
+          }
+        }
+        if (savedHouseholdCode) {
+          setHouseholdMode("join");
+          setHouseholdNumber(savedHouseholdCode);
+          setRelationshipToHead("Household Member");
+        }
         if (active && resident?.verification_status === "Verified" && !resident.household_onboarding_completed) {
           setOpen(true);
         }
@@ -119,15 +134,19 @@ export function ResidentOnboardingDialog() {
 
           <form onSubmit={submitProfile} className="mt-4">
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-xs font-semibold text-gray-700">Household No. (optional)
-                  <input name="householdNumber" placeholder="Auto-generated" className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm" />
+              <div>
+                <label className="block text-xs font-semibold text-gray-700">Household connection
+                  <select name="householdMode" value={householdMode} onChange={event => { const mode = event.target.value as "create" | "join"; setHouseholdMode(mode); setRelationshipToHead(mode === "create" ? "Household Head" : "Household Member"); if (mode === "create") setHouseholdNumber(""); }} className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm"><option value="create">Create my household</option><option value="join">Join my existing household</option></select>
                 </label>
+                <label className="mt-3 block text-xs font-semibold text-gray-700">Household number / code
+                  <input name="householdNumber" value={householdNumber} onChange={event => setHouseholdNumber(event.target.value)} required={householdMode === "join"} placeholder={householdMode === "join" ? "Ask your household head or Barangay staff" : "Leave blank to generate automatically"} className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm" />
+                </label>
+              </div>
+              {householdMode === "create" && <div className="space-y-3"><div className="grid grid-cols-2 gap-3">
                 <label className="text-xs font-semibold text-gray-700">Household size
                   <input name="householdSize" type="number" min="1" defaultValue="1" required className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm" />
                 </label>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              </div><div className="grid grid-cols-2 gap-3">
                 <label className="text-xs font-semibold text-gray-700">Monthly income (₱)
                   <input name="monthlyIncome" type="number" min="0" placeholder="Optional" className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm" />
                 </label>
@@ -136,9 +155,9 @@ export function ResidentOnboardingDialog() {
                     <option>Owned</option><option>Rented</option><option>Informal Settler</option><option>Other</option>
                   </select>
                 </label>
-              </div>
+              </div></div>}
               <label className="block text-xs font-semibold text-gray-700">Relationship to household head
-                <input name="relationshipToHead" defaultValue="Household Head" className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm" />
+                <input name="relationshipToHead" value={relationshipToHead} onChange={event => setRelationshipToHead(event.target.value)} className="mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:text-sm" />
               </label>
               <fieldset className="rounded-2xl border bg-gray-50 p-3">
                 <legend className="mb-2 text-xs font-bold text-gray-700">Program eligibility (you may update this later)</legend>

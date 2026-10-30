@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Calendar, Megaphone, RefreshCw } from "lucide-react";
+import { Calendar, Megaphone, RefreshCw, X, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { queueProgramIntent, listProgramIntents } from "@/lib/offline/program-intents";
@@ -14,7 +14,7 @@ interface Program {
   id: string; name: string; description: string | null; category: string; status: string; image_url: string | null;
   purok: string | null; venue: string | null; schedule_details: string | null;
   requirements: string | null; registration_open: boolean;
-  registration_deadline: string | null; registration_opens_at: string | null; event_start_at: string | null; event_end_at: string | null; max_participants: number | null; min_age: number | null; max_age: number | null;
+  registration_deadline: string | null; registration_opens_at: string | null; event_start_at: string | null; min_age: number | null; max_age: number | null;
 }
 
 export default function AnnouncementsPage() {
@@ -32,6 +32,7 @@ export default function AnnouncementsPage() {
   const [applyMessage, setApplyMessage] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [activeTab, setActiveTab] = useState<"programs" | "organizations" | "announcements">("programs");
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const lastLoadAt = useRef(0);
   const inFlight = useRef(false);
   const reloadRequested = useRef(false);
@@ -49,7 +50,7 @@ export default function AnnouncementsPage() {
         if(!session?.user?.id)throw new Error("Sign in before saving an offline program application.");
         await queueProgramIntent(session.user.id,programId);
         setOfflineProgramIds(prev=>Array.from(new Set([...prev,programId])));
-        setApplyMessage("Program application saved on this device — NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
+        setApplyMessage("Program application saved on this device â€” NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
         return;
       }
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -115,20 +116,26 @@ export default function AnnouncementsPage() {
         if (orgCache) setOrganizations(orgCache.data);
         if (!navigator.onLine) {
           setErrorMessage("Offline: displaying saved public information that may be outdated. Registrations are not confirmed until synchronized.");
+          setLoading(false);
+          inFlight.current = false;
           return;
         }
       } catch {
         if (!navigator.onLine) {
           setErrorMessage("Offline storage is unavailable. Visit this page while connected to save public information.");
+          setLoading(false);
+          inFlight.current = false;
           return;
         }
       }
 
+      const requestController = new AbortController();
+      const requestTimeout = window.setTimeout(() => requestController.abort(), 12_000);
       try {
         const [ann, prog, org] = await Promise.all([
-          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),
-          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,event_end_at,max_participants,min_age,max_age").eq("is_public", true).in("status", ["Active","On Hold"]).order("created_at", { ascending: false }),
-          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name"),
+          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }).abortSignal(requestController.signal),
+          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }).abortSignal(requestController.signal),
+          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name").abortSignal(requestController.signal),
         ]);
         if (!active) return;
         if (!ann.error) {
@@ -153,7 +160,7 @@ export default function AnnouncementsPage() {
             }
             if (prog.error) {
               const cached = await loadPublicSnapshot<Program[]>("barangay-programs");
-              if (cached) { programsRef.current = cached.data; setPrograms(cached.data); }
+              if (cached) { const activePrograms = cached.data.filter(program => program.status === "Active"); programsRef.current = activePrograms; setPrograms(activePrograms); }
             }
             if (org.error) {
               const cached = await loadPublicSnapshot<PublicOrganization[]>("barangay-organizations");
@@ -177,8 +184,11 @@ export default function AnnouncementsPage() {
         }
         lastLoadAt.current = Date.now();
       } catch (error) {
-        if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
+        if (active) setErrorMessage(requestController.signal.aborted
+          ? "Updates are taking too long to load. Check your connection and try again."
+          : error instanceof Error ? error.message : "Unable to load updates");
       } finally {
+        window.clearTimeout(requestTimeout);
         inFlight.current = false;
         if (active) {
           setLoading(false);
@@ -191,6 +201,8 @@ export default function AnnouncementsPage() {
     }
 
     void load(true);
+    const handleOnline = () => void load(true);
+    window.addEventListener("online", handleOnline);
     const channel = supabase.channel("resident-updates-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
@@ -198,6 +210,7 @@ export default function AnnouncementsPage() {
       .subscribe();
     return () => {
       active = false;
+      window.removeEventListener("online", handleOnline);
       void supabase.removeChannel(channel);
     };
   }, [refresh]);
@@ -218,8 +231,8 @@ export default function AnnouncementsPage() {
       </div>
       {activeTab === "programs" && <>
       <section className="rounded-2xl border bg-white p-3">
-        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "▲" : "▼"}</span></button>
-        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) — not submitted or reserved until the server confirms.</p>}
+        <button type="button" className="flex w-full justify-between text-sm font-bold" onClick={() => setShowMyApplications((v) => !v)}>My Program Applications <span>{applicationDetails.length} {showMyApplications ? "â–²" : "â–¼"}</span></button>
+        {offlineProgramIds.length > 0 && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{offlineProgramIds.length} local application intent(s) â€” not submitted or reserved until the server confirms.</p>}
         {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
       </section>
       <section id="updates-programs-panel" role="tabpanel" aria-labelledby="updates-programs-tab" className="space-y-3">
@@ -230,26 +243,37 @@ export default function AnnouncementsPage() {
             <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{p.category}</span>
             <h3 className="text-sm font-bold text-gray-900">{p.name}</h3>
             {p.image_url && <img src={p.image_url} alt={p.name} className="w-full max-h-52 rounded-xl object-cover" />}
-            {p.status === "On Hold" && <p className="rounded-lg bg-amber-50 p-2 text-xs font-semibold text-amber-800">Historical / citywide reference only. Not confirmed as a current barangay program. No registration available; please verify with the barangay office.</p>}
-            {p.description && <p className="whitespace-pre-line text-xs text-gray-600">{p.description}</p>}
+            {p.description && <p className="whitespace-pre-line text-xs text-gray-600 line-clamp-3">{p.description}</p>}
             <div className="space-y-1 text-xs text-gray-500">
               <p>Area: {p.purok || "All Puroks"}</p>
-              {p.venue && <p>Venue: {p.venue}</p>}
-              {p.event_start_at && <p className="font-semibold text-blue-700">Event: {new Date(p.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}
-              {p.event_end_at && new Date(p.event_end_at).getTime() < Date.now() && <p className="font-semibold">Completed</p>}
-              {p.schedule_details && <p>Schedule notes: {p.schedule_details}</p>}
-              {p.requirements && <p className="whitespace-pre-line"><strong>Requirements:</strong> {p.requirements}</p>}
-              {p.registration_opens_at && <p>Applications open: {new Date(p.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
-              {p.registration_deadline && <p>Apply by: {new Date(p.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
-              {p.max_participants && <p>Capacity: {p.max_participants} slots (subject to availability)</p>}
-              {(p.min_age || p.max_age) && <p>Age: {p.min_age || "Any"} – {p.max_age || "Any"}</p>}
               <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-            <button type="button" disabled={p.status !== "Active" || !p.registration_open || (!!p.registration_opens_at && new Date(p.registration_opens_at).getTime() > Date.now()) || (!!p.event_start_at && new Date(p.event_start_at).getTime() <= Date.now()) || !!applications[p.id] || applying !== null || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(p.id)} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[p.id] ? `Application: ${applications[p.id]}` : (p.status !== "Active" || !p.registration_open || (!!p.registration_deadline && new Date(p.registration_deadline).getTime() < Date.now())) ? "Registration Closed" : applying === p.id ? "Submitting..." : "Join Program"}</button>
+            <button type="button" onClick={() => setSelectedProgram(p)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white">Learn about this program <ArrowRight className="h-4 w-4" /></button>
           </article>
         ))}
       </section>
       </>}
+      {selectedProgram && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedProgram(null)}>
+        <section role="dialog" aria-modal="true" aria-labelledby="program-detail-title" onClick={(event) => event.stopPropagation()} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl sm:rounded-3xl">
+          <div className="mb-3 flex items-center justify-between"><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{selectedProgram.category}</span><button type="button" aria-label="Close program details" onClick={() => setSelectedProgram(null)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button></div>
+          {selectedProgram.image_url && <img src={selectedProgram.image_url} alt={selectedProgram.name} className="mb-4 h-48 w-full rounded-2xl object-cover" />}
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Welcome to the program</p>
+          <h2 id="program-detail-title" className="mt-1 text-xl font-extrabold text-gray-900">{selectedProgram.name}</h2>
+          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700">{selectedProgram.description || "Learn more about this barangay program. Contact the barangay office for details."}</p>
+          <div className="mt-4 space-y-2 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+            <p><strong>Area:</strong> {selectedProgram.purok || "All Puroks"}</p>
+            {selectedProgram.venue && <p><strong>Venue:</strong> {selectedProgram.venue}</p>}
+            {selectedProgram.event_start_at && <p><strong>Program starts:</strong> {new Date(selectedProgram.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}
+            {selectedProgram.schedule_details && <p><strong>Schedule:</strong> {selectedProgram.schedule_details}</p>}
+            {selectedProgram.requirements && <p className="whitespace-pre-line"><strong>Who can join / what to prepare:</strong><br />{selectedProgram.requirements}</p>}
+            {(selectedProgram.min_age || selectedProgram.max_age) && <p><strong>Age:</strong> {selectedProgram.min_age || "Any"}â€“{selectedProgram.max_age || "Any"}</p>}
+            {selectedProgram.registration_opens_at && <p><strong>Applications open:</strong> {new Date(selectedProgram.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
+            {selectedProgram.registration_deadline && <p><strong>Apply by:</strong> {new Date(selectedProgram.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
+          </div>
+          <button type="button" disabled={selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "Iâ€™m interested â€” apply to join"}</button>
+          <p className="mt-2 text-center text-xs text-gray-500">Your application will be reviewed by barangay staff. A submitted application does not guarantee a slot.</p>
+        </section>
+      </div>}
       {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
         <h2 className="text-base font-bold">Community Organizations</h2>
         {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published organizations available.</p> : organizations.map((org) => <article key={org.id} className="rounded-2xl border bg-white p-4 space-y-2"><span className="text-xs font-bold text-blue-700">{org.org_type}</span><h3 className="font-bold">{org.name}</h3>{org.description && <p className="text-sm text-gray-600 whitespace-pre-line">{org.description}</p>}{org.president && <p className="text-xs text-gray-500">President: {org.president}</p>}{org.contact && <p className="text-xs text-gray-500">Contact: {org.contact}</p>}</article>)}
@@ -268,3 +292,4 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+

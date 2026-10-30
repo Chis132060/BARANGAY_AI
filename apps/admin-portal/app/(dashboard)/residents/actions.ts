@@ -107,7 +107,10 @@ export async function fetchHouseholds(): Promise<HouseholdListItem[]> {
     head:residents!households_household_head_id_fkey(first_name, last_name)
   `).order("household_number");
   if (error) throw new Error(error.message);
-  return (data || []) as HouseholdListItem[];
+  return (data || []).map((row: any) => ({
+    ...row,
+    head: Array.isArray(row.head) ? row.head[0] ?? undefined : row.head,
+  })) as HouseholdListItem[];
 }
 
 export async function createResident(formData: Omit<ResidentListItem, "id">) {
@@ -231,6 +234,32 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
   })) as PendingResident[];
 }
 
+async function resolveResidentIdPhotoUrl(supabase: any, photo: string): Promise<string | null> {
+  let storagePath = photo;
+  if (/^https?:\/\//i.test(photo)) {
+    // Older rows may contain a public Supabase Storage URL. Convert only URLs
+    // from this project and this bucket back to a path before signing them.
+    try {
+      const legacyUrl = new URL(photo);
+      const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!configuredUrl) return null;
+      const projectUrl = new URL(configuredUrl);
+      const match = legacyUrl.pathname.match(/^\/storage\/v1\/object\/(?:public|sign)\/resident-ids\/(.+)$/);
+      if (legacyUrl.origin !== projectUrl.origin || !match) return null;
+      storagePath = decodeURIComponent(match[1]);
+    } catch {
+      return null;
+    }
+  }
+  if (!storagePath || storagePath.includes("..") || storagePath.startsWith("/") || storagePath.includes("\\")) return null;
+  const { data, error } = await supabase.storage.from("resident-ids").createSignedUrl(storagePath, 300);
+  if (error) {
+    console.warn("Unable to sign resident ID photo; the storage object may be missing or inaccessible.");
+    return null;
+  }
+  return data?.signedUrl ?? null;
+}
+
 /** Resolve a private ID image only when a reviewer opens the applicant. */
 export async function fetchResidentIdPhotoUrl(residentId: string): Promise<string | null> {
   const supabase = createClient();
@@ -247,11 +276,7 @@ export async function fetchResidentIdPhotoUrl(residentId: string): Promise<strin
   if (error) throw new Error(error.message);
   const photo = resident?.id_photo_url;
   if (!photo) return null;
-  // IDs must be stored as private storage paths, never public HTTP URLs.
-  if (/^https?:\/\//i.test(photo) || photo.includes("..") || photo.startsWith("/")) throw new Error("Invalid private ID storage path");
-  const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 300);
-  if (signError) throw new Error(signError.message);
-  return data?.signedUrl ?? null;
+  return resolveResidentIdPhotoUrl(supabase, photo);
 }
 
 /** Generate a short-lived signed URL for a verified resident's ID photo. */
@@ -270,11 +295,7 @@ export async function fetchVerifiedResidentPhoto(residentId: string): Promise<st
   if (error) throw new Error(error.message);
   const photo = resident?.id_photo_url;
   if (!photo) return null;
-  // Photos must be stored as private storage paths, never raw public HTTP URLs.
-  if (/^https?:\/\//i.test(photo) || photo.includes("..") || photo.startsWith("/")) throw new Error("Invalid private ID storage path");
-  const { data, error: signError } = await supabase.storage.from("resident-ids").createSignedUrl(photo, 300);
-  if (signError) throw new Error(signError.message);
-  return data?.signedUrl ?? null;
+  return resolveResidentIdPhotoUrl(supabase, photo);
 }
 
 export async function approveResident(residentId: string): Promise<{ success: boolean }> {
@@ -292,7 +313,7 @@ export async function approveResident(residentId: string): Promise<{ success: bo
     .eq("id", residentId)
     .maybeSingle();
 
-  if (!target?.user_id || target.user_id === user.id) throw new Error("Cannot review your own account or an unlinked resident");
+  if (!target || target.user_id === user.id) throw new Error("Cannot review your own account or an unknown resident");
 
   const { data: updatedResident, error } = await supabase
     .from("residents")
@@ -359,7 +380,7 @@ export async function rejectResident(residentId: string, reason?: string): Promi
     updated_at: new Date().toISOString(),
   };
 
-  if (!target?.user_id || target.user_id === user.id) throw new Error("Cannot review your own account or an unlinked resident");
+  if (!target || target.user_id === user.id) throw new Error("Cannot review your own account or an unknown resident");
 
   const { data: updatedResident, error } = await supabase
     .from("residents")

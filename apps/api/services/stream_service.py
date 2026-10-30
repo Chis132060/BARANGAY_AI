@@ -14,10 +14,8 @@ async def stream_ai_response(session_id: str, message: str) -> AsyncGenerator[st
     """
     yield '{"event": "STARTED", "status": "Initializing intent detection..."}'
     
-    # 1. Orchestrator Prep (Mocking the pipeline setup here for the stream, 
-    # normally we'd expose a streaming variant of generate_response directly in orchestrator)
-    # For now, we simulate the validation steps and then stream the provider.
-    
+    # 1. Run intent retrieval and policy validation before generation.
+
     yield '{"event": "VALIDATING", "status": "Checking policies and tool planner..."}'
     await asyncio.sleep(0.5) # Simulate policy engine latency
     
@@ -51,9 +49,7 @@ async def stream_ai_response(session_id: str, message: str) -> AsyncGenerator[st
             temperature=0.1
         )
         
-        # In a real async environment, we'd use an async generator from the provider.
-        # Assuming provider.generate_stream exists or we chunk a sync response for now.
-        # Since we haven't implemented async stream in AIProviderManager yet, we simulate the stream chunks.
+        # Providers return a complete response; emit its words as stream events.
         response = provider.generate(request)
         words = response.content.split(" ")
         

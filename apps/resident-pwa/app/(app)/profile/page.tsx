@@ -8,6 +8,7 @@ import { loadDocumentDrafts, clearDocumentDrafts } from "@/lib/offline/document-
 import { clearReads } from "@/lib/offline/notification-outbox";
 import { clearProgramIntents, listProgramIntents } from "@/lib/offline/program-intents";
 import { clearQueuedDocuments, listQueuedDocuments } from "@/lib/offline/document-outbox";
+import { OfflineStatusCenter } from "@/components/offline/OfflineStatusCenter";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -22,6 +23,25 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
+  const [syncStatusEnabled, setSyncStatusEnabled] = useState(false);
+
+  useEffect(() => {
+    try {
+      setSyncStatusEnabled(window.localStorage.getItem("barangay:show-offline-sync-status") === "true");
+    } catch {
+      setSyncStatusEnabled(false);
+    }
+  }, []);
+
+  function toggleSyncStatus() {
+    const next = !syncStatusEnabled;
+    setSyncStatusEnabled(next);
+    try {
+      window.localStorage.setItem("barangay:show-offline-sync-status", String(next));
+    } catch {
+      setFeedback("Could not save this setting on this device.");
+    }
+  }
 
   useEffect(() => {
     if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) return;
@@ -205,6 +225,28 @@ export default function ProfilePage() {
         </button>
       </section>
 
+      <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Offline sync status</h2>
+            <p className="mt-1 text-xs text-gray-500">Show queued changes and sync results here. Automatic syncing continues when this is hidden.</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={syncStatusEnabled}
+            aria-label="Show offline sync status in Profile"
+            onClick={toggleSyncStatus}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${syncStatusEnabled ? "bg-blue-600" : "bg-gray-300"}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${syncStatusEnabled ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </div>
+        {syncStatusEnabled && <div className="mt-4 overflow-hidden rounded-lg border border-gray-200">
+          <OfflineStatusCenter />
+        </div>}
+      </section>
+
       {/* Sign Out Button */}
       <button
         onClick={handleSignOut}
@@ -329,3 +371,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

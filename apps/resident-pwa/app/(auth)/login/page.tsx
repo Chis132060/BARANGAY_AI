@@ -1,10 +1,17 @@
-"use client";
-
 import { LoginForm } from "@/components/login-form";
 import Link from "next/link";
 import { PreAuthWelcome } from "@/components/auth/PreAuthWelcome";
 
-export default function LoginPage() {
+const loginMessages: Record<string, string> = {
+  admin_account: "This account has a non-resident role. Use the admin portal to sign in.",
+  role_lookup: "We couldn't verify this account's resident role. Please sign in again; if this repeats, contact support.",
+};
+
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
   return (
     <PreAuthWelcome>
       <main className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-12">
@@ -16,6 +23,11 @@ export default function LoginPage() {
             <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
           </div>
 
+          {loginMessages[searchParams?.error ?? ""] && (
+            <div role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+              {loginMessages[searchParams?.error ?? ""]}
+            </div>
+          )}
           <LoginForm />
 
           <p className="mt-6 text-center text-sm text-gray-500">

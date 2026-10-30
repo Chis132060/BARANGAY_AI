@@ -19,25 +19,37 @@ interface ResidentVerificationStatus {
   rejection_reason: string | null;
 }
 
-async function getResidentStatus(): Promise<ResidentVerificationStatus | null> {
+type StatusIssue = "signed_out" | "lookup_failed" | "record_missing";
+
+async function getResidentStatus(): Promise<{
+  status: ResidentVerificationStatus | null;
+  issue: StatusIssue | null;
+  accountEmail: string | null;
+}> {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) return { status: null, issue: "signed_out", accountEmail: null };
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("residents")
     .select("verification_status, rejection_reason")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  return data as ResidentVerificationStatus | null;
+  if (error) {
+    console.error("Unable to load resident verification status:", error.message);
+    return { status: null, issue: "lookup_failed", accountEmail: user.email ?? null };
+  }
+  if (!data) return { status: null, issue: "record_missing", accountEmail: user.email ?? null };
+
+  return { status: data as ResidentVerificationStatus, issue: null, accountEmail: user.email ?? null };
 }
 
 export default async function PendingApprovalPage() {
-  const status = await getResidentStatus();
+  const { status, issue, accountEmail } = await getResidentStatus();
   const isRejected = status?.verification_status === "Rejected";
   const isVerified = status?.verification_status === "Verified";
 
@@ -50,15 +62,36 @@ export default async function PendingApprovalPage() {
 
         <div className="space-y-2">
           <h1 className="text-xl font-extrabold text-gray-900">
-            {isRejected ? "Registration rejected" : isVerified ? "Account verified" : "Account awaiting barangay verification"}
+            {isRejected
+              ? "Registration rejected"
+              : isVerified
+                ? "Account verified"
+                : issue === "signed_out"
+                  ? "Sign in to check your status"
+                  : issue === "lookup_failed"
+                    ? "Verification status unavailable"
+                    : issue === "record_missing"
+                      ? "Resident profile not found"
+                      : "Account awaiting barangay verification"}
           </h1>
           <p className="text-sm text-gray-600 leading-relaxed">
             {isRejected
               ? "Your submitted resident registration needs correction before it can be approved."
               : isVerified
                 ? "Your resident account is approved. You can now access Smart Barangay services."
-                : "Barangay staff will review your details and uploaded ID before enabling resident services."}
+                : issue === "signed_out"
+                  ? "Your verification status is only available after you sign in. If you have confirmed your email, sign in to continue."
+                  : issue === "lookup_failed"
+                    ? "We could not retrieve your resident record right now. Refresh to try again, or contact barangay support if this continues."
+                    : issue === "record_missing"
+                      ? "We could not find a resident profile linked to this account. Contact barangay support so staff can check the account link."
+                      : "Barangay staff will review your details and uploaded ID before enabling resident services."}
           </p>
+          {issue === "record_missing" && accountEmail && (
+            <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              Currently signed in as <strong className="break-all text-gray-900">{accountEmail}</strong>
+            </p>
+          )}
         </div>
 
         {isRejected && (
@@ -70,11 +103,21 @@ export default async function PendingApprovalPage() {
           </div>
         )}
 
-        {!status && (
+        {issue && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Registration submitted</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+              {issue === "signed_out"
+                ? "No signed-in session"
+                : issue === "lookup_failed"
+                  ? "Could not check status"
+                    : "Check the signed-in account"}
+            </p>
             <p className="mt-1 text-sm text-amber-800">
-              Sign in after confirming your email to view your live verification status.
+              {issue === "signed_out"
+                ? "Sign in after confirming your email to view your live verification status."
+                : issue === "lookup_failed"
+                  ? "Your verification status was not changed. Please retry the lookup."
+                  : "This account has no linked resident profile. If this is not the email used for your resident registration, sign out and sign in with that account. If this is the correct email, contact barangay support to review the link."}
             </p>
           </div>
         )}
@@ -88,13 +131,21 @@ export default async function PendingApprovalPage() {
             >
               Continue to Home
             </Link>
+          ) : issue === "signed_out" ? (
+            <Link
+              href="/login"
+              className="block w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow hover:bg-blue-700"
+            >
+              Sign in to continue
+            </Link>
           ) : (
             <RefreshStatusButton />
           )}
-          {status && <Link href="/support" className="block text-sm font-semibold text-blue-700 underline">Need help? Submit a support ticket</Link>}
-          {status && <SignOutButton />}
+          {(status || issue === "record_missing" || issue === "lookup_failed") && <Link href="/support" className="block text-sm font-semibold text-blue-700 underline">Need help? Submit a support ticket</Link>}
+          {(status || issue === "record_missing" || issue === "lookup_failed") && <SignOutButton />}
         </div>
       </div>
     </main>
   );
 }
+

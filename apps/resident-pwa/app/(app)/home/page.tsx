@@ -26,11 +26,13 @@ export default function HomePage() {
     async function loadDashboardData() {
       try {
         // 1. Get current authenticated user name
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Resident";
-          setResidentName(name.charAt(0).toUpperCase() + name.slice(1));
-        }
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        // A missing or expired session must not become a PostgREST filter like
+        // `user_id=eq.`. Middleware will route the visitor back to sign-in.
+        if (authError || !user) return;
+
+        const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Resident";
+        setResidentName(name.charAt(0).toUpperCase() + name.slice(1));
 
         // 2. Fetch latest published announcement posted by Admin
         const { data: annData } = await supabase
@@ -54,7 +56,7 @@ export default function HomePage() {
         const { data: resident } = await supabase
           .from("residents")
           .select("id")
-          .eq("user_id", user?.id || "")
+          .eq("user_id", user.id)
           .maybeSingle();
         if (resident) {
           const response = await supabase
@@ -182,7 +184,7 @@ export default function HomePage() {
               href="/requests/new"
               className="inline-block text-xs font-bold text-blue-600 hover:underline"
             >
-              Submit a request →
+              Submit a request â†’
             </Link>
           </div>
         )}
@@ -190,3 +192,4 @@ export default function HomePage() {
     </div>
   );
 }
+

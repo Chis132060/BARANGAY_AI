@@ -1,18 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getMockSupabaseClient } from "./mock-supabase";
-import { isMockSupabaseEnabled } from "./config";
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const cookieStore = cookies();
-  if (!url || isMockSupabaseEnabled()) {
-    return getMockSupabaseClient(cookieStore) as any;
-  }
+  if (!url || !anonKey) throw new Error("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
 
   return createServerClient(
     url,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    anonKey,
     {
       cookies: {
         get(name: string) {

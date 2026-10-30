@@ -1,13 +1,11 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { getMockSupabaseClient } from "./mock-supabase";
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url || process.env.NEXT_PUBLIC_MOCK_SUPABASE === "true") {
-    return getMockSupabaseClient() as any;
-  }
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) throw new Error("Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   return createBrowserClient(
     url,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    anonKey
   );
 }
