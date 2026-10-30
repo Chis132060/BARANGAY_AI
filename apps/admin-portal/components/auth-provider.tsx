@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { type AuthChangeEvent, type Session, type User } from "@supabase/supabase-js";
+import { type Session, type User } from "@supabase/supabase-js";
 import { fetchUserPermissions, type PermissionSet, clearPermissionCache } from "@/lib/permissions";
 
 interface AuthContextType {
@@ -52,61 +52,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [roleId, loadPermissions]);
 
-  useEffect(() => {
-    async function getSession() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setUser(session.user);
-          setRole(null);
-          setRoleId(null);
-          setPermissions({});
+  const loadUserProfile = useCallback(async (session: Session) => {
+    setUser(session.user);
+    setRole(null);
+    setRoleId(null);
+    setPermissions({});
 
-          // Fetch role_id from the users table
-          const { data: userProfile } = await supabase
-            .from("users")
-            .select("role_id, role:roles(name)")
-            .eq("id", session.user.id)
-            .single();
+    try {
+      const { data: userProfile, error } = await supabase
+        .from("users")
+        .select("role_id, role:roles(name)")
+        .eq("id", session.user.id)
+        .single();
 
-          if (userProfile) {
-            const rid = userProfile.role_id;
-            const roleName = (userProfile as any).role?.name || null;
-            setRoleId(rid);
-            setRole(roleName);
-            if (rid) await loadPermissions(rid);
-          }
-        }
-      } catch (err) {
-        console.error("Error retrieving session:", err);
-      } finally {
-        setLoading(false);
+      if (error) throw error;
+      if (userProfile) {
+        const rid = userProfile.role_id;
+        const roleName = (userProfile as any).role?.name || null;
+        setRoleId(rid);
+        setRole(roleName);
+        if (rid) await loadPermissions(rid);
       }
+    } catch (err) {
+      console.error("Error loading admin profile:", err);
+    } finally {
+      setLoading(false);
     }
+  }, [supabase, loadPermissions]);
 
-    getSession();
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      if (session) void loadUserProfile(session);
+      else setLoading(false);
+    }).catch((err) => {
+      console.error("Error retrieving session:", err);
+      if (active) setLoading(false);
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event: AuthChangeEvent, session: Session | null) => {
+      (_event, session: Session | null) => {
         if (session) {
-          setUser(session.user);
-          setRole(null);
-          setRoleId(null);
-          setPermissions({});
-
-          const { data: userProfile } = await supabase
-            .from("users")
-            .select("role_id, role:roles(name)")
-            .eq("id", session.user.id)
-            .single();
-
-          if (userProfile) {
-            const rid = userProfile.role_id;
-            const roleName = (userProfile as any).role?.name || null;
-            setRoleId(rid);
-            setRole(roleName);
-            if (rid) await loadPermissions(rid);
-          }
+          setLoading(true);
+          // Do not await Supabase queries inside this callback; Auth keeps an
+          // internal lock while notifying listeners.
+          window.setTimeout(() => {
+            if (active) void loadUserProfile(session);
+          }, 0);
         } else {
           setUser(null);
           setRole(null);
@@ -119,9 +112,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase, loadUserProfile]);
 
   function hasPermission(module: string, action: keyof PermissionSet): boolean {
     if (!role) return false;

@@ -24,13 +24,14 @@ type StatusIssue = "signed_out" | "lookup_failed" | "record_missing";
 async function getResidentStatus(): Promise<{
   status: ResidentVerificationStatus | null;
   issue: StatusIssue | null;
+  accountEmail: string | null;
 }> {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { status: null, issue: "signed_out" };
+  if (!user) return { status: null, issue: "signed_out", accountEmail: null };
 
   const { data, error } = await supabase
     .from("residents")
@@ -40,15 +41,15 @@ async function getResidentStatus(): Promise<{
 
   if (error) {
     console.error("Unable to load resident verification status:", error.message);
-    return { status: null, issue: "lookup_failed" };
+    return { status: null, issue: "lookup_failed", accountEmail: user.email ?? null };
   }
-  if (!data) return { status: null, issue: "record_missing" };
+  if (!data) return { status: null, issue: "record_missing", accountEmail: user.email ?? null };
 
-  return { status: data as ResidentVerificationStatus, issue: null };
+  return { status: data as ResidentVerificationStatus, issue: null, accountEmail: user.email ?? null };
 }
 
 export default async function PendingApprovalPage() {
-  const { status, issue } = await getResidentStatus();
+  const { status, issue, accountEmail } = await getResidentStatus();
   const isRejected = status?.verification_status === "Rejected";
   const isVerified = status?.verification_status === "Verified";
 
@@ -86,6 +87,11 @@ export default async function PendingApprovalPage() {
                       ? "We could not find a resident profile linked to this account. Contact barangay support so staff can check the account link."
                       : "Barangay staff will review your details and uploaded ID before enabling resident services."}
           </p>
+          {issue === "record_missing" && accountEmail && (
+            <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              Currently signed in as <strong className="break-all text-gray-900">{accountEmail}</strong>
+            </p>
+          )}
         </div>
 
         {isRejected && (
@@ -104,14 +110,14 @@ export default async function PendingApprovalPage() {
                 ? "No signed-in session"
                 : issue === "lookup_failed"
                   ? "Could not check status"
-                  : "Account link needs review"}
+                    : "Check the signed-in account"}
             </p>
             <p className="mt-1 text-sm text-amber-800">
               {issue === "signed_out"
                 ? "Sign in after confirming your email to view your live verification status."
                 : issue === "lookup_failed"
                   ? "Your verification status was not changed. Please retry the lookup."
-                  : "Your account may be active, but its resident profile is not linked."}
+                  : "This account has no linked resident profile. If this is not the email used for your resident registration, sign out and sign in with that account. If this is the correct email, contact barangay support to review the link."}
             </p>
           </div>
         )}

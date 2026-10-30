@@ -100,8 +100,6 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Married"),
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Widowed"),
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("civil_status", "Divorced"),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("solo_parent_status", true),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("dswd_status", true),
     supabase.from("residents").select("birth_date").eq("verification_status", "Verified"),
   ]);
 
@@ -131,8 +129,6 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     { count: marriedResidents },
     { count: widowedResidents },
     { count: divorcedResidents },
-    { count: soloParentResidents },
-    { count: dswdResidents },
     { data: youthData },
   ] = queryResults;
 
@@ -174,8 +170,9 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     marriedResidents: marriedResidents || 0,
     widowedResidents: widowedResidents || 0,
     divorcedResidents: divorcedResidents || 0,
-    soloParentResidents: soloParentResidents || 0,
-    dswdResidents: dswdResidents || 0,
+    // These classifications are not stored in the current residents schema.
+    soloParentResidents: 0,
+    dswdResidents: 0,
     youthResidents: youthCount,
     completionRate,
   };

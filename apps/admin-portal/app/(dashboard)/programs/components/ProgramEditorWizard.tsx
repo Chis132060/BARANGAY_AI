@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Save, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImagePlus, Plus, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createProgram, editProgram, type BarangayProgram } from "../actions";
 
@@ -29,7 +29,7 @@ export function ProgramEditorWizard({ onClose, onSaved, editing }: {
     name: editing?.name || "", code: editing?.code || "", description: editing?.description || "",
     image_url: editing?.image_url || null, category: editing?.category || "Social Services",
     chairperson: editing?.chairperson || "", contact: editing?.contact || "",
-    established_date: editing?.established_date || "", status: editing?.status === "Active" ? "Active" : "Inactive",
+    established_date: editing?.established_date || "", status: editing ? (editing.status === "Active" ? "Active" : "Inactive") : "Active",
     is_custom: editing?.is_custom ?? true, purok: editing?.purok || "All Puroks",
     venue: editing?.venue || "", schedule_details: editing?.schedule_details || "",
     requirements: editing?.requirements || "", registration_deadline: toLocalInput(editing?.registration_deadline),
@@ -39,12 +39,16 @@ export function ProgramEditorWizard({ onClose, onSaved, editing }: {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [selectedImageName, setSelectedImageName] = useState("");
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const inputClass = "mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40";
 
   async function uploadImage(file: File) {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setSelectedImageName("");
       setError("Use JPG, PNG or WebP, up to 5 MB."); return;
     }
+    setSelectedImageName(file.name);
     setSaving(true); setError("");
     try {
       const supabase = createClient();
@@ -103,7 +107,26 @@ export function ProgramEditorWizard({ onClose, onSaved, editing }: {
             {field("Code / Acronym", input("code", "e.g. YLC"))}
             {field("Category", <select value={form.category} onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))} className={inputClass}><option>Social Services</option><option>Peace & Order</option><option>Youth Development</option><option>Health & Wellness</option><option>Education</option><option>Anti-Drug</option><option>Women & Children</option><option>Senior Citizens</option><option>Livelihood</option><option>Environmental</option><option>Other</option></select>)}
             <div className="sm:col-span-2">{field("Welcome / Program Introduction *", area("description", "Welcome! Explain what the program does, whom it supports, what residents can expect, and how they can join.", 5))}<p className="mt-1 text-[11px] text-muted-foreground">Residents see this introduction before deciding to join.</p></div>
-            <div className="sm:col-span-2">{field("Program Cover Image (JPG, PNG, WebP; max 5 MB)", <><input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={e => { const file = e.target.files?.[0]; if (file) void uploadImage(file); }} className={inputClass} />{form.image_url && <div className="mt-2"><img src={form.image_url} alt="Program cover preview" className="h-44 w-full rounded-xl object-cover" /><button type="button" onClick={() => setForm(prev => ({ ...prev, image_url: null }))} className="mt-1 text-xs text-red-700">Remove image</button></div>}</> )}</div>
+            <div className="sm:col-span-2"><p className="text-xs font-semibold">Program Cover Image (JPG, PNG, WebP; max 5 MB)</p>
+              <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} aria-label="Choose a program cover image" onChange={e => { const file = e.target.files?.[0]; if (file) void uploadImage(file); e.currentTarget.value = ""; }} className="sr-only" />
+              <div className="mt-1 flex flex-col gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ImagePlus className="h-5 w-5" /></span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{selectedImageName || (form.image_url ? "Cover image ready" : "Add a cover image")}</p>
+                    <p className="mt-0.5 text-xs font-normal text-muted-foreground">JPG, PNG or WebP · up to 5 MB</p>
+                  </div>
+                </div>
+                <button type="button" disabled={saving} onClick={() => imageInputRef.current?.click()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border bg-background px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60">
+                  <Upload className="h-4 w-4 text-primary" />{saving ? "Uploading…" : "Choose file"}
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] font-normal text-muted-foreground">A clear landscape image helps residents recognize the program in the PWA.</p>
+              {form.image_url && <div className="mt-3 overflow-hidden rounded-2xl border bg-slate-100">
+                <div className="flex aspect-[16/7] max-h-64 items-center justify-center bg-slate-900/5"><img src={form.image_url} alt="Program cover preview" className="h-full w-full object-contain" /></div>
+                <div className="flex items-center justify-between border-t bg-background px-3 py-2"><span className="text-xs font-medium text-muted-foreground">Cover preview</span><button type="button" onClick={() => { setForm(prev => ({ ...prev, image_url: null })); setSelectedImageName(""); }} className="text-xs font-semibold text-red-600 hover:text-red-700">Remove image</button></div>
+              </div>}
+            </div>
           </div> : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {field("Purok / Area", input("purok", "All Puroks"))}{field("Venue", input("venue"))}
             <div className="sm:col-span-2">{field("Schedule / When to attend", input("schedule_details", "e.g. Every Saturday, 8:00 AM"))}</div>

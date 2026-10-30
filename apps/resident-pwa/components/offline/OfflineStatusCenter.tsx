@@ -62,7 +62,7 @@ export function OfflineStatusCenter() {
     };
   }, []);
   const pending = counts ? counts.tickets + counts.documents + counts.programs + counts.reads : 0;
-  return <section aria-live="polite" className="border-b border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+  return <section aria-live="polite" className="bg-slate-50 p-3 text-xs text-slate-700">
     <div className="flex items-center justify-between gap-2">
       <span>{online ? "Device online" : "Device offline"} · {pending} local pending change(s)</span>
       <button type="button" disabled={!online || detail?.state === "running"}

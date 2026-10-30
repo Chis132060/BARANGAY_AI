@@ -1,17 +1,9 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 import Link from "next/link";
 import { PreAuthWelcome } from "@/components/auth/PreAuthWelcome";
 
-const loginMessages: Record<string, string> = {
-  admin_account: "This account has a non-resident role. Use the admin portal to sign in.",
-  role_lookup: "We couldn't verify this account's resident role. Please sign in again; if this repeats, contact support.",
-};
-
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams?: { error?: string };
-}) {
+export default function LoginPage() {
   return (
     <PreAuthWelcome>
       <main className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-12">
@@ -23,12 +15,9 @@ export default function LoginPage({
             <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
           </div>
 
-          {loginMessages[searchParams?.error ?? ""] && (
-            <div role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
-              {loginMessages[searchParams?.error ?? ""]}
-            </div>
-          )}
-          <LoginForm />
+          <Suspense fallback={<div className="h-40 flex items-center justify-center text-xs text-gray-400">Loading sign in...</div>}>
+            <LoginForm />
+          </Suspense>
 
           <p className="mt-6 text-center text-sm text-gray-500">
             Don&apos;t have an account?{" "}

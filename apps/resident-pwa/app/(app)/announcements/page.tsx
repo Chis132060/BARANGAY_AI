@@ -16,6 +16,33 @@ interface Program {
   requirements: string | null; registration_open: boolean;
   registration_deadline: string | null; registration_opens_at: string | null; event_start_at: string | null; min_age: number | null; max_age: number | null;
 }
+type ResidentEligibility = { state: "loading" | "verified" | "unverified" | "missing" | "unavailable"; age: number | null };
+
+function getResidentAge(birthDate: string | null): number | null {
+  if (!birthDate) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate);
+  if (!match) return null;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText) - 1;
+  const day = Number(dayText);
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  if (now.getMonth() < month || (now.getMonth() === month && now.getDate() < day)) age -= 1;
+  return age >= 0 ? age : null;
+}
+
+function getProgramEligibilityMessage(program: Program, resident: ResidentEligibility): string {
+  if (resident.state === "loading") return "Checking your resident profile…";
+  if (resident.state === "unavailable") return "Unable to check your resident profile. Refresh the page and try again.";
+  if (resident.state === "missing") return "A resident profile must be linked to your account before you can apply.";
+  if (resident.state === "unverified") return "Your resident profile must be verified before you can apply.";
+  if ((program.min_age !== null || program.max_age !== null) && resident.age === null) return "Add your date of birth to your resident profile before applying to this age-restricted program.";
+  if (resident.age !== null && ((program.min_age !== null && resident.age < program.min_age) || (program.max_age !== null && resident.age > program.max_age))) {
+    return `This program is open to ages ${program.min_age ?? "any age"}${program.max_age !== null ? `–${program.max_age}` : " and above"}. Your profile age does not meet this requirement.`;
+  }
+  return "";
+}
 
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -30,19 +57,28 @@ export default function AnnouncementsPage() {
   const [showMyApplications, setShowMyApplications] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
+  const [applyError, setApplyError] = useState("");
+  const [residentEligibility, setResidentEligibility] = useState<ResidentEligibility>({ state: "loading", age: null });
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [activeTab, setActiveTab] = useState<"programs" | "organizations" | "announcements">("programs");
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const lastLoadAt = useRef(0);
-  const inFlight = useRef(false);
-  const reloadRequested = useRef(false);
   const announcementsRef = useRef<Announcement[]>([]);
   const programsRef = useRef<Program[]>([]);
 
   async function joinProgram(programId: string) {
     if (applying || applications[programId]) return;
+    const program = programs.find((item) => item.id === programId);
+    if (program) {
+      const eligibilityMessage = getProgramEligibilityMessage(program, residentEligibility);
+      if (eligibilityMessage) {
+        setApplyError(eligibilityMessage);
+        return;
+      }
+    }
     setApplying(programId);
     setApplyMessage("");
+    setApplyError("");
     try {
       const supabase = createClient();
       if (!navigator.onLine) {
@@ -51,6 +87,7 @@ export default function AnnouncementsPage() {
         await queueProgramIntent(session.user.id,programId);
         setOfflineProgramIds(prev=>Array.from(new Set([...prev,programId])));
         setApplyMessage("Program application saved on this device — NOT submitted or a reserved slot. Eligibility and deadlines will be checked when online.");
+        setSelectedProgram(null);
         return;
       }
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -59,12 +96,38 @@ export default function AnnouncementsPage() {
       if (error) throw error;
       setApplications((prev) => ({ ...prev, [programId]: "Pending" }));
       setApplyMessage("Application submitted. Await barangay review.");
+      setSelectedProgram(null);
     } catch (error) {
-      setApplyMessage(error instanceof Error ? error.message : "Unable to submit application.");
+      const message = error instanceof Error
+        ? error.message
+        : error && typeof error === "object" && "message" in error && typeof error.message === "string"
+          ? error.message
+          : "Unable to submit application.";
+      const selected = selectedProgram?.id === programId ? selectedProgram : programs.find((program) => program.id === programId);
+      setApplyError(message.includes("Age eligibility not met") && selected
+        ? `This program is for ages ${selected.min_age ?? "any age"}${selected.max_age ? `–${selected.max_age}` : " and above"}. Your resident profile does not meet this age requirement.`
+        : message.includes("Birth date required for eligibility")
+          ? "Add your date of birth to your resident profile before applying to this age-restricted program."
+          : message.includes("Verified resident account required")
+            ? "A verified resident profile must be linked to your account before you can apply. Contact barangay staff if this seems incorrect."
+            : message);
     } finally {
       setApplying(null);
     }
   }
+
+  useEffect(() => {
+    if (!selectedProgram) return;
+    const main = document.querySelector("main");
+    const previousMainOverflowY = main instanceof HTMLElement ? main.style.overflowY : "";
+    const previousBodyOverflow = document.body.style.overflow;
+    if (main instanceof HTMLElement) main.style.overflowY = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      if (main instanceof HTMLElement) main.style.overflowY = previousMainOverflowY;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [selectedProgram]);
 
   useEffect(() => {
     const client=createClient();
@@ -86,24 +149,39 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     const supabase = createClient();
     let active = true;
+    // Keep request coordination scoped to this effect instance. React Strict Mode
+    // can tear down and recreate effects while async cache reads are still pending.
+    let inFlight = false;
+    let reloadRequested = false;
 
     async function load(force = false) {
-      if (inFlight.current) {
-        reloadRequested.current = true;
+      if (inFlight) {
+        reloadRequested = true;
         return;
       }
       if (!force && Date.now() - lastLoadAt.current < 30_000) return;
-      inFlight.current = true;
+      inFlight = true;
       setLoading(announcementsRef.current.length === 0 && programsRef.current.length === 0);
 
       // Render previously saved public information before attempting the network.
       // The snapshots remain readable past their TTL, but must be labeled stale.
       try {
-        const [annCache, progCache, orgCache] = await Promise.all([
+        let cacheTimer: number | undefined;
+        const cacheReads = Promise.all([
           loadPublicSnapshot<Announcement[]>("announcements"),
           loadPublicSnapshot<Program[]>("barangay-programs"),
           loadPublicSnapshot<PublicOrganization[]>("barangay-organizations"),
         ]);
+        let cachedSnapshots: Awaited<typeof cacheReads> | null;
+        try {
+          cachedSnapshots = await Promise.race([
+            cacheReads,
+            new Promise<null>((resolve) => { cacheTimer = window.setTimeout(() => resolve(null), 1500); }),
+          ]);
+        } finally {
+          if (cacheTimer !== undefined) window.clearTimeout(cacheTimer);
+        }
+        const [annCache, progCache, orgCache] = cachedSnapshots ?? [null, null, null];
         if (!active) return;
         if (annCache && !announcementsRef.current.length) {
           announcementsRef.current = annCache.data;
@@ -116,20 +194,26 @@ export default function AnnouncementsPage() {
         if (orgCache) setOrganizations(orgCache.data);
         if (!navigator.onLine) {
           setErrorMessage("Offline: displaying saved public information that may be outdated. Registrations are not confirmed until synchronized.");
+          setLoading(false);
+          inFlight = false;
           return;
         }
       } catch {
         if (!navigator.onLine) {
           setErrorMessage("Offline storage is unavailable. Visit this page while connected to save public information.");
+          setLoading(false);
+          inFlight = false;
           return;
         }
       }
 
+      const requestController = new AbortController();
+      const requestTimeout = window.setTimeout(() => requestController.abort(), 12_000);
       try {
         const [ann, prog, org] = await Promise.all([
-          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }),
-          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }),
-          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name"),
+          supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }).abortSignal(requestController.signal),
+          supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }).abortSignal(requestController.signal),
+          supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name").abortSignal(requestController.signal),
         ]);
         if (!active) return;
         if (!ann.error) {
@@ -168,9 +252,22 @@ export default function AnnouncementsPage() {
         setLoading(false);
 
         const { data: { user } } = await supabase.auth.getUser();
-        if (!active || !user) return;
-        const { data: resident, error: residentError } = await supabase.from("residents").select("id").eq("user_id", user.id).maybeSingle();
-        if (residentError || !resident || !active) return;
+        if (!active) return;
+        if (!user) {
+          setResidentEligibility({ state: "missing", age: null });
+          return;
+        }
+        const { data: resident, error: residentError } = await supabase.from("residents").select("id,birth_date,verification_status").eq("user_id", user.id).maybeSingle();
+        if (!active) return;
+        if (residentError) {
+          setResidentEligibility({ state: "unavailable", age: null });
+          return;
+        }
+        if (!resident) {
+          setResidentEligibility({ state: "missing", age: null });
+          return;
+        }
+        setResidentEligibility({ state: resident.verification_status === "Verified" ? "verified" : "unverified", age: getResidentAge(resident.birth_date) });
         const { data: existing, error: applicationsError } = await supabase.from("program_enrollees").select("program_id,status,rejection_reason,created_at").eq("resident_id", resident.id);
         if (active && !applicationsError && existing) {
           setApplications(Object.fromEntries(existing.map((item: { program_id: string; status: string }) => [item.program_id, item.status])));
@@ -178,13 +275,16 @@ export default function AnnouncementsPage() {
         }
         lastLoadAt.current = Date.now();
       } catch (error) {
-        if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load updates");
+        if (active) setErrorMessage(requestController.signal.aborted
+          ? "Updates are taking too long to load. Check your connection and try again."
+          : error instanceof Error ? error.message : "Unable to load updates");
       } finally {
-        inFlight.current = false;
+        window.clearTimeout(requestTimeout);
+        inFlight = false;
         if (active) {
           setLoading(false);
-          if (reloadRequested.current) {
-            reloadRequested.current = false;
+          if (reloadRequested) {
+            reloadRequested = false;
             void load(true);
           }
         }
@@ -192,6 +292,8 @@ export default function AnnouncementsPage() {
     }
 
     void load(true);
+    const handleOnline = () => void load(true);
+    window.addEventListener("online", handleOnline);
     const channel = supabase.channel("resident-updates-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
@@ -199,9 +301,12 @@ export default function AnnouncementsPage() {
       .subscribe();
     return () => {
       active = false;
+      window.removeEventListener("online", handleOnline);
       void supabase.removeChannel(channel);
     };
   }, [refresh]);
+
+  const selectedEligibilityMessage = selectedProgram ? getProgramEligibilityMessage(selectedProgram, residentEligibility) : "";
 
   return (
     <div className="p-4 space-y-5 pb-20">
@@ -236,18 +341,19 @@ export default function AnnouncementsPage() {
               <p>Area: {p.purok || "All Puroks"}</p>
               <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-            <button type="button" onClick={() => setSelectedProgram(p)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white">Learn about this program <ArrowRight className="h-4 w-4" /></button>
+          <button type="button" onClick={() => { setApplyError(""); setSelectedProgram(p); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white">Learn about this program <ArrowRight className="h-4 w-4" /></button>
           </article>
         ))}
       </section>
       </>}
-      {selectedProgram && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedProgram(null)}>
-        <section role="dialog" aria-modal="true" aria-labelledby="program-detail-title" onClick={(event) => event.stopPropagation()} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-2xl sm:rounded-3xl">
-          <div className="mb-3 flex items-center justify-between"><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{selectedProgram.category}</span><button type="button" aria-label="Close program details" onClick={() => setSelectedProgram(null)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button></div>
-          {selectedProgram.image_url && <img src={selectedProgram.image_url} alt={selectedProgram.name} className="mb-4 h-48 w-full rounded-2xl object-cover" />}
+      {selectedProgram && <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedProgram(null)}>
+        <section role="dialog" aria-modal="true" aria-labelledby="program-detail-title" onClick={(event) => event.stopPropagation()} className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+          <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 sm:px-5"><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{selectedProgram.category}</span><button type="button" aria-label="Close program details" onClick={() => setSelectedProgram(null)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><X className="h-5 w-5" /></button></div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+          {selectedProgram.image_url && <img src={selectedProgram.image_url} alt={selectedProgram.name} className="mb-4 h-36 w-full rounded-2xl bg-slate-100 object-cover sm:h-40" />}
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Welcome to the program</p>
           <h2 id="program-detail-title" className="mt-1 text-xl font-extrabold text-gray-900">{selectedProgram.name}</h2>
-          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700">{selectedProgram.description || "Learn more about this barangay program. Contact the barangay office for details."}</p>
+          <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-gray-700">{selectedProgram.description || "Learn more about this barangay program. Contact the barangay office for details."}</p>
           <div className="mt-4 space-y-2 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
             <p><strong>Area:</strong> {selectedProgram.purok || "All Puroks"}</p>
             {selectedProgram.venue && <p><strong>Venue:</strong> {selectedProgram.venue}</p>}
@@ -258,8 +364,12 @@ export default function AnnouncementsPage() {
             {selectedProgram.registration_opens_at && <p><strong>Applications open:</strong> {new Date(selectedProgram.registration_opens_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
             {selectedProgram.registration_deadline && <p><strong>Apply by:</strong> {new Date(selectedProgram.registration_deadline).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})}</p>}
           </div>
-          <button type="button" disabled={selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-gray-200 disabled:text-gray-600">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "I’m interested — apply to join"}</button>
-          <p className="mt-2 text-center text-xs text-gray-500">Your application will be reviewed by barangay staff. A submitted application does not guarantee a slot.</p>
+          </div>
+          <div className="shrink-0 border-t bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-5">
+          {(applyError || selectedEligibilityMessage) && <p role={applyError ? "alert" : "status"} className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{applyError || selectedEligibilityMessage}</p>}
+          <button type="button" disabled={!!selectedEligibilityMessage || selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_opens_at && new Date(selectedProgram.registration_opens_at).getTime() > Date.now()) || !!applications[selectedProgram.id] || applying !== null || applyError.includes("does not meet this age requirement") || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now())} onClick={() => void joinProgram(selectedProgram.id)} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">{applications[selectedProgram.id] ? `Application: ${applications[selectedProgram.id]}` : selectedEligibilityMessage ? selectedEligibilityMessage.includes("Checking") ? "Checking eligibility..." : selectedEligibilityMessage.includes("ages") ? "Age requirement not met" : "Resident profile required" : applyError.includes("does not meet this age requirement") ? "Age requirement not met" : selectedProgram.status !== "Active" || !selectedProgram.registration_open || (!!selectedProgram.registration_deadline && new Date(selectedProgram.registration_deadline).getTime() < Date.now()) ? "Registration Closed" : applying === selectedProgram.id ? "Submitting..." : "I am interested - apply to join"}</button>
+          {!selectedEligibilityMessage && !applyError && <p className="mt-2 text-center text-xs leading-relaxed text-gray-500">Your application will be reviewed by barangay staff. A submitted application does not guarantee a slot.</p>}
+          </div>
         </section>
       </div>}
       {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
