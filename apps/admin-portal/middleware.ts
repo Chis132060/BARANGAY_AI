@@ -24,8 +24,8 @@ export async function middleware(request: NextRequest) {
   const supabase = createServerClient(url, anonKey, {
     cookieOptions: { name: AUTH_COOKIE_NAME },
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value;
+      getAll() {
+        return request.cookies.getAll();
       },
       set(name: string, value: string, options: CookieOptions) {
         request.cookies.set({ name, value, ...options });
@@ -44,8 +44,29 @@ export async function middleware(request: NextRequest) {
   let userRole: string | null = null;
   let roleLookupFailed = false;
   try {
-    const { data } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
     user = data?.user;
+    if (error) {
+      const authError = error as { code?: string; message?: string };
+      const staleSession = authError.code === "refresh_token_not_found"
+        || authError.code === "session_not_found"
+        || authError.message?.includes("Invalid Refresh Token: Refresh Token Not Found")
+        || authError.message?.includes("Session not found");
+      if (staleSession) {
+        for (const cookie of request.cookies.getAll()) {
+          if (
+            cookie.name === AUTH_COOKIE_NAME
+            || cookie.name.startsWith(`${AUTH_COOKIE_NAME}.`)
+            || cookie.name === `${AUTH_COOKIE_NAME}-code-verifier`
+          ) {
+            request.cookies.delete(cookie.name);
+            response.cookies.delete(cookie.name);
+          }
+        }
+      } else {
+        console.warn("[Middleware] Supabase auth check failed:", error.message);
+      }
+    }
     if (user) {
       const { data: userData, error: userError } = await supabase
         .from("users")
@@ -91,7 +112,25 @@ export async function middleware(request: NextRequest) {
       }
     }
   } catch (err) {
-    console.warn("[Middleware] Supabase auth check failed:", err);
+    const authError = err as { code?: string; message?: string };
+    const staleSession = authError?.code === "refresh_token_not_found"
+      || authError?.code === "session_not_found"
+      || authError?.message?.includes("Invalid Refresh Token: Refresh Token Not Found")
+      || authError?.message?.includes("Session not found");
+    if (staleSession) {
+      for (const cookie of request.cookies.getAll()) {
+        if (
+          cookie.name === AUTH_COOKIE_NAME
+          || cookie.name.startsWith(`${AUTH_COOKIE_NAME}.`)
+          || cookie.name === `${AUTH_COOKIE_NAME}-code-verifier`
+        ) {
+          request.cookies.delete(cookie.name);
+          response.cookies.delete(cookie.name);
+        }
+      }
+    } else {
+      console.warn("[Middleware] Supabase auth check failed:", err);
+    }
   }
 
   const { pathname } = request.nextUrl;
