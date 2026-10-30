@@ -98,7 +98,7 @@ export function ProgramEditorWizard({ onClose, onSaved, editing }: {
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm sm:p-4">
     <section className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl">
-      <header className="flex items-center justify-between border-b px-5 py-4 sm:px-6"><div><h2 className="flex items-center gap-2 font-bold"><Plus className="h-4 w-4 text-primary" />{editing ? "Edit Program" : "Create New Program"}</h2><p className="mt-1 text-xs text-muted-foreground">Step {step} of 2 · {step === 1 ? "Introduction and cover" : "Details and status"}</p></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 hover:bg-muted"><X className="h-5 w-5" /></button></header>
+      <header className="flex items-center justify-between border-b px-5 py-4 sm:px-6"><div><h2 className="flex items-center gap-2 font-bold"><Plus className="h-4 w-4 text-primary" />{editing ? "Edit Program" : "Create New Program"}</h2><p className="mt-1 text-xs text-muted-foreground">Step {step} of 2 Â· {step === 1 ? "Introduction and cover" : "Details and status"}</p></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 hover:bg-muted"><X className="h-5 w-5" /></button></header>
       <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
           {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
@@ -114,11 +114,11 @@ export function ProgramEditorWizard({ onClose, onSaved, editing }: {
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><ImagePlus className="h-5 w-5" /></span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{selectedImageName || (form.image_url ? "Cover image ready" : "Add a cover image")}</p>
-                    <p className="mt-0.5 text-xs font-normal text-muted-foreground">JPG, PNG or WebP · up to 5 MB</p>
+                    <p className="mt-0.5 text-xs font-normal text-muted-foreground">JPG, PNG or WebP Â· up to 5 MB</p>
                   </div>
                 </div>
                 <button type="button" disabled={saving} onClick={() => imageInputRef.current?.click()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border bg-background px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60">
-                  <Upload className="h-4 w-4 text-primary" />{saving ? "Uploading…" : "Choose file"}
+                  <Upload className="h-4 w-4 text-primary" />{saving ? "Uploadingâ€¦" : "Choose file"}
                 </button>
               </div>
               <p className="mt-2 text-[11px] font-normal text-muted-foreground">A clear landscape image helps residents recognize the program in the PWA.</p>
@@ -138,13 +138,14 @@ export function ProgramEditorWizard({ onClose, onSaved, editing }: {
             {field("Maximum Age (0 = any)", <input type="number" min="0" value={form.max_age} onChange={e => setForm(prev => ({ ...prev, max_age: Number(e.target.value) }))} className={inputClass} />)}
             {field("Chairperson / Contact Person", input("chairperson"))}{field("Contact Number", input("contact", "09XXXXXXXXX"))}
             {field("Established Date", <input type="date" value={form.established_date} onChange={e => setForm(prev => ({ ...prev, established_date: e.target.value }))} className={inputClass} />)}
-            {field("Program Status", <select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value as ProgramDraft["status"], registration_open: e.target.value === "Active" ? prev.registration_open : false }))} className={inputClass}><option value="Active">Active — visible in PWA</option><option value="Inactive">Inactive — hidden from PWA</option></select>)}
+            {field("Program Status", <select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value as ProgramDraft["status"], registration_open: e.target.value === "Active" ? prev.registration_open : false }))} className={inputClass}><option value="Active">Active â€” visible in PWA</option><option value="Inactive">Inactive â€” hidden from PWA</option></select>)}
             {form.status === "Active" && <label className="flex items-center gap-2 rounded-xl border p-3 text-sm font-semibold sm:col-span-2"><input type="checkbox" checked={form.registration_open} onChange={e => setForm(prev => ({ ...prev, registration_open: e.target.checked }))} className="h-4 w-4" />Accept PWA applications</label>}
             <p className="text-xs text-muted-foreground sm:col-span-2">Active programs appear in the PWA automatically. Inactive programs are hidden. Applications have no slot limit.</p>
           </div>}
         </div>
-        <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 sm:px-6"><button type="button" onClick={() => step === 2 ? (setStep(1), setError("")) : onClose()} className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted">{step === 2 ? "Back" : "Cancel"}</button><button type="submit" disabled={saving} className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">{saving ? "Saving…" : step === 1 ? "Next" : editing ? "Save Changes" : "Create Program"}</button></footer>
+        <footer className="flex items-center justify-between gap-3 border-t px-5 py-4 sm:px-6"><button type="button" onClick={() => step === 2 ? (setStep(1), setError("")) : onClose()} className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted">{step === 2 ? "Back" : "Cancel"}</button><button type="submit" disabled={saving} className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">{saving ? "Savingâ€¦" : step === 1 ? "Next" : editing ? "Save Changes" : "Create Program"}</button></footer>
       </form>
     </section>
   </div>;
 }
+

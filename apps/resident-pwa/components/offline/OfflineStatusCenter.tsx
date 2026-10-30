@@ -73,10 +73,11 @@ export function OfflineStatusCenter() {
       Documents: {counts.documents} · Tickets: {counts.tickets} · Programs: {counts.programs} · Notifications: {counts.reads}
       {counts.attention > 0 ? ` · Needs attention: ${counts.attention}` : ""}
     </p>}
-    {detail && <p className="mt-1">{detail.state === "running" ? "Syncing pending changes…" :
+    {detail && <p className="mt-1">{detail.state === "running" ? "Syncing pending changes⬦" :
       detail.state === "success" ? `Last sync: ${detail.sent || 0} sent, ${detail.failed || 0} failed · ${new Date(detail.time).toLocaleTimeString()}` :
       detail.message || "Sync failed; queued changes remain on this device."}</p>}
     {storageError && <p role="alert" className="mt-1 text-red-700">{storageError}</p>}
     {pending > 0 && <p className="mt-1">Saved on device does not mean received by the barangay.</p>}
   </section>;
 }
+
