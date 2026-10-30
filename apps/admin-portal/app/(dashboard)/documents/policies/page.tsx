@@ -107,6 +107,10 @@ function guessEnactedBy(text: string): string {
 // ─── File Parser ──────────────────────────────────────────────────────────────
 
 async function parseFile(file: File): Promise<string> {
+  const maxFileSizeBytes = 10 * 1024 * 1024;
+  if (file.size > maxFileSizeBytes) {
+    throw new Error("Policy files must be 10 MB or smaller.");
+  }
   const ext = file.name.split(".").pop()?.toLowerCase();
   const arrayBuffer = await file.arrayBuffer();
 
@@ -125,16 +129,22 @@ async function parseFile(file: File): Promise<string> {
         .join(" ");
       pages.push(pageText);
     }
-    return pages.join("\n\n");
+    const extractedText = pages.join("\n\n").trim();
+    if (!extractedText) {
+      throw new Error("No selectable text was found. This may be a scanned PDF; OCR is needed before it can be read.");
+    }
+    return extractedText;
   }
 
-  if (ext === "docx" || ext === "doc") {
+  if (ext === "docx") {
     const mammoth = await import("mammoth");
     const result = await mammoth.extractRawText({ arrayBuffer });
-    return result.value;
+    const extractedText = result.value.trim();
+    if (!extractedText) throw new Error("No readable text was found in this Word document.");
+    return extractedText;
   }
 
-  throw new Error("Unsupported file type. Please upload a PDF or Word (.docx) file.");
+  throw new Error("Unsupported file type. Please upload a text-based PDF or Word (.docx) file. Legacy .doc files are not supported.");
 }
 
 function buildPolicyData(text: string, filename: string): Partial<Policy> {
@@ -188,7 +198,7 @@ function ImportFileZone({ onParsed }: { onParsed: (data: Partial<Policy>) => voi
       className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200
         ${dragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-muted-foreground/25 bg-muted/20 hover:border-primary/50 hover:bg-primary/5"}`}
     >
-      <input ref={inputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={e => handleFiles(e.target.files)} />
+      <input ref={inputRef} type="file" accept=".pdf,.docx" className="hidden" onChange={e => handleFiles(e.target.files)} />
 
       {parsing ? (
         <div className="flex flex-col items-center gap-3 py-2">
@@ -216,7 +226,7 @@ function ImportFileZone({ onParsed }: { onParsed: (data: Partial<Policy>) => voi
             <FileUp className="h-6 w-6 text-blue-500" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Drop a PDF or Word file here</p>
+            <p className="font-semibold text-sm">Drop a text-based PDF or Word (.docx) file here</p>
             <p className="text-xs text-muted-foreground mt-0.5">or click to browse your files</p>
           </div>
           <div className="flex items-center gap-2 mt-1">
@@ -569,11 +579,11 @@ export default function PoliciesPage() {
             <h1 className="text-3xl font-bold tracking-tight">Barangay Policies</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Official ordinances, resolutions, and executive orders of the barangay.
+            Official ordinances, resolutions, and executive orders of the barangay. Active policy text is available to Ate Sora for resident questions.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <input ref={quickImportRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={e => handleQuickImport(e.target.files)} />
+          <input ref={quickImportRef} type="file" accept=".pdf,.docx" className="hidden" onChange={e => handleQuickImport(e.target.files)} />
           <button
             onClick={() => quickImportRef.current?.click()}
             disabled={quickParsing}

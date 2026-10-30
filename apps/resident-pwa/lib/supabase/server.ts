@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { AUTH_COOKIE_NAME } from "./constants";
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,6 +12,7 @@ export function createClient() {
     url,
     anonKey,
     {
+      cookieOptions: { name: AUTH_COOKIE_NAME },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;

@@ -12,19 +12,22 @@ async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ ti
   if (!keywords.length) return [];
 
   const { data } = await supabase
-    .from('barangay_policies')
-    .select('title, content')
-    .eq('status', 'Published')
+    .from('policies')
+    .select('policy_number, title, description, full_text')
+    .eq('status', 'Active')
     .limit(100);
 
   if (!data || !data.length) return [];
 
   // Filter to policies whose title or content contains any query keyword
-  return data.filter((p: any) =>
-    keywords.some((kw: string) =>
-      p.title.toLowerCase().includes(kw) || p.content.toLowerCase().includes(kw)
-    )
-  ).slice(0, 3);
+  return data.filter((p: any) => {
+    const content = [p.policy_number, p.title, p.description, p.full_text]
+      .filter(Boolean).join("\n").toLowerCase();
+    return keywords.some((kw: string) => content.includes(kw));
+  }).slice(0, 3).map((p: any) => ({
+    title: p.title,
+    content: p.full_text || p.description || "No policy text is available.",
+  }));
 }
 
 // Fail closed for distributed deployments unless a shared limiter is configured.

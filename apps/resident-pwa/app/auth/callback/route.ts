@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_COOKIE_NAME } from "../../../lib/supabase/constants";
 
 /**
  * Auth callback route — Supabase redirects here after:
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
+        cookieOptions: { name: AUTH_COOKIE_NAME },
         cookies: {
           getAll: () => cookieStore.getAll(),
           setAll: (cookiesToSet: { name: string; value: string; options: CookieOptions }[]) => {

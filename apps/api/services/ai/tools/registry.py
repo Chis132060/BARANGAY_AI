@@ -201,20 +201,35 @@ tool_registry.register(
 )
 
 
-def fetch_barangay_policies(status: str = "Active") -> dict:
+def fetch_barangay_policies(status: str = "Active", query: str = "") -> dict:
     """Fetch current approved local ordinances, resolutions, and policies."""
     from services.supabase_service import get_supabase_client
     import logging
+    import re
     logger = logging.getLogger(__name__)
     try:
         supabase = get_supabase_client()
-        query = supabase.table("policies").select(
+        query_builder = supabase.table("policies").select(
             "policy_number, title, category, description, effective_date, full_text"
         )
         if status:
-            query = query.eq("status", status)
-        res = query.order("effective_date", desc=True).execute()
-        return {"status": "success", "data": res.data or []}
+            query_builder = query_builder.eq("status", status)
+        res = query_builder.order("effective_date", desc=True).execute()
+        records = res.data or []
+        search_terms = {
+            term for term in re.findall(r"[\w-]+", query.casefold())
+            if len(term) > 3 and term not in {"what", "when", "where", "which", "about", "tell", "please", "barangay"}
+        }
+        if search_terms:
+            def relevance(record: dict) -> int:
+                searchable = " ".join(str(record.get(field) or "") for field in (
+                    "policy_number", "title", "category", "description", "full_text"
+                )).casefold()
+                return sum(term in searchable for term in search_terms)
+
+            records = [record for record in records if relevance(record)]
+            records.sort(key=relevance, reverse=True)
+        return {"status": "success", "data": records[:10]}
     except Exception as e:
         logger.error(f"Failed to fetch policies: {e}")
         return {"status": "error", "message": "Could not retrieve approved policy records at this time."}
@@ -225,7 +240,10 @@ tool_registry.register(
         name="get_barangay_policies",
         description="Returns approved current Barangay ordinances, resolutions, and local policies. Never use repealed or draft policy text as current guidance.",
         domain="PUBLIC_KNOWLEDGE",
-        parameters_schema={"status": "string (optional, default Active)"}
+        parameters_schema={
+            "status": "string (optional, default Active)",
+            "query": "string (optional; filter active policies by relevant terms)",
+        }
     ),
     fetch_barangay_policies
 )

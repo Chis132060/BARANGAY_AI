@@ -15,4 +15,3 @@ ALTER TABLE public.document_requests
     'Completed',
     'Rejected'
   ));
-

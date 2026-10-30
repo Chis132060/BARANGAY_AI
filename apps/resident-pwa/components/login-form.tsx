@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 const RESIDENT_CODE_DOMAIN = "smartbarangay.local";
 
@@ -33,9 +34,28 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get("error");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const displayError = useMemo(() => {
+    if (errorMsg) return errorMsg;
+    if (urlError === "admin_account") {
+      return "This is an administrator account. Please sign in to the Admin Portal instead.";
+    }
+    if (urlError === "role_lookup") {
+      return "Unable to verify your account permissions. Please sign in again.";
+    }
+    if (urlError === "session_missing") {
+      return "Your session has expired. Please sign in again.";
+    }
+    if (urlError === "auth_callback_failed") {
+      return "Authentication could not be completed. Please try again.";
+    }
+    return null;
+  }, [errorMsg, urlError]);
 
   const {
     register,
@@ -50,41 +70,78 @@ export function LoginForm() {
     setErrorMsg(null);
     setLoading(true);
 
-    const supabase = createClient();
-
     // Map BRY- resident code → synthetic email; otherwise use as-is
     const authEmail = isResidentCode(values.username)
       ? residentCodeToEmail(values.username)
       : values.username.trim();
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: values.password,
+      });
+      if (error) {
+        setErrorMsg(
+          error.message === "Invalid login credentials"
+            ? "Incorrect username or password. Please try again."
+            : error.message === "fetch failed"
+              ? "Cannot reach the sign-in service. Check your internet connection and try again."
+              : error.message
+        );
+        setLoading(false);
+        return;
+      }
 
-    console.log("[LOGIN] Attempting sign in for:", authEmail);
+      // Check role resolution with fallback to user metadata
+      const metaRole = (data.user.user_metadata?.role || data.user.app_metadata?.role) as string | undefined;
+      const ADMIN_ROLES = new Set(["Super Admin", "Barangay Captain", "Secretary", "Treasurer", "Staff"]);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: authEmail,
-      password: values.password,
-    });
+      let isAdmin = metaRole ? ADMIN_ROLES.has(metaRole) : false;
 
-    console.log("[LOGIN] Result:", { user: data?.user?.email, error: error?.message });
+      if (!isAdmin) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role_id")
+          .eq("id", data.user.id)
+          .maybeSingle();
 
-    if (error) {
-      setErrorMsg(
-        error.message === "Invalid login credentials"
-          ? "Incorrect username or password. Please try again."
-          : error.message
-      );
+        if (userData?.role_id) {
+          const { data: roleData } = await supabase
+            .from("roles")
+            .select("name")
+            .eq("id", userData.role_id)
+            .maybeSingle();
+          if (roleData?.name && ADMIN_ROLES.has(roleData.name)) {
+            isAdmin = true;
+          }
+        }
+      }
+
+      if (isAdmin) {
+        await supabase.auth.signOut();
+        setErrorMsg("This is an admin account. Sign in to the Admin Portal instead.");
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        setErrorMsg("Sign-in did not create an authenticated session.");
+        setLoading(false);
+        return;
+      }
+
+      window.location.replace("/home");
+    } catch {
+      setErrorMsg("Cannot reach the sign-in service. Check your internet connection and try again.");
       setLoading(false);
-      return;
     }
-
-    console.log("[LOGIN] Success! Navigating to /home...");
-    window.location.href = "/home";
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {errorMsg && (
+      {displayError && (
         <div className="p-3 text-xs bg-red-100 border border-red-200 text-red-700 rounded-lg font-medium">
-          {errorMsg}
+          {displayError}
         </div>
       )}
 

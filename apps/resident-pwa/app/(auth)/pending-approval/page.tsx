@@ -148,4 +148,3 @@ export default async function PendingApprovalPage() {
     </main>
   );
 }
-

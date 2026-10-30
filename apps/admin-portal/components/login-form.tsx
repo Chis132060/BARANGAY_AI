@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 const loginSchema = z.object({
   username: z.string().trim().min(1, "Please enter your username or email"),
@@ -15,9 +16,28 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
+  const searchParams = useSearchParams();
+  const urlError = searchParams.get("error");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const displayError = useMemo(() => {
+    if (errorMsg) return errorMsg;
+    if (urlError === "unauthorized") {
+      return "This account does not have administrator privileges. Please sign in with an authorized admin account.";
+    }
+    if (urlError === "role_lookup") {
+      return "Unable to verify your administrator permissions. Please sign in again.";
+    }
+    if (urlError === "session_missing") {
+      return "Your session has expired. Please sign in again.";
+    }
+    if (urlError === "auth_callback_failed") {
+      return "Sign-in authentication could not be completed. Please try again.";
+    }
+    return null;
+  }, [errorMsg, urlError]);
 
   const {
     register,
@@ -32,35 +52,44 @@ export function LoginForm() {
     setErrorMsg(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const loginEmail = values.username.toLowerCase() === "admin"
+    const loginEmail = values.username.trim().toLowerCase() === "admin"
       ? "admin@barangay.gov"
-      : values.username;
+      : values.username.trim();
 
-    console.log("[LOGIN] Attempting sign in for:", loginEmail);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: values.password,
+      });
+      if (error) {
+        setErrorMsg(error.message === "fetch failed"
+          ? "Cannot reach the sign-in service. Check your internet connection and try again."
+          : error.message);
+        setLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: values.password,
-    });
+      if (!data.session) {
+        setErrorMsg("Sign-in did not create an authenticated session.");
+        setLoading(false);
+        return;
+      }
 
-    console.log("[LOGIN] Result:", { user: data?.user?.email, error: error?.message });
-
-    if (error) {
-      setErrorMsg(error.message);
+      // The browser client has persisted the returned session. Navigate now;
+      // don't call getSession() here because it can stall sign-in completion.
+      window.location.replace("/dashboard");
+    } catch {
+      setErrorMsg("Cannot reach the sign-in service. Check your internet connection and try again.");
       setLoading(false);
-      return;
     }
-
-    console.log("[LOGIN] Success! Navigating to /dashboard...");
-    window.location.href = "/dashboard";
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {errorMsg && (
+      {displayError && (
         <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-lg font-medium">
-          {errorMsg}
+          {displayError}
         </div>
       )}
 

@@ -40,6 +40,29 @@ class ToolPlanner:
         3. If Approved, executes the tool safely.
         Returns: (tool_was_executed: bool, result_data: Any)
         """
+        policy_terms = (
+            "policy", "policies", "ordinance", "ordinances", "ordinansa",
+            "patakaran", "resolution", "executive order", "batas ng barangay",
+            "law", "laws", "rule", "rules", "regulation", "regulations",
+            "batas", "balaod", "bawal", "curfew",
+        )
+        if any(term in user_query.casefold() for term in policy_terms):
+            tool_name = "get_barangay_policies"
+            parameters = {"status": "Active", "query": user_query}
+            schema = tool_registry.get_tool(tool_name)
+            if not schema:
+                return False, None
+            is_approved, block_reason = policy_engine.evaluate_tool_request(
+                tool_name=tool_name,
+                parameters=parameters,
+                tool_domain=schema.domain,
+                user_role=user_role,
+            )
+            if not is_approved:
+                logger.warning("Policy lookup denied: %s", block_reason)
+                return False, {"error": "Access to live data denied by safety policy."}
+            return True, tool_registry.execute(tool_name, parameters)
+
         system_content = PLANNER_PROMPT.format(tools=tool_registry.get_all_schemas_for_llm())
         messages = [
             SystemMessage(content=system_content),

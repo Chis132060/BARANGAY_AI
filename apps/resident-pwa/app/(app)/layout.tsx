@@ -1,21 +1,25 @@
 /**
- * (app) layout â€” authenticated shell with TopBar + BottomNav.
+ * (app) layout — authenticated shell with TopBar + BottomNav.
  * This is a CLIENT component so it can detect auth state and hide
  * navigation entirely for guests who land on public routes (e.g. /chat).
  */
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
 import { ConnectionBanner } from "@/components/offline/ConnectionBanner";
 import { OfflineSyncRunner } from "@/components/offline/OfflineSyncRunner";
+import { OfflineStatusCenter } from "@/components/offline/OfflineStatusCenter";
 import { createClient } from "@/lib/supabase/client";
 import { clearRequestSummaries } from "@/lib/offline/request-summaries";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const pathname = usePathname();
+  const hideMainScrollbar = pathname === "/announcements" || pathname === "/chat" || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
 
   useEffect(() => {
     const supabase = createClient();
@@ -61,8 +65,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <TopBar />
       <ConnectionBanner />
       <OfflineSyncRunner />
+      <OfflineStatusCenter />
       <main
-        className="flex-1 overflow-y-auto"
+        className={`flex-1 overflow-y-auto${hideMainScrollbar ? " no-scrollbar" : ""}`}
         style={{ paddingBottom: "var(--bottom-nav-height)" }}
       >
         {children}
@@ -72,4 +77,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

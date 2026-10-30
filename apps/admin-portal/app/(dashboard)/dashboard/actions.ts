@@ -292,4 +292,3 @@ export async function fetchTopDocumentTypes(): Promise<DocTypeItem[]> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 7);
 }
-

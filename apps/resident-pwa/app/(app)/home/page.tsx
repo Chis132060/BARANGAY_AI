@@ -184,7 +184,7 @@ export default function HomePage() {
               href="/requests/new"
               className="inline-block text-xs font-bold text-blue-600 hover:underline"
             >
-              Submit a request â†’
+              Submit a request →
             </Link>
           </div>
         )}
@@ -192,4 +192,3 @@ export default function HomePage() {
     </div>
   );
 }
-
