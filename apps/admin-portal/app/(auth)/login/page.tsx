@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 import { Shield, Users, FileText, BarChart3 } from "lucide-react";
 import { PreAuthWelcome } from "@/components/auth/PreAuthWelcome";
@@ -81,7 +82,9 @@ export default function LoginPage() {
               <p className="text-muted-foreground text-sm mt-1">Sign in to your admin account to continue.</p>
             </div>
 
-            <LoginForm />
+            <Suspense fallback={<div className="h-40 flex items-center justify-center text-xs text-muted-foreground">Loading sign in...</div>}>
+              <LoginForm />
+            </Suspense>
 
             <p className="text-center text-[11px] text-muted-foreground mt-6">
               Smart Barangay Admin Portal · Secure Access

@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_COOKIE_NAME } from "./lib/supabase/constants";
 
-const PUBLIC_ROUTES = ["/login", "/register", "/pending-approval", "/support", "/reset-password", "/auth", "/chat", "/announcements"];
+const PUBLIC_ROUTES = ["/login", "/register", "/support", "/reset-password", "/auth", "/chat", "/announcements"];
 const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some(
   (route) => pathname === route || pathname.startsWith(`${route}/`)
 );
@@ -15,6 +16,19 @@ export async function middleware(request: NextRequest) {
   ) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
+  const refreshedCookies = new Map<string, { value: string; options: CookieOptions }>();
+  const refreshedHeaders = new Map<string, string>();
+  const refreshResponse = () => {
+    response = NextResponse.next({ request });
+    for (const [name, cookie] of refreshedCookies) response.cookies.set({ name, ...cookie });
+    for (const [name, value] of refreshedHeaders) response.headers.set(name, value);
+  };
+  const redirectWithCookies = (url: URL) => {
+    const redirect = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+    for (const [name, value] of refreshedHeaders) redirect.headers.set(name, value);
+    return redirect;
+  };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
@@ -26,19 +40,18 @@ export async function middleware(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, anonKey, {
+    cookieOptions: { name: AUTH_COOKIE_NAME },
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value;
+      getAll() {
+        return request.cookies.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
-        request.cookies.set({ name, value, ...options });
-        response = NextResponse.next({ request });
-        response.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options: CookieOptions) {
-        request.cookies.set({ name, value: "", ...options });
-        response = NextResponse.next({ request });
-        response.cookies.set({ name, value: "", ...options });
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[], headers: Record<string, string>) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+          refreshedCookies.set(name, { value, options });
+        });
+        Object.entries(headers).forEach(([name, value]) => refreshedHeaders.set(name, value));
+        refreshResponse();
       },
     },
   });
@@ -46,8 +59,29 @@ export async function middleware(request: NextRequest) {
   let user = null;
   let userRole: string | null = null;
   try {
-    const { data } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
     user = data?.user;
+    if (error) {
+      const authError = error as { code?: string; message?: string };
+      const staleSession = authError.code === "refresh_token_not_found"
+        || authError.code === "session_not_found"
+        || authError.message?.includes("Invalid Refresh Token: Refresh Token Not Found")
+        || authError.message?.includes("Session not found");
+      if (staleSession) {
+        for (const cookie of request.cookies.getAll()) {
+          if (
+            cookie.name === AUTH_COOKIE_NAME
+            || cookie.name.startsWith(`${AUTH_COOKIE_NAME}.`)
+            || cookie.name === `${AUTH_COOKIE_NAME}-code-verifier`
+          ) {
+            request.cookies.delete(cookie.name);
+            response.cookies.delete(cookie.name);
+          }
+        }
+      } else {
+        console.warn("[PWA Middleware] Supabase auth check failed:", error.message);
+      }
+    }
     if (user) {
       // Resolve the role in two steps instead of relying on an embedded
       // relationship. This avoids treating a relation lookup failure as an
@@ -58,7 +92,12 @@ export async function middleware(request: NextRequest) {
         .eq("id", user.id)
         .maybeSingle();
       if (userError) {
-        console.warn("[PWA Middleware] Could not load user profile role:", userError.message);
+        const metaRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
+        if (metaRole && metaRole.toLowerCase() === "resident") {
+          userRole = "Resident";
+        } else {
+          console.warn("[PWA Middleware] Could not load user profile role:", userError.message);
+        }
       } else if (userData?.role_id) {
         const { data: roleData, error: roleError } = await supabase
           .from("roles")
@@ -66,9 +105,19 @@ export async function middleware(request: NextRequest) {
           .eq("id", userData.role_id)
           .maybeSingle();
         if (roleError) {
-          console.warn("[PWA Middleware] Could not resolve role name:", roleError.message);
+          const metaRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
+          if (metaRole && metaRole.toLowerCase() === "resident") {
+            userRole = "Resident";
+          } else {
+            console.warn("[PWA Middleware] Could not resolve role name:", roleError.message);
+          }
         } else {
           userRole = roleData?.name ?? null;
+        }
+      } else {
+        const metaRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
+        if (metaRole && metaRole.toLowerCase() === "resident") {
+          userRole = "Resident";
         }
       }
     }
@@ -81,7 +130,11 @@ export async function middleware(request: NextRequest) {
     if (staleSession) {
       // Drop stale Supabase cookies so the next request can start a clean login.
       for (const cookie of request.cookies.getAll()) {
-        if (cookie.name.startsWith("sb-")) {
+        if (
+          cookie.name === AUTH_COOKIE_NAME
+          || cookie.name.startsWith(`${AUTH_COOKIE_NAME}.`)
+          || cookie.name === `${AUTH_COOKIE_NAME}-code-verifier`
+        ) {
           request.cookies.delete(cookie.name);
           response.cookies.delete(cookie.name);
         }
@@ -94,14 +147,19 @@ export async function middleware(request: NextRequest) {
   // API routes authenticate in their own handlers and should keep JSON responses.
   if (pathname.startsWith("/api/")) return response;
   const isPublic = isPublicRoute(pathname);
-  if (user && userRole !== "Resident" && !isPublic) {
+  const isLoginOrRegister = pathname === "/login" || pathname === "/register";
+  if (
+    user
+    && userRole !== "Resident"
+    && (pathname === "/pending-approval" || pathname === "/register" || !isPublic)
+  ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("error", userRole ? "admin_account" : "role_lookup");
-    return NextResponse.redirect(redirectUrl);
+    return redirectWithCookies(redirectUrl);
   }
 
-  if (user) {
+  if (user && userRole === "Resident") {
     try {
       const { data: resident } = await supabase
         .from("residents")
@@ -115,25 +173,25 @@ export async function middleware(request: NextRequest) {
       if (status !== "Verified" && !isApprovalRoute && !isAuthCallback && !isSupportRoute) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = "/pending-approval";
-        return NextResponse.redirect(redirectUrl);
+        return redirectWithCookies(redirectUrl);
       }
     } catch (err) {
       console.warn("[PWA Middleware] Resident verification check failed:", err);
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";
-      return NextResponse.redirect(redirectUrl);
+      return redirectWithCookies(redirectUrl);
     }
   }
 
   if (!user && !isPublic) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    return NextResponse.redirect(redirectUrl);
+    return redirectWithCookies(redirectUrl);
   }
-  if (user && (pathname === "/login" || pathname === "/register") && userRole === "Resident") {
+  if (user && isLoginOrRegister && userRole === "Resident") {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/home";
-    return NextResponse.redirect(redirectUrl);
+    return redirectWithCookies(redirectUrl);
   }
   return response;
 }
@@ -141,4 +199,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|manifest|sw\\.js|workbox-.*\\.js|.*\\.(?:js|css|map|json|txt|ico|webmanifest|woff2?|ttf|otf|wasm|svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
-

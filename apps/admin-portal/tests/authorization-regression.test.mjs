@@ -7,6 +7,7 @@ const residentActions = read("../app/(dashboard)/residents/actions.ts");
 const documentActions = read("../app/(dashboard)/documents/actions.ts");
 const permissions = read("../lib/permissions.ts");
 const serverRbac = read("../app/(dashboard)/administration/rbac-actions.ts");
+const adminMiddleware = read("../middleware.ts");
 
 test("resident verification actions enforce authorization and pending-only transitions", () => {
   for (const name of ["approveResident", "rejectResident"]) {
@@ -41,4 +42,14 @@ test("document approval transitions and payment changes require elevated permiss
 test("central permission module exists and uses explicit permission checks", () => {
   assert.match(permissions, /hasPermission/);
   assert.match(serverRbac, /checkUserPermission/);
+});
+
+test("admin auth refresh preserves all cookie chunks and role lookup failures keep the session", () => {
+  assert.match(adminMiddleware, /const refreshedCookies = new Map/);
+  assert.match(adminMiddleware, /for \(const \[name, cookie\] of refreshedCookies\) response\.cookies\.set/);
+  assert.match(adminMiddleware, /for \(const cookie of response\.cookies\.getAll\(\)\) redirect\.cookies\.set\(cookie\)/);
+  assert.match(adminMiddleware, /if \(user && !isPublic && roleLookupFailed\)/);
+  const roleFailureBranch = adminMiddleware.split("if (user && !isPublic && roleLookupFailed)")[1]?.split("if (user && !isPublic && !ADMIN_ROLES")[0];
+  assert.ok(roleFailureBranch);
+  assert.doesNotMatch(roleFailureBranch, /signOut/);
 });

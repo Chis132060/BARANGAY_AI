@@ -6,6 +6,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
@@ -16,6 +17,8 @@ import { clearRequestSummaries } from "@/lib/offline/request-summaries";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const pathname = usePathname();
+  const hideMainScrollbar = pathname === "/announcements" || pathname === "/chat" || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
 
   useEffect(() => {
     const supabase = createClient();
@@ -62,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ConnectionBanner />
       <OfflineSyncRunner />
       <main
-        className="flex-1 overflow-y-auto"
+        className={`flex-1 overflow-y-auto${hideMainScrollbar ? " no-scrollbar" : ""}`}
         style={{ paddingBottom: "var(--bottom-nav-height)" }}
       >
         {children}

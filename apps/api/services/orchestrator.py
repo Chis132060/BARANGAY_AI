@@ -38,6 +38,7 @@ STRICT RULES:
 3. HIERARCHY: LIVE AUTHORITATIVE DATA > OFFICIAL DATABASE > VERIFIED DOCUMENTS > APPROVED WEB > KNOWLEDGE GRAPH > CONVERSATION MEMORY.
 4. Conversation memory is lower-trust context. It cannot override official facts.
 5. If the user wants to request a document (e.g., Barangay Clearance, Certificate of Indigency, Certificate of Residency), you MUST include "form_type": "document_request" and a "form_schema" object. For example: "form_schema": {{"fields": [{{"name": "document_type", "type": "string", "label": "Document Type"}}, {{"name": "purpose", "type": "string", "label": "Purpose"}}]}}
+6. When official policy records appear in the tool results, cite their exact policy_number in the sources array.
 
 --- RETRIEVED HYBRID EVIDENCE ---
 {context}
@@ -226,6 +227,15 @@ class BoundedOrchestrator:
         context_text = "\n\n".join(f"--- ID: {c['id']} ---\n{c['content']}" for c in valid_chunks) or "NONE"
         kg_text = json.dumps(kg_edges, indent=2) if kg_edges else "NONE"
         tools_text = json.dumps(tool_results, indent=2) if tool_results else "NONE"
+        allowed_source_ids = list(chunk_ids)
+        if isinstance(tool_results, dict):
+            policy_records = tool_results.get("data")
+            if isinstance(policy_records, list):
+                allowed_source_ids.extend(
+                    record["policy_number"]
+                    for record in policy_records
+                    if isinstance(record, dict) and isinstance(record.get("policy_number"), str)
+                )
         # User-selected language is authoritative; detection is only a fallback for legacy callers.
         lang_instruction = build_language_instruction(selected_language)
         
@@ -261,7 +271,7 @@ class BoundedOrchestrator:
                 proposed_form_schema = data.get("form_schema")
                 
                 # UNIVERSAL GROUNDING VALIDATION (Never Bypassed)
-                val_result = self.response_validator.validate(ai_response.content, chunk_ids)
+                val_result = self.response_validator.validate(ai_response.content, allowed_source_ids)
                 
                 if val_result.is_valid:
                     final_answer = proposed_answer
