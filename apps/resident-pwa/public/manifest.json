@@ -8,7 +8,10 @@
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
-  "categories": ["government", "utilities"],
+  "categories": [
+    "government",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/icons/pwa-192x192.png",
@@ -28,13 +31,23 @@
       "name": "New Request",
       "short_name": "Request",
       "url": "/requests/new",
-      "icons": [{ "src": "/icons/pwa-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "AI Chat",
       "short_name": "Chat",
       "url": "/chat",
-      "icons": [{ "src": "/icons/pwa-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
