@@ -9,7 +9,7 @@ import { ResidentCsvImport } from "./ResidentCsvImport";
 import type { ResidentListItem } from "../actions";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-type ClassificationFilter = "All" | "Voter" | "Senior" | "PWD" | "4Ps";
+type ClassificationFilter = "All" | "Senior" | "PWD" | "4Ps";
 
 interface ResidentFilters {
   search: string;
@@ -91,7 +91,6 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
 
       const matchesClassification =
         filters.classification === "All" ||
-        (filters.classification === "Voter" && resident.voter_status) ||
         (filters.classification === "Senior" && getResidentAge(resident.birth_date) >= 60) ||
         (filters.classification === "PWD" && resident.pwd_status) ||
         (filters.classification === "4Ps" && resident.four_ps_status);
@@ -214,7 +213,7 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
 
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-          {(["All", "Voter", "Senior", "PWD", "4Ps"] as ClassificationFilter[]).map((tab) => (
+          {(["All", "Senior", "PWD", "4Ps"] as ClassificationFilter[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setFilters((current) => ({ ...current, classification: tab }))}

@@ -310,3 +310,68 @@ export async function verifyPayment(
 
   return { success: true };
 }
+
+/**
+ * Record or correct a payment made in person at the barangay office
+ * (cash / counter payment). Updates payment fields only — the request's
+ * workflow status and pickup/release dates are left untouched.
+ */
+export async function recordOfficePayment(
+  requestId: string,
+  input: { payment_status: "Paid" | "Waived" | "Unpaid"; reference?: string; notes?: string }
+) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  if (!(await checkUserPermission(user.id, "documents", "canApprove"))) {
+    throw new Error("Approval permission is required to record payments");
+  }
+  if (!["Paid", "Waived", "Unpaid"].includes(input.payment_status)) throw new Error("Invalid payment status");
+  const reference = input.reference?.trim() || "";
+  if (input.payment_status === "Paid" && !reference) throw new Error("Enter the official receipt (OR) number for this payment.");
+  if (reference.length > 100) throw new Error("Receipt number is too long.");
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("document_requests")
+    .select("id, status, fee_amount, document_type:document_types(name), resident:residents(user_id)")
+    .eq("id", requestId)
+    .single();
+  if (lookupError || !existing) throw new Error(lookupError?.message || "Request not found");
+  if ((existing as any).status === "Rejected") throw new Error("Payment cannot be recorded for a rejected request.");
+
+  const fields: Record<string, unknown> = {
+    payment_status: input.payment_status,
+    payment_reference: input.payment_status === "Unpaid" ? null : reference || null,
+    payment_notes: input.notes?.trim() || null,
+    payment_received_at: input.payment_status === "Paid" ? new Date().toISOString() : null,
+  };
+  const { error } = await supabase.from("document_requests").update(fields).eq("id", requestId);
+  if (error) throw new Error(error.message);
+
+  const docName = (existing as any).document_type?.name || "Document";
+  const residentUserId = (existing as any).resident?.user_id;
+  if (residentUserId && input.payment_status !== "Unpaid") {
+    await supabase.from("notifications").insert({
+      user_id: residentUserId,
+      title: input.payment_status === "Paid" ? `Payment received: ${docName}` : `Fee waived: ${docName}`,
+      message: input.payment_status === "Paid"
+        ? `The Barangay Hall received your payment for ${docName} (OR No. ${reference}). Thank you!`
+        : `The fee for your ${docName} has been waived by the Barangay Office.`,
+      read_status: false,
+    });
+  }
+
+  await supabase.from("transactions").insert({
+    user_id: user.id,
+    module: "Payments",
+    action: "Office Payment",
+    description: `Request ${requestId} (${docName}) payment set to ${input.payment_status}${reference ? ` (OR ${reference})` : ""}.`,
+  });
+  await supabase.from("audit_logs").insert({
+    user_id: user.id,
+    action: "RECORD_OFFICE_PAYMENT",
+    module: "documents",
+    details: { request_id: requestId, document: docName, payment_status: input.payment_status, reference: reference || null },
+  });
+  return { success: true };
+}

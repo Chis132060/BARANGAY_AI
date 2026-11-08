@@ -1,25 +1,14 @@
 "use client";
 
 import {
-  Users, Home, BadgeCheck, Accessibility, FileText, Building2,
+  Users, Home, Accessibility, FileText, Building2,
   UserPlus, Receipt, PackageCheck, UserRound, AlertCircle,
-  TrendingDown, TrendingUp, Minus,
-  type LucideIcon,
+  TrendingDown, TrendingUp, Minus, type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import type { DashboardMetrics } from "./actions";
 
-// ─── Tiny inline sparkline SVG ────────────────────────────────────────────────
-function Sparkline({ color = "#94a3b8", up = true }: { color?: string; up?: boolean }) {
-  const points = up
-    ? "0,18 8,14 16,16 24,10 32,12 40,6 48,8 56,3 64,6"
-    : "0,6 8,8 16,4 24,10 32,8 40,14 48,12 56,16 64,18";
-  return (
-    <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="opacity-70">
-      <polyline points={points} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+
 
 // ─── KPI Hero Card ─────────────────────────────────────────────────────────────
 interface KpiCardProps {
@@ -31,12 +20,11 @@ interface KpiCardProps {
   href: string;
   accentColor: string;
   bgColor: string;
-  sparkColor?: string;
 }
 
 export function KpiCard({
   label, value, icon: Icon, delta, deltaType = "neutral",
-  href, accentColor, bgColor, sparkColor = "#94a3b8",
+  href, accentColor, bgColor,
 }: KpiCardProps) {
   const DeltaIcon = deltaType === "up" ? TrendingUp : deltaType === "down" ? TrendingDown : Minus;
 
@@ -54,7 +42,6 @@ export function KpiCard({
 
       <div className="flex items-end justify-between gap-2">
         <span className="text-3xl font-extrabold tracking-tight text-foreground leading-none">{value}</span>
-        <Sparkline color={sparkColor} up={deltaType !== "down"} />
       </div>
 
       {delta && (
@@ -237,7 +224,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
   const pop = Math.max(1, metrics.totalPopulation);
 
   const donutSegments: DonutSegment[] = [
-    { label: "Voters", value: metrics.registeredVoters, color: "#7c3aed" },
     { label: "Seniors", value: metrics.seniorCitizens, color: "#f59e0b" },
     { label: "4Ps", value: metrics.fourPsMembers, color: "#10b981" },
     { label: "PWD", value: metrics.pwdResidents, color: "#6366f1" },
@@ -245,7 +231,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
     { label: "DSWD", value: metrics.dswdResidents, color: "#0ea5e9" },
     {
       label: "Others",
-      value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents - metrics.soloParentResidents - metrics.dswdResidents),
+      value: Math.max(0, pop - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents - metrics.soloParentResidents - metrics.dswdResidents),
       color: "#e2e8f0",
     },
   ];
@@ -253,13 +239,12 @@ export function StatsGrid({ metrics }: StatsGridProps) {
   return (
     <div className="space-y-6">
       {/* ── Row 1: KPI Hero Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard label="Total Population" value={metrics.totalPopulation.toLocaleString()} icon={Users} delta="Registered residents" deltaType="neutral" href="/residents" accentColor="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-950/30" sparkColor="#3b82f6" />
-        <KpiCard label="Households" value={metrics.totalHouseholds.toLocaleString()} icon={Home} delta="Family units" deltaType="neutral" href="/residents/household" accentColor="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-950/30" sparkColor="#10b981" />
-        <KpiCard label="Registered Voters" value={metrics.registeredVoters.toLocaleString()} icon={BadgeCheck} delta={`${Math.round((metrics.registeredVoters / pop) * 100)}% of pop.`} deltaType="up" href="/community/precinct" accentColor="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-950/30" sparkColor="#7c3aed" />
-        <KpiCard label="Senior Citizens" value={metrics.seniorCitizens.toLocaleString()} icon={UserRound} delta={`${Math.round((metrics.seniorCitizens / pop) * 100)}% of pop.`} deltaType="neutral" href="/residents/senior" accentColor="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-950/30" sparkColor="#f59e0b" />
-        <KpiCard label="PWD Members" value={metrics.pwdResidents.toLocaleString()} icon={Accessibility} delta={`${Math.round((metrics.pwdResidents / pop) * 100)}% of pop.`} deltaType="neutral" href="/residents/pwd" accentColor="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-950/30" sparkColor="#6366f1" />
-        <KpiCard label="Local Businesses" value={metrics.registeredBusinesses.toLocaleString()} icon={Building2} delta="Active permits" deltaType="up" href="/business/registry" accentColor="text-teal-600" bgColor="bg-teal-50 dark:bg-teal-950/30" sparkColor="#14b8a6" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <KpiCard label="Total Population" value={metrics.totalPopulation.toLocaleString()} icon={Users} delta="Registered residents" deltaType="neutral" href="/residents" accentColor="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-950/30" />
+        <KpiCard label="Households" value={metrics.totalHouseholds.toLocaleString()} icon={Home} delta="Family units" deltaType="neutral" href="/residents/household" accentColor="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-950/30" />
+        <KpiCard label="Senior Citizens" value={metrics.seniorCitizens.toLocaleString()} icon={UserRound} delta={`${Math.round((metrics.seniorCitizens / pop) * 100)}% of pop.`} deltaType="neutral" href="/residents/senior" accentColor="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-950/30" />
+        <KpiCard label="PWD Members" value={metrics.pwdResidents.toLocaleString()} icon={Accessibility} delta={`${Math.round((metrics.pwdResidents / pop) * 100)}% of pop.`} deltaType="neutral" href="/residents/pwd" accentColor="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-950/30" />
+        <KpiCard label="Local Businesses" value={metrics.registeredBusinesses.toLocaleString()} icon={Building2} delta="Active permits" deltaType="up" href="/business/registry" accentColor="text-teal-600" bgColor="bg-teal-50 dark:bg-teal-950/30" />
       </div>
 
       {/* ── Row 2: Requires Action banners (horizontal) ── */}
@@ -310,7 +295,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
           <p className="text-sm font-extrabold text-foreground mb-4">Community Breakdown</p>
           <MetricRow label="Total Population" value={metrics.totalPopulation} max={pop} color="bg-blue-500" href="/residents" />
           <MetricRow label="Households" value={metrics.totalHouseholds} max={pop} color="bg-emerald-500" href="/residents/household" />
-          <MetricRow label="Registered Voters" value={metrics.registeredVoters} max={pop} color="bg-violet-500" href="/community/precinct" />
           <MetricRow label="Senior Citizens" value={metrics.seniorCitizens} max={pop} color="bg-amber-500" href="/residents/senior" />
           <MetricRow label="4Ps Beneficiaries" value={metrics.fourPsMembers} max={pop} color="bg-teal-500" href="/residents" />
           <MetricRow label="PWD Members" value={metrics.pwdResidents} max={pop} color="bg-indigo-500" href="/residents/pwd" />
@@ -337,7 +321,6 @@ export function StatsGrid({ metrics }: StatsGridProps) {
           {/* Full-width legend rows with mini bars, counts, and percentages */}
           <div className="space-y-2.5">
             {[
-              { label: "Registered Voters", value: metrics.registeredVoters, color: "#7c3aed", barColor: "bg-violet-500" },
               { label: "Senior Citizens", value: metrics.seniorCitizens, color: "#f59e0b", barColor: "bg-amber-500" },
               { label: "4Ps Beneficiaries", value: metrics.fourPsMembers, color: "#10b981", barColor: "bg-emerald-500" },
               { label: "PWD Members", value: metrics.pwdResidents, color: "#6366f1", barColor: "bg-indigo-500" },
@@ -345,7 +328,7 @@ export function StatsGrid({ metrics }: StatsGridProps) {
               { label: "DSWD Beneficiaries", value: metrics.dswdResidents, color: "#0ea5e9", barColor: "bg-sky-500" },
               {
                 label: "Others",
-                value: Math.max(0, pop - metrics.registeredVoters - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents - metrics.soloParentResidents - metrics.dswdResidents),
+                value: Math.max(0, pop - metrics.seniorCitizens - metrics.fourPsMembers - metrics.pwdResidents - metrics.soloParentResidents - metrics.dswdResidents),
                 color: "#cbd5e1",
                 barColor: "bg-slate-300",
               },

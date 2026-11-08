@@ -12,7 +12,6 @@ export interface ResidentListItem {
   gender: string;
   civil_status: string;
   contact_number?: string;
-  voter_status: boolean;
   senior_status: boolean;
   pwd_status: boolean;
   four_ps_status: boolean;
@@ -43,7 +42,6 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
       gender,
       civil_status,
       contact_number,
-      voter_status,
       senior_status,
       pwd_status,
       four_ps_status,
@@ -72,7 +70,6 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
     const matchesSearch = !term || `${resident.first_name || ""} ${resident.last_name || ""}`
       .toLocaleLowerCase().includes(term);
     const matchesCategory =
-      filter === "Voter" ? resident.voter_status === true :
       filter === "Senior" ? resident.senior_status === true :
       filter === "PWD" ? resident.pwd_status === true :
       filter === "4Ps" ? resident.four_ps_status === true : true;
@@ -128,7 +125,6 @@ export async function createResident(formData: Omit<ResidentListItem, "id">) {
       gender: formData.gender,
       civil_status: formData.civil_status,
       contact_number: formData.contact_number,
-      voter_status: formData.voter_status,
       senior_status: formData.senior_status,
       pwd_status: formData.pwd_status,
       four_ps_status: formData.four_ps_status,

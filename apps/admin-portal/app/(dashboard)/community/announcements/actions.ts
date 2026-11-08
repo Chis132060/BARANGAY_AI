@@ -64,3 +64,13 @@ export async function publishAnnouncement(
   // audience field and notification workflow; do not claim delivery here.
   return { success: true };
 }
+
+
+export async function deleteAnnouncement(id: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { error } = await supabase.from("announcements").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  return { success: true };
+}

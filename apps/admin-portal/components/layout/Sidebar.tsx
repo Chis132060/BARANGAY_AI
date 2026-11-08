@@ -53,7 +53,10 @@ export function Sidebar() {
   useEffect(() => {
     filteredModules.forEach((module) => {
       if (module.children) {
-        const hasActiveChild = module.children.some((child) => (pathname === child.href || pathname.startsWith(child.href + "/")));
+        const hasActiveChild = module.children.some((child) => {
+          const childPath = child.href.split("?")[0];
+          return pathname === childPath || pathname.startsWith(childPath + "/");
+        });
         if (hasActiveChild) {
           setOpenMenus((prev) => ({ ...prev, [module.title]: true }));
         }
@@ -94,7 +97,10 @@ export function Sidebar() {
           }
 
           if (hasChildren) {
-            const hasActiveChild = allowedChildren.some((child) => pathname === child.href || pathname.startsWith(child.href + "/"));
+            const hasActiveChild = allowedChildren.some((child) => {
+            const childPath = child.href.split("?")[0];
+            return pathname === childPath || pathname.startsWith(childPath + "/");
+          });
 
             return (
               <div key={module.title} className="space-y-1">
@@ -129,10 +135,11 @@ export function Sidebar() {
                 {isOpen && (
                   <div className="pl-4 pr-2 py-1 space-y-0.5 ml-4 my-1 border-l-2 border-primary/15 animate-in fade-in duration-200">
                     {allowedChildren.map((child) => {
+                      const childPath = child.href.split("?")[0];
                       const hasSiblingWithLongerPath = allowedChildren.some(
-                        (sibling) => sibling.href !== child.href && sibling.href.startsWith(child.href + "/")
+                        (sibling) => sibling.href !== child.href && sibling.href.split("?")[0].startsWith(childPath + "/")
                       );
-                      const isActive = pathname === child.href || (!hasSiblingWithLongerPath && pathname.startsWith(child.href + "/"));
+                      const isActive = pathname === childPath || (!hasSiblingWithLongerPath && pathname.startsWith(childPath + "/"));
                       return (
                         <Link
                           key={child.href}

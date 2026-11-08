@@ -1,22 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, Plus, MapPin, Users, Home, Edit2, RefreshCw } from "lucide-react";
-import { fetchPurokStats, savePurok, PurokStats } from "../actions";
+import { Building2, Plus, MapPin, Users, Home, Edit2, RefreshCw, Trash2 } from "lucide-react";
+import { fetchPurokStats, savePurok, deletePurok, PurokStats } from "../actions";
+import { fetchResidents, type ResidentListItem } from "../../residents/actions";
 
 export default function PurokPage() {
   const [puroks, setPuroks] = useState<PurokStats[]>([]);
+  const [residents, setResidents] = useState<ResidentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-  const [current, setCurrent] = useState<{ id?: string; name: string; leaderId: string; president: string }>({ name: "", leaderId: "", president: "" });
+  const [current, setCurrent] = useState<{ id?: string; name: string; leaderId: string }>({ name: "", leaderId: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
-    const data = await fetchPurokStats();
+    const [data, residentList] = await Promise.all([fetchPurokStats(), fetchResidents().catch(() => [] as ResidentListItem[])]);
     setPuroks(data);
+    setResidents(residentList);
     setLoading(false);
   }
 
@@ -24,7 +27,9 @@ export default function PurokPage() {
     if (!current.name) return alert("Purok name is required.");
     setSaving(true);
     try {
-      await savePurok(current.id || null, current.name, current.leaderId || null, current.president || null);
+      const leader = residents.find((r) => r.id === current.leaderId);
+      const leaderName = leader ? `${leader.first_name} ${leader.last_name}` : null;
+      await savePurok(current.id || null, current.name, current.leaderId || null, leaderName);
       setIsOpen(false);
       load();
     } catch (err: any) {
@@ -34,13 +39,23 @@ export default function PurokPage() {
     }
   };
 
+  const handleDelete = async (p: PurokStats) => {
+    if (!window.confirm(`Delete ${p.name}? This cannot be undone.`)) return;
+    try {
+      await deletePurok(p.purok_id);
+      load();
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
   const openNew = () => {
-    setCurrent({ name: "", leaderId: "", president: "" });
+    setCurrent({ name: "", leaderId: "" });
     setIsOpen(true);
   };
 
   const openEdit = (p: PurokStats) => {
-    setCurrent({ id: p.purok_id, name: p.name, leaderId: "", president: p.president_name || "" });
+    setCurrent({ id: p.purok_id, name: p.name, leaderId: p.leader_id || "" });
     setIsOpen(true);
   };
 
@@ -114,25 +129,31 @@ export default function PurokPage() {
                   </div>
                   <h3 className="text-sm font-extrabold">{purok.name}</h3>
                 </div>
-                <button
-                  onClick={() => openEdit(purok)}
-                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEdit(purok)}
+                    aria-label={`Edit ${purok.name}`}
+                    title="Edit"
+                    className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(purok)}
+                    aria-label={`Delete ${purok.name}`}
+                    title="Delete"
+                    className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  Leader:{" "}
-                  <span className="font-semibold text-foreground">
-                    {purok.leader_name || "— Unassigned —"}
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">
                   President:{" "}
                   <span className="font-semibold text-foreground">
-                    {(purok as any).president_name || "— Unassigned —"}
+                    {purok.leader_name || purok.president_name || "— Unassigned —"}
                   </span>
                 </p>
               </div>
@@ -174,26 +195,21 @@ export default function PurokPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Purok President <span className="font-normal text-gray-400">(Full name)</span></label>
-                <input
-                  type="text"
-                  value={current.president}
-                  onChange={(e) => setCurrent({ ...current, president: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. Maria Santos"
-                />
-              </div>
-              <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Leader Resident ID <span className="font-normal text-gray-400">(Optional — paste from Residents list)</span>
+                  Purok President <span className="font-normal text-gray-400">(Optional)</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={current.leaderId}
                   onChange={(e) => setCurrent({ ...current, leaderId: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                  placeholder="uuid of resident"
-                />
+                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">— Select verified resident —</option>
+                  {residents
+                    .filter((r) => r.verification_status === "Verified")
+                    .map((r) => (
+                      <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
+                    ))}
+                </select>
               </div>
             </div>
 

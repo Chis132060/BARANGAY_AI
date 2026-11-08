@@ -2,8 +2,8 @@
 
 import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState } from "react";
-import { Plus, Megaphone, Globe, Edit2, CheckCircle } from "lucide-react";
-import { fetchAnnouncements, publishAnnouncement, Announcement } from "./actions";
+import { Plus, Megaphone, Globe, Edit2, CheckCircle, Trash2 } from "lucide-react";
+import { fetchAnnouncements, publishAnnouncement, deleteAnnouncement, Announcement } from "./actions";
 
 const AUDIENCE_LABELS: Record<string, string> = {
   All: "All Residents",
@@ -44,6 +44,16 @@ export default function AnnouncementsPage() {
       alert("Error: " + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (ann: Announcement) => {
+    if (!window.confirm(`Delete "${ann.title}"? This cannot be undone.`)) return;
+    try {
+      await deleteAnnouncement(ann.id);
+      load();
+    } catch (err: any) {
+      alert("Error: " + err.message);
     }
   };
 
@@ -113,12 +123,24 @@ export default function AnnouncementsPage() {
                       {new Date(ann.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => { setCurrent(ann); setIsOpen(true); }}
-                        className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg inline-flex"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => { setCurrent(ann); setIsOpen(true); }}
+                          aria-label="Edit announcement"
+                          title="Edit"
+                          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(ann)}
+                          aria-label="Delete announcement"
+                          title="Delete"
+                          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

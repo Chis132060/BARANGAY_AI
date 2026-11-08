@@ -27,6 +27,10 @@ interface RequestsClientProps {
     status: "Paid" | "Rejected",
     remarks?: string
   ) => Promise<{ success: boolean }>;
+  onRecordPayment: (
+    requestId: string,
+    input: { payment_status: "Paid" | "Waived" | "Unpaid"; reference?: string; notes?: string }
+  ) => Promise<{ success: boolean }>;
 }
 
 const STATUS_TABS = ["All", "Pending", "Approved", "Ready for Pickup", "Released", "Completed", "Rejected"] as const;
@@ -38,7 +42,7 @@ const STAT_CONFIG: { status: string; label: string; color: string; dot: string }
   { status: "Released",       label: "Released",      color: "bg-purple-100 text-purple-800 border-purple-200", dot: "bg-purple-400" },
 ];
 
-export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onVerifyPayment }: RequestsClientProps) {
+export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onVerifyPayment, onRecordPayment }: RequestsClientProps) {
   const [requests, setRequests] = useState<DocumentRequestItem[]>(initialRequests);
   const [filter, setFilter] = useState("All");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -74,6 +78,12 @@ export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onV
     setRequests(updated);
   }
 
+  useEffect(() => {
+    if (!errorMsg) return;
+    const timer = window.setTimeout(() => setErrorMsg(null), 10000);
+    return () => window.clearTimeout(timer);
+  }, [errorMsg]);
+
   async function handleAction(
     requestId: string,
     status: string,
@@ -88,8 +98,9 @@ export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onV
     setErrorMsg(null);
     try {
       await onUpdateStatus(requestId, status, remarks, customFee, paymentStatus, pickupInstructions, paymentDueDate, paymentReference, paymentNotes);
-      const updated = await onRefresh(filter);
-      setRequests(updated);
+      const [filtered, all] = await Promise.all([onRefresh(filter), onRefresh("All")]);
+      setRequests(filtered);
+      setAllRequests(all);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to update request status. Please confirm database setup.");
     }
@@ -103,12 +114,12 @@ export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onV
         icon={FileText}
       />
 
-      {/* Inline error banner */}
+      {/* Error toast — fixed so it is visible wherever the user has scrolled */}
       {errorMsg && (
-        <div className="flex items-start gap-3 p-3.5 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-xs font-medium">
+        <div role="alert" className="fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-xl border border-destructive/30 bg-white p-3.5 text-xs font-medium text-destructive shadow-xl">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <span className="flex-1">{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="shrink-0 hover:opacity-70 transition-opacity">
+          <button onClick={() => setErrorMsg(null)} aria-label="Dismiss" className="shrink-0 hover:opacity-70 transition-opacity">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -159,6 +170,19 @@ export function RequestsClient({ initialRequests, onRefresh, onUpdateStatus, onV
       <RequestsTable
         requests={requests}
         onAction={handleAction}
+        onRecordPayment={async (requestId, input) => {
+          setErrorMsg(null);
+          try {
+            await onRecordPayment(requestId, input);
+            const [filtered, all] = await Promise.all([onRefresh(filter), onRefresh("All")]);
+            setRequests(filtered);
+            setAllRequests(all);
+            return true;
+          } catch (err: any) {
+            setErrorMsg(err.message || "Failed to record payment.");
+            return false;
+          }
+        }}
         onVerifyPayment={async (pid, rid, stat, rem) => {
           setErrorMsg(null);
           try {

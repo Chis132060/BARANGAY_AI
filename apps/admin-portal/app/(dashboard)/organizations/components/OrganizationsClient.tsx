@@ -416,9 +416,6 @@ export function OrganizationsClient({ initialOrganizations }: Props) {
             </div>
             <div className="flex items-end justify-between gap-2">
               <span className="text-3xl font-extrabold tracking-tight text-foreground leading-none">{s.value}</span>
-              <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="opacity-70">
-                <polyline points="0,18 8,14 16,16 24,10 32,12 40,6 48,8 56,3 64,6" stroke={s.sparkColor} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
               <Minus className="h-3 w-3" />

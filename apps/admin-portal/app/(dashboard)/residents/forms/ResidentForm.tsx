@@ -20,7 +20,6 @@ const residentFormSchema = z.object({
     .email("Please enter a valid email address")
     .optional()
     .or(z.literal("")),
-  voter_status: z.boolean().default(false),
   senior_status: z.boolean().default(false),
   pwd_status: z.boolean().default(false),
   four_ps_status: z.boolean().default(false),
@@ -62,7 +61,6 @@ export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
       civil_status: "Single",
       contact_number: "",
       email: "",
-      voter_status: false,
       senior_status: false,
       pwd_status: false,
       four_ps_status: false,
@@ -330,11 +328,7 @@ export function ResidentForm({ onSuccess, onCancel }: ResidentFormProps) {
 
       {/* Classifications / Flags */}
       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest border-t pt-4">Classifications</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
-          <input type="checkbox" className="rounded border-input text-primary focus:ring-primary h-4 w-4" {...register("voter_status")} />
-          <span>Voter Status</span>
-        </label>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
           <input type="checkbox" className="rounded border-input text-primary focus:ring-primary h-4 w-4" {...register("senior_status")} />
           <span>Senior Citizen</span>

@@ -8,7 +8,6 @@ import {
   Settings,
   Home,
   BookOpen,
-  Handshake,
   LucideIcon,
 } from "lucide-react";
 
@@ -64,14 +63,8 @@ export const navigationConfig: NavigationModule[] = [
     module: "programs",
     children: [
       { title: "All Programs", href: "/programs", module: "programs" },
-      { title: "Community Programs", href: "/programs?category=Community", module: "programs" },
+      { title: "Organizations", href: "/organizations", module: "organizations" },
     ],
-  },
-  {
-    title: "Organizations",
-    icon: Handshake,
-    href: "/organizations",
-    module: "organizations",
   },
   {
     title: "Documents & Services",

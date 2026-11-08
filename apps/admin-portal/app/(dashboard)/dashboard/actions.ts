@@ -14,7 +14,6 @@ export interface DocumentStats {
 export interface DashboardMetrics {
   totalPopulation: number;
   totalHouseholds: number;
-  registeredVoters: number;
   seniorCitizens: number;
   pwdResidents: number;
   fourPsMembers: number;
@@ -82,7 +81,6 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   const queryResults = await Promise.all([
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified"),
     supabase.from("households").select("*", { count: "exact", head: true }),
-    supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("voter_status", true),
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("senior_status", true),
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("pwd_status", true),
     supabase.from("residents").select("*", { count: "exact", head: true }).eq("verification_status", "Verified").eq("four_ps_status", true),
@@ -111,7 +109,6 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   const [
     { count: totalPopulation },
     { count: totalHouseholds },
-    { count: registeredVoters },
     { count: seniorCitizens },
     { count: pwdResidents },
     { count: fourPsMembers },
@@ -153,7 +150,6 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
     totalPopulation: totalPopulation || 0,
     totalHouseholds: totalHouseholds || 0,
     // The current schema stores households, not family units.
-    registeredVoters: registeredVoters || 0,
     seniorCitizens: seniorCitizens || 0,
     pwdResidents: pwdResidents || 0,
     fourPsMembers: fourPsMembers || 0,

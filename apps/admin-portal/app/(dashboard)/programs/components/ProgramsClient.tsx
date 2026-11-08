@@ -9,7 +9,6 @@ import {
   Shield,
   GraduationCap,
   AlertTriangle,
-  Star,
   ChevronRight,
   X,
   Save,
@@ -19,6 +18,12 @@ import {
   Minus,
   Activity,
   Sparkles,
+  Heart,
+  Briefcase,
+  Leaf,
+  Trophy,
+  Home,
+  Handshake,
 } from "lucide-react";
 import {
   BarangayProgram,
@@ -36,27 +41,58 @@ import { ProgramEditorWizard } from "./ProgramEditorWizard";
 
 // ─── Program Icon Map ─────────────────────────────────────────────────────────
 const PROGRAM_ICONS: Record<string, React.ElementType> = {
+  // By program name/code
   BCPC: Shield,
   "Barangay Protection of Children": Shield,
   CILC: GraduationCap,
   "BADAC 17-59": AlertTriangle,
-  custom: Star,
+  // By category (lowercase match)
+  health: Heart,
+  youth: GraduationCap,
+  livelihood: Briefcase,
+  environment: Leaf,
+  sports: Trophy,
+  shelter: Home,
+  community: Handshake,
+  education: BookOpen,
+  safety: Shield,
+  disaster: AlertTriangle,
 };
 
-function getProgramIcon(name: string) {
-  return PROGRAM_ICONS[name] || Star;
+function getProgramIcon(name: string, category?: string): React.ElementType {
+  return (
+    PROGRAM_ICONS[name] ||
+    (category ? PROGRAM_ICONS[category.toLowerCase()] : undefined) ||
+    BookOpen
+  );
 }
 
 const PROGRAM_COLORS: Record<string, string> = {
+  // By name/code
   BCPC: "bg-blue-100 text-blue-700 border-blue-200",
   "Barangay Protection of Children": "bg-purple-100 text-purple-700 border-purple-200",
   CILC: "bg-emerald-100 text-emerald-700 border-emerald-200",
   "BADAC 17-59": "bg-red-100 text-red-700 border-red-200",
+  // By category
+  health: "bg-rose-100 text-rose-700 border-rose-200",
+  youth: "bg-sky-100 text-sky-700 border-sky-200",
+  livelihood: "bg-orange-100 text-orange-700 border-orange-200",
+  environment: "bg-green-100 text-green-700 border-green-200",
+  sports: "bg-violet-100 text-violet-700 border-violet-200",
+  shelter: "bg-teal-100 text-teal-700 border-teal-200",
+  community: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  education: "bg-cyan-100 text-cyan-700 border-cyan-200",
+  safety: "bg-blue-100 text-blue-700 border-blue-200",
+  disaster: "bg-red-100 text-red-700 border-red-200",
 };
 
-function getProgramColor(name: string, isCustom: boolean) {
+function getProgramColor(name: string, isCustom: boolean, category?: string) {
   if (isCustom) return "bg-amber-100 text-amber-700 border-amber-200";
-  return PROGRAM_COLORS[name] || "bg-gray-100 text-gray-700 border-gray-200";
+  return (
+    PROGRAM_COLORS[name] ||
+    (category ? PROGRAM_COLORS[category.toLowerCase()] : undefined) ||
+    "bg-gray-100 text-gray-700 border-gray-200"
+  );
 }
 
 // ─── Enrollee Modal ─────────────────────────────────────────────────────────
@@ -289,9 +325,10 @@ function EnrolleesPanel({
 // ─── Create Program Modal ──────────────────────────────────────────────────────
 interface Props {
   initialPrograms: BarangayProgram[];
+  initialCategory?: string;
 }
 
-export function ProgramsClient({ initialPrograms }: Props) {
+export function ProgramsClient({ initialPrograms, initialCategory }: Props) {
   const [programs, setPrograms] = useState<BarangayProgram[]>(initialPrograms);
   const [search, setSearch] = useState("");
   const [selectedProgram, setSelectedProgram] = useState<BarangayProgram | null>(null);
@@ -299,9 +336,11 @@ export function ProgramsClient({ initialPrograms }: Props) {
   const [editingProgram, setEditingProgram] = useState<BarangayProgram | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const filtered = programs.filter((p) =>
-    `${p.name} ${p.code || ""} ${p.category}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = programs.filter((p) => {
+    const matchesSearch = `${p.name} ${p.code || ""} ${p.category}`.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = initialCategory ? p.category?.toLowerCase() === initialCategory.toLowerCase() : true;
+    return matchesSearch && matchesCategory;
+  });
 
   async function handleRegistration(program: BarangayProgram) {
     if (program.status !== "Active") return;
@@ -355,7 +394,6 @@ export function ProgramsClient({ initialPrograms }: Props) {
             icon: BookOpen,
             accentColor: "text-blue-600",
             bgColor: "bg-blue-50 dark:bg-blue-950/30",
-            sparkColor: "#3b82f6",
           },
           {
             label: "Active",
@@ -364,7 +402,6 @@ export function ProgramsClient({ initialPrograms }: Props) {
             icon: Activity,
             accentColor: "text-emerald-600",
             bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
-            sparkColor: "#10b981",
           },
           {
             label: "Built-in",
@@ -373,7 +410,6 @@ export function ProgramsClient({ initialPrograms }: Props) {
             icon: Shield,
             accentColor: "text-indigo-600",
             bgColor: "bg-indigo-50 dark:bg-indigo-950/30",
-            sparkColor: "#6366f1",
           },
           {
             label: "Custom",
@@ -382,7 +418,6 @@ export function ProgramsClient({ initialPrograms }: Props) {
             icon: Sparkles,
             accentColor: "text-amber-600",
             bgColor: "bg-amber-50 dark:bg-amber-950/30",
-            sparkColor: "#f59e0b",
           },
         ].map((stat) => (
           <div key={stat.label} className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
@@ -394,9 +429,6 @@ export function ProgramsClient({ initialPrograms }: Props) {
             </div>
             <div className="flex items-end justify-between gap-2">
               <span className="text-3xl font-extrabold tracking-tight text-foreground leading-none">{stat.value}</span>
-              <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="opacity-70">
-                <polyline points="0,18 8,14 16,16 24,10 32,12 40,6 48,8 56,3 64,6" stroke={stat.sparkColor} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
               <Minus className="h-3 w-3" />
@@ -417,8 +449,8 @@ export function ProgramsClient({ initialPrograms }: Props) {
       {/* Program Cards Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((program) => {
-          const Icon = getProgramIcon(program.name);
-          const colorClass = getProgramColor(program.name, program.is_custom);
+          const Icon = getProgramIcon(program.name, program.category);
+          const colorClass = getProgramColor(program.name, program.is_custom, program.category);
           return (
             <div
               key={program.id}

@@ -6,6 +6,7 @@ import { checkUserPermission } from "../administration/rbac-actions";
 export interface PurokStats {
   purok_id: string;
   name: string;
+  leader_id: string | null;
   leader_name: string | null;
   president_name: string | null;
   household_count: number;
@@ -180,6 +181,7 @@ export async function fetchPurokStats(): Promise<PurokStats[]> {
       return {
         purok_id: p.id,
         name: p.name,
+        leader_id: p.leader_id || null,
         leader_name: leaderName,
         president_name: p.president_name || null,
         household_count: householdCount || 0,
@@ -221,5 +223,81 @@ export async function savePurok(
     description: `Purok "${name}" ${id ? "updated" : "created"}.`,
   });
 
+  return { success: true };
+}
+
+
+// ─── Edit / delete helpers ────────────────────────────────────────────────────
+
+async function communityGuard(action: "canEdit" | "canDelete") {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await checkUserPermission(user.id, "community", action))) {
+    throw new Error(action === "canEdit" ? "Insufficient permissions to edit this record" : "Insufficient permissions to delete this record");
+  }
+  return { supabase, user };
+}
+
+function assertSaneDate(value: string | undefined | null, label: string) {
+  if (!value) return;
+  if (value < "1900-01-01" || value > "2100-12-31") throw new Error(`${label} must be a year between 1900 and 2100.`);
+}
+
+export async function updateOfficial(id: string, formData: {
+  resident_id: string;
+  position: string;
+  start_term: string;
+  end_term?: string | null;
+  status: "Active" | "Inactive";
+}) {
+  const { supabase, user } = await communityGuard("canEdit");
+  assertSaneDate(formData.start_term, "Start term");
+  assertSaneDate(formData.end_term, "End term");
+  if (formData.end_term && formData.end_term < formData.start_term) throw new Error("End term cannot be before the start term.");
+
+  const { error } = await supabase.from("officials").update({
+    resident_id: formData.resident_id,
+    position: formData.position,
+    start_term: formData.start_term,
+    end_term: formData.end_term || null,
+    status: formData.status,
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "UPDATE_OFFICIAL", module: "community", details: { id, ...formData } });
+  return { success: true };
+}
+
+export async function deleteOfficial(id: string) {
+  const { supabase, user } = await communityGuard("canDelete");
+  const { error } = await supabase.from("officials").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "DELETE_OFFICIAL", module: "community", details: { id } });
+  return { success: true };
+}
+
+export async function updatePrecinct(id: string, number: string, location?: string) {
+  const { supabase, user } = await communityGuard("canEdit");
+  if (!number.trim()) throw new Error("Precinct number is required.");
+  const { error } = await supabase.from("precincts").update({ number: number.trim(), location: location?.trim() || null }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "UPDATE_PRECINCT", module: "community", details: { id, number: number.trim(), location } });
+  return { success: true };
+}
+
+export async function deletePrecinct(id: string) {
+  const { supabase, user } = await communityGuard("canDelete");
+  const { error } = await supabase.from("precincts").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "DELETE_PRECINCT", module: "community", details: { id } });
+  return { success: true };
+}
+
+export async function deletePurok(id: string) {
+  const { supabase, user } = await communityGuard("canDelete");
+  const { count } = await supabase.from("addresses").select("*", { count: "exact", head: true }).eq("purok_id", id);
+  if (count && count > 0) throw new Error(`This purok still has ${count} address record(s). Reassign them before deleting.`);
+  const { error } = await supabase.from("puroks").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  await supabase.from("audit_logs").insert({ user_id: user.id, action: "DELETE_PUROK", module: "community", details: { id } });
   return { success: true };
 }

@@ -1,4 +1,4 @@
-import { fetchDocumentRequests, updateRequestStatus, verifyPayment, DocumentRequestItem } from "../actions";
+import { fetchDocumentRequests, updateRequestStatus, verifyPayment, recordOfficePayment, DocumentRequestItem } from "../actions";
 import { RequestsClient } from "./components/RequestsClient";
 
 export const metadata = {
@@ -31,6 +31,7 @@ export default async function DocumentRequestsPage() {
       onRefresh={fetchDocumentRequests}
       onUpdateStatus={updateRequestStatus}
       onVerifyPayment={verifyPayment}
+      onRecordPayment={recordOfficePayment}
       />
     </div>
   );
