@@ -41,6 +41,15 @@ export async function removeHouseholdMember(householdId: string, residentId: str
   revalidatePath("/residents/household");
 }
 
+export async function deleteHousehold(householdId: string) {
+  const supabase = await authorized("canDelete");
+  // Remove all member links first (cascade may handle it, but be explicit)
+  await supabase.from("household_members").delete().eq("household_id", householdId);
+  const { error } = await supabase.from("households").delete().eq("id", householdId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/residents/household");
+}
+
 export async function fetchHouseholdMembers(): Promise<Array<{ household_id: string; resident_id: string; first_name: string; last_name: string; relationship?: string | null }>> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -56,54 +65,4 @@ export async function fetchHouseholdMembers(): Promise<Array<{ household_id: str
     ...m, first_name: byId.get(m.resident_id)?.first_name || "Unknown",
     last_name: byId.get(m.resident_id)?.last_name || "",
   }));
-}
-
-export async function createFamilyResident(input: {
-  householdId: string;
-  first_name: string;
-  middle_name?: string;
-  last_name: string;
-  birth_date: string;
-  gender: "Male" | "Female" | "Other";
-  relationship?: string;
-}) {
-  const supabase = await authorized("canCreate");
-  const firstName = input.first_name.trim();
-  const lastName = input.last_name.trim();
-  if (!firstName || !lastName || !input.birth_date || !["Male", "Female", "Other"].includes(input.gender)) throw new Error("First name, last name, birth date, and gender are required.");
-  if (input.birth_date > new Date().toISOString().slice(0, 10)) throw new Error("Birth date cannot be in the future.");
-
-  const { data: existingHousehold, error: householdError } = await supabase.from("households").select("id").eq("id", input.householdId).maybeSingle();
-  if (householdError) throw new Error(householdError.message);
-  if (!existingHousehold) throw new Error("Household not found.");
-
-  const { data: resident, error } = await supabase.from("residents").insert({
-    first_name: firstName,
-    middle_name: input.middle_name?.trim() || null,
-    last_name: lastName,
-    birth_date: input.birth_date,
-    gender: input.gender,
-    civil_status: "Single",
-    verification_status: "Pending",
-    voter_status: false,
-    senior_status: false,
-    pwd_status: false,
-    four_ps_status: false,
-  }).select("id").single();
-  if (error) throw new Error(error.message);
-
-  const { error: membershipError } = await supabase.from("household_members").insert({
-    household_id: input.householdId,
-    resident_id: resident.id,
-    relationship: input.relationship?.trim() || "Household Member",
-  });
-  if (membershipError) {
-    await supabase.from("residents").delete().eq("id", resident.id).eq("verification_status", "Pending");
-    throw new Error(membershipError.message);
-  }
-
-  revalidatePath("/residents");
-  revalidatePath("/residents/verification");
-  revalidatePath("/residents/household");
-  return { id: resident.id };
 }

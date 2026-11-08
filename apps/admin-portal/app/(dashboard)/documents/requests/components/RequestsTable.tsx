@@ -35,9 +35,13 @@ interface RequestsTableProps {
     status: "Paid" | "Rejected",
     remarks?: string
   ) => Promise<void>;
+  onRecordPayment: (
+    requestId: string,
+    input: { payment_status: "Paid" | "Waived" | "Unpaid"; reference?: string; notes?: string }
+  ) => Promise<boolean>;
 }
 
-export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsTableProps) {
+export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPayment }: RequestsTableProps) {
   const [selectedForCert, setSelectedForCert] = useState<DocumentRequestItem | null>(null);
   const [pickupModalReq, setPickupModalReq] = useState<DocumentRequestItem | null>(null);
 
@@ -49,6 +53,72 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectReq, setRejectReq] = useState<DocumentRequestItem | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [unpaidPrompt, setUnpaidPrompt] = useState<{ req: DocumentRequestItem; status: "Released" | "Completed" } | null>(null);
+  const [paymentReq, setPaymentReq] = useState<DocumentRequestItem | null>(null);
+  const [payThen, setPayThen] = useState<"Released" | "Completed" | null>(null);
+  const [payStatus, setPayStatus] = useState<"Paid" | "Waived" | "Unpaid">("Paid");
+  const [payReference, setPayReference] = useState("");
+  const [payNotes, setPayNotes] = useState("");
+  const [payError, setPayError] = useState("");
+  const [paySaving, setPaySaving] = useState(false);
+
+  /** Release / Complete, offering to record payment first if a fee is still outstanding. */
+  const isSettled = (req: DocumentRequestItem) => (req.fee_amount ?? 0) <= 0 || ["Paid", "Free", "Waived"].includes(req.payment_status || "");
+
+  const runAdvance = async (req: DocumentRequestItem, status: "Released" | "Completed") => {
+    setBusyId(req.id);
+    try {
+      await onAction(req.id, status);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const advance = (req: DocumentRequestItem, status: "Released" | "Completed") => {
+    if (!isSettled(req)) {
+      setUnpaidPrompt({ req, status });
+      return;
+    }
+    void runAdvance(req, status);
+  };
+
+  const openPayment = (req: DocumentRequestItem, then?: "Released" | "Completed") => {
+    setPaymentReq(req);
+    setPayThen(then ?? null);
+    setPayStatus(req.payment_status === "Waived" ? "Waived" : "Paid");
+    setPayReference(req.payment_reference || "");
+    setPayNotes(req.payment_notes || "");
+    setPayError("");
+    setUnpaidPrompt(null);
+  };
+
+  const savePayment = async () => {
+    if (!paymentReq) return;
+    if (payStatus === "Paid" && !payReference.trim()) { setPayError("Enter the official receipt (OR) number."); return; }
+    setPaySaving(true); setPayError("");
+    const ok = await onRecordPayment(paymentReq.id, { payment_status: payStatus, reference: payReference, notes: payNotes });
+    setPaySaving(false);
+    if (!ok) { setPayError("Could not save the payment. See the message at the bottom-right."); return; }
+    const target = paymentReq;
+    const next = payThen;
+    setPaymentReq(null);
+    setPayThen(null);
+    if (next) await runAdvance(target, next);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectReq || !rejectReason.trim()) return;
+    setBusyId(rejectReq.id);
+    try {
+      await onAction(rejectReq.id, "Rejected", rejectReason.trim());
+      setRejectReq(null);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const openPickupModal = (req: DocumentRequestItem) => {
     setPickupModalReq(req);
@@ -107,6 +177,7 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
               ) : (
                 requests.map((req) => {
                   const isFree = req.fee_amount === 0 || req.payment_status === "Free";
+                  const busy = busyId === req.id;
                   return (
                     <tr key={req.id} className="hover:bg-muted/10 transition-colors">
                       {/* Resident Info */}
@@ -152,6 +223,15 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
                           }`}>
                             {req.payment_status || (isFree ? "Free" : "Unpaid")}
                           </span>
+                          {!isFree && req.status !== "Rejected" && (
+                            <button
+                              type="button"
+                              onClick={() => openPayment(req)}
+                              className="mt-1 block text-[10px] font-semibold text-blue-600 hover:underline"
+                            >
+                              {req.payment_status === "Paid" || req.payment_status === "Waived" ? "Edit payment" : "Record payment"}
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -163,22 +243,47 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
                       </td>
 
                       {/* Remarks / Form Data */}
-                      <td className="px-6 py-4 text-xs text-muted-foreground max-w-xs truncate">
-                        {req.form_data && Object.keys(req.form_data).length > 0 ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-foreground truncate">{req.form_data.purpose || req.remarks || "—"}</span>
-                            {Object.entries(req.form_data)
-                              .filter(([k]) => k !== "purpose" && k !== "contactNumber" && k !== "requestedVia")
-                              .slice(0, 2)
-                              .map(([k, v]) => (
-                                <span key={k} className="text-[10px] truncate text-gray-500">
-                                  {k}: {String(v)}
+                      <td className="px-6 py-4 text-xs text-muted-foreground max-w-xs">
+                        {(() => {
+                          const FIELD_LABELS: Record<string, string> = {
+                            incomeBracket: "Income",
+                            assistanceType: "Assistance",
+                            yearsResiding: "Years Residing",
+                            dependentsCount: "Dependents",
+                            idType: "ID Type",
+                            businessName: "Business",
+                            businessNature: "Nature",
+                            requirementsStatus: "Requirements",
+                          };
+                          const SKIP_KEYS = new Set(["purpose", "contactNumber", "requestedVia", "attachments", "files"]);
+                          const purpose = req.form_data?.purpose || req.remarks;
+                          const extras = req.form_data
+                            ? Object.entries(req.form_data)
+                                .filter(([k, v]) =>
+                                  !SKIP_KEYS.has(k) &&
+                                  v !== null &&
+                                  v !== undefined &&
+                                  v !== "" &&
+                                  typeof v !== "object"
+                                )
+                                .slice(0, 2)
+                            : [];
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-foreground leading-snug line-clamp-2">
+                                {purpose || "—"}
+                              </span>
+                              {req.status === "Rejected" && req.remarks && req.remarks !== purpose && (
+                                <span className="text-[10px] font-semibold text-red-600 line-clamp-2">Reason: {req.remarks}</span>
+                              )}
+                              {extras.map(([k, v]) => (
+                                <span key={k} className="text-[10px] text-gray-400">
+                                  {FIELD_LABELS[k] ?? k.replace(/([A-Z])/g, " $1").trim()}: {String(v)}
                                 </span>
                               ))}
-                          </div>
-                        ) : (
-                          req.remarks || "—"
-                        )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Actions */}
@@ -189,7 +294,7 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
                           title="Generate and Print Official Certificate"
                           className="px-2.5 py-1.5 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg transition-all inline-flex items-center gap-1"
                         >
-                          <Printer className="h-3.5 w-3.5" /> Certificate
+                          <Printer className="h-3.5 w-3.5" /> Print
                         </button>
 
                         {/* Payment Verification Action */}
@@ -218,17 +323,19 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
                         )}
 
                         {/* Status Actions */}
-                        {req.status === "Pending" && (
+                        {(req.status === "Pending" || req.status === "Under Review") && (
                           <>
                             <button
+                              disabled={busy}
                               onClick={() => openPickupModal(req)}
-                              className="px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow-xs"
+                              className="px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow-xs disabled:opacity-50"
                             >
                               Ready for Pickup
                             </button>
                             <button
-                              onClick={() => onAction(req.id, "Rejected", "Requirements incomplete or unverified")}
-                              className="px-2.5 py-1.5 text-xs font-semibold bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg transition-all"
+                              disabled={busy}
+                              onClick={() => { setRejectReq(req); setRejectReason(""); }}
+                              className="px-2.5 py-1.5 text-xs font-semibold bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg transition-all disabled:opacity-50"
                             >
                               Reject
                             </button>
@@ -237,8 +344,9 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
 
                         {req.status === "Approved" && (
                           <button
+                            disabled={busy}
                             onClick={() => openPickupModal(req)}
-                            className="px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all"
+                            className="px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all disabled:opacity-50"
                           >
                             Ready for Pickup
                           </button>
@@ -246,19 +354,21 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
 
                         {req.status === "Ready for Pickup" && (
                           <button
-                            onClick={() => onAction(req.id, "Released")}
-                            className="px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all"
+                            disabled={busy}
+                            onClick={() => advance(req, "Released")}
+                            className="px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all disabled:opacity-50"
                           >
-                            Mark Released
+                            {busy ? "Saving…" : "Mark Released"}
                           </button>
                         )}
 
                         {req.status === "Released" && (
                           <button
-                            onClick={() => onAction(req.id, "Completed")}
-                            className="px-2.5 py-1.5 text-xs font-semibold bg-muted hover:bg-accent text-foreground border rounded-lg transition-all"
+                            disabled={busy}
+                            onClick={() => advance(req, "Completed")}
+                            className="px-2.5 py-1.5 text-xs font-semibold bg-muted hover:bg-accent text-foreground border rounded-lg transition-all disabled:opacity-50"
                           >
-                            Complete
+                            {busy ? "Saving…" : "Complete"}
                           </button>
                         )}
                       </td>
@@ -278,6 +388,153 @@ export function RequestsTable({ requests, onAction, onVerifyPayment }: RequestsT
           isOpen={!!selectedForCert}
           onClose={() => setSelectedForCert(null)}
         />
+      )}
+
+      {/* Reject Request Modal */}
+      {rejectReq && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 border">
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">Reject request</h3>
+              <p className="text-xs text-muted-foreground">
+                {rejectReq.document_type?.name} · {rejectReq.resident ? `${rejectReq.resident.first_name} ${rejectReq.resident.last_name}` : "Applicant"}
+              </p>
+            </div>
+            <div className="text-xs">
+              <label className="block font-bold text-gray-700 mb-1">Reason (shown to the resident)</label>
+              <textarea
+                autoFocus
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Please bring a valid ID and proof of residency."
+                className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-red-400"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <button type="button" onClick={() => setRejectReq(null)} className="px-3.5 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
+              <button
+                type="button"
+                disabled={!rejectReason.trim() || busyId === rejectReq.id}
+                onClick={confirmReject}
+                className="px-4 py-2 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+              >
+                {busyId === rejectReq.id ? "Rejecting…" : "Reject request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unpaid Fee Prompt Modal */}
+      {unpaidPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border space-y-4">
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">Outstanding fee</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                This request has an unpaid fee of ₱{(unpaidPrompt.req.fee_amount ?? 0).toFixed(2)}.
+                What would you like to do?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => openPayment(unpaidPrompt.req, unpaidPrompt.status)}
+                className="w-full px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Record payment first, then {unpaidPrompt.status === "Released" ? "release" : "complete"}
+              </button>
+              <button
+                onClick={() => { setUnpaidPrompt(null); void runAdvance(unpaidPrompt.req, unpaidPrompt.status); }}
+                className="w-full px-4 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 border"
+              >
+                {unpaidPrompt.status === "Released" ? "Release" : "Complete"} anyway (waive payment)
+              </button>
+              <button
+                onClick={() => setUnpaidPrompt(null)}
+                className="w-full px-4 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Office Payment Modal */}
+      {paymentReq && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border space-y-4">
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">Record office payment</h3>
+              <p className="text-xs text-muted-foreground">
+                {paymentReq.document_type?.name} ·{" "}
+                {paymentReq.resident
+                  ? `${paymentReq.resident.first_name} ${paymentReq.resident.last_name}`
+                  : "Applicant"}{" "}
+                · ₱{(paymentReq.fee_amount ?? 0).toFixed(2)}
+              </p>
+            </div>
+            {payError && (
+              <p className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{payError}</p>
+            )}
+            <div className="text-xs space-y-3">
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Payment Status</label>
+                <select
+                  value={payStatus}
+                  onChange={(e) => setPayStatus(e.target.value as "Paid" | "Waived" | "Unpaid")}
+                  className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="Paid">Paid — cash received at office</option>
+                  <option value="Waived">Waived — fee waived by barangay</option>
+                  <option value="Unpaid">Mark as Unpaid (undo)</option>
+                </select>
+              </div>
+              {payStatus === "Paid" && (
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Official Receipt (OR) Number *</label>
+                  <input
+                    value={payReference}
+                    onChange={(e) => setPayReference(e.target.value)}
+                    placeholder="e.g. OR-2026-00123"
+                    className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Notes (optional)</label>
+                <input
+                  value={payNotes}
+                  onChange={(e) => setPayNotes(e.target.value)}
+                  placeholder="e.g. Paid by family member"
+                  className="w-full border rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => { setPaymentReq(null); setPayThen(null); }}
+                className="px-3.5 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={paySaving}
+                onClick={savePayment}
+                className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+              >
+                {paySaving
+                  ? "Saving…"
+                  : payThen
+                  ? `Save & ${payThen === "Released" ? "Release" : "Complete"}`
+                  : "Save payment"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Set Ready for Pickup Modal */}

@@ -78,7 +78,7 @@ export async function middleware(request: NextRequest) {
             response.cookies.delete(cookie.name);
           }
         }
-      } else {
+      } else if (!authError.message?.includes("Auth session missing")) {
         console.warn("[PWA Middleware] Supabase auth check failed:", error.message);
       }
     }
@@ -139,7 +139,7 @@ export async function middleware(request: NextRequest) {
           response.cookies.delete(cookie.name);
         }
       }
-    } else {
+    } else if (!authError?.message?.includes("Auth session missing")) {
       console.warn("[PWA Middleware] Supabase auth check failed:", err);
     }
   }

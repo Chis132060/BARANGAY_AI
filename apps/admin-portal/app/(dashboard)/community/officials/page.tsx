@@ -1,4 +1,4 @@
-import { createOfficial, fetchOfficials } from "../actions";
+import { createOfficial, deleteOfficial, fetchOfficials, updateOfficial } from "../actions";
 import { fetchResidents } from "../../residents/actions";
 import { OfficialsTable } from "./components/OfficialsTable";
 import { OfficialCreateForm } from "./components/OfficialCreateForm";
@@ -26,12 +26,17 @@ export default async function OfficialsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Barangay Officials</h1>
           <p className="text-sm text-muted-foreground mt-1">Directory of active officials and active governance terms.</p>
         </div>
-        <OfficialCreateForm residents={residents} onCreate={async (input) => { "use server"; return createOfficial(input); }} />
+        <OfficialCreateForm residents={residents} officials={officials} onCreate={async (input) => { "use server"; return createOfficial(input); }} />
       </div>
 
       {error && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</div>}
 
-      <OfficialsTable officials={officials} />
+      <OfficialsTable
+        officials={officials}
+        residents={residents}
+        onUpdate={async (id, input) => { "use server"; return updateOfficial(id, input); }}
+        onDelete={async (id) => { "use server"; return deleteOfficial(id); }}
+      />
     </div>
   );
 }

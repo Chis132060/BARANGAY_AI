@@ -27,8 +27,8 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
     : "RESIDENT NAME";
 
   const address = request.resident?.addresses?.[0]
-    ? `${request.resident.addresses[0].house_number ? request.resident.addresses[0].house_number + ", " : ""}${request.resident.addresses[0].street ? request.resident.addresses[0].street + ", " : ""}${request.resident.addresses[0].purok || "Purok 1"}, Barangay San Jose`
-    : "Purok 1, Barangay San Jose";
+    ? `${request.resident.addresses[0].house_number ? request.resident.addresses[0].house_number + ", " : ""}${request.resident.addresses[0].street ? request.resident.addresses[0].street + ", " : ""}${request.resident.addresses[0].purok || "Purok 1"}, Barangay Tandang Sora`
+    : "Purok 1, Barangay Tandang Sora";
 
   const docTitle = (request.document_type?.name || "Barangay Clearance").toUpperCase();
   const purpose = request.form_data?.purpose || request.remarks || "General official transactions";
@@ -80,19 +80,20 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 md:p-8 overflow-y-auto">
       {/* Modal Container */}
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-gray-200">
+      <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-100">
+
         {/* Modal Toolbar (hidden in print) */}
-        <div className="print:hidden px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div className="print:hidden px-6 py-3.5 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <FileCheck className="h-5 w-5 text-white" />
+            <div className="p-1.5 bg-blue-50 rounded-lg border border-blue-100">
+              <FileCheck className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-sm font-bold">Official Document Generator</h2>
-              <p className="text-xs text-slate-400">
-                Populated from AI Chatbot Request #{request.id.slice(0, 8)}
+              <h2 className="text-sm font-semibold text-gray-900 leading-tight">Official Document Generator</h2>
+              <p className="text-[11px] text-gray-400 leading-tight">
+                Request #{request.id.slice(0, 8).toUpperCase()}
               </p>
             </div>
           </div>
@@ -101,25 +102,25 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
             <button
               onClick={handlePrint}
               disabled={generating}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-60"
             >
-              <Printer className="h-4 w-4" /> {generating ? "Saving..." : generatedId ? "Print Saved Document" : "Generate & Print"}
+              <Printer className="h-3.5 w-3.5" /> {generating ? "Saving..." : generatedId ? "Print Again" : "Generate & Print"}
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
         {/* Certificate Preview Body */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 flex justify-center">
+        <div className="flex-1 overflow-y-auto px-6 py-8 bg-gray-50/70 flex justify-center">
           {/* Printable Certificate Page */}
           <div
             id="printable-certificate"
-            className="w-full max-w-[210mm] min-h-[280mm] bg-white text-gray-900 p-8 md:p-12 shadow-md border border-gray-300 relative flex flex-col justify-between print:shadow-none print:border-none print:p-8 print:m-0"
+            className="w-full max-w-[210mm] min-h-[280mm] bg-white text-gray-900 p-8 md:p-12 shadow-sm ring-1 ring-gray-200/80 relative flex flex-col justify-between print:shadow-none print:ring-0 print:p-8 print:m-0"
             style={{ fontFamily: "'Times New Roman', Times, serif" }}
           >
             {/* Watermark Seal Background */}
@@ -135,8 +136,8 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
                 </div>
                 <div className="text-center space-y-0.5">
                   <p className="text-xs font-serif uppercase tracking-widest text-gray-700">Republic of the Philippines</p>
-                  <p className="text-xs font-serif uppercase tracking-wider text-gray-700">Province of Cebu • City of Cebu</p>
-                  <p className="text-sm font-bold font-serif uppercase tracking-wider text-blue-950">BARANGAY SAN JOSE</p>
+                  <p className="text-xs font-serif uppercase tracking-wider text-gray-700">Province of Agusan del Norte • City of Butuan</p>
+                  <p className="text-sm font-bold font-serif uppercase tracking-wider text-blue-950">BARANGAY TANDANG SORA</p>
                   <p className="text-[11px] font-serif italic text-gray-600">Office of the Punong Barangay</p>
                 </div>
                 <div className="h-16 w-16 rounded-full border-2 border-blue-900 flex items-center justify-center font-bold text-[10px] text-blue-900 text-center uppercase p-1">
@@ -219,7 +220,7 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
               )}
 
               <p className="indent-8">
-                Issued this <strong>{currentDate}</strong> at the Office of the Punong Barangay, Barangay San Jose, Cebu, Philippines.
+                Issued this <strong>{currentDate}</strong> at the Office of the Punong Barangay, Barangay Tandang Sora, Butuan City, Philippines.
               </p>
             </div>
 
@@ -228,7 +229,7 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
               <div className="grid grid-cols-2 gap-8 items-end">
                 {/* Resident Signature / Thumbmark */}
                 <div className="space-y-4 text-center">
-                  <div className="inline-block border-2 border-gray-400 h-20 w-28 rounded-md bg-gray-50/50 p-1 flex items-center justify-center text-[10px] text-gray-400 uppercase">
+                  <div className="mx-auto border-2 border-gray-400 h-20 w-28 rounded-md bg-gray-50/50 p-1 flex items-center justify-center text-[10px] text-gray-400 uppercase">
                     Right Thumbmark
                   </div>
                   <div>
@@ -256,15 +257,6 @@ export function CertificateTemplateModal({ request, isOpen, onClose }: Certifica
                 </div>
               </div>
 
-              {/* Official Seal and Footnote */}
-              <div className="mt-6 pt-3 border-t border-dashed border-gray-300 flex items-center justify-between text-[9px] font-sans text-gray-500">
-                <div className="space-y-0.5 font-mono">
-                  <span>O.R. No: {orNumber}</span> • <span>Fee: ₱{(request.fee_amount || 0).toFixed(2)}</span> • <span>Status: {request.payment_status || "Paid"}</span>
-                </div>
-                <div className="font-serif italic text-gray-400">
-                  Not valid without official dry seal • {process.env.NEXT_PUBLIC_AI_NAME || "Ate Sora"} System
-                </div>
-              </div>
             </div>
           </div>
         </div>

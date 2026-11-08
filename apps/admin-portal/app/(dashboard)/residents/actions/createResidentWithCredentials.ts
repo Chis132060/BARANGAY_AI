@@ -86,7 +86,6 @@ export interface CreateResidentWithCredentialsInput {
   civil_status: "Single" | "Married" | "Widowed" | "Divorced";
   contact_number?: string;
   email?: string;
-  voter_status: boolean;
   senior_status: boolean;
   pwd_status: boolean;
   four_ps_status: boolean;
@@ -161,7 +160,6 @@ export async function createResidentWithCredentials(
       gender: input.gender,
       civil_status: input.civil_status,
       contact_number: input.contact_number,
-      voter_status: input.voter_status,
       senior_status: input.senior_status,
       pwd_status: input.pwd_status,
       four_ps_status: input.four_ps_status,

@@ -101,11 +101,6 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        {res.voter_status && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 border border-blue-500/20">
-                            Voter
-                          </span>
-                        )}
                         {res.senior_status && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/20">
                             Senior
@@ -121,7 +116,7 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                             4Ps
                           </span>
                         )}
-                        {!res.voter_status && !res.senior_status && !res.pwd_status && !res.four_ps_status && (
+                        {!res.senior_status && !res.pwd_status && !res.four_ps_status && (
                           <span className="text-muted-foreground font-mono text-[10px]">—</span>
                         )}
                       </div>
@@ -141,11 +136,10 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                         type="button"
                         onClick={() => setSelectedResident(res)}
                         aria-label={`View profile of ${res.first_name} ${res.last_name}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-muted/60 hover:bg-primary hover:text-primary-foreground border border-transparent hover:border-primary/20 text-muted-foreground transition-all opacity-0 group-hover:opacity-100"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
                         title={`View ${res.first_name} ${res.last_name}'s profile`}
                       >
-                        <Eye className="h-3.5 w-3.5" />
-                        View
+                        <Eye className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>
@@ -230,7 +224,6 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                 ["Street", selectedResident.address?.street || "—"],
                 ["Purok", selectedResident.address?.purok || "—"],
                 ["Verification", selectedResident.verification_status || "—"],
-                ["Voter", selectedResident.voter_status ? "Yes" : "No"],
                 ["Senior", selectedResident.senior_status ? "Yes" : "No"],
                 ["PWD", selectedResident.pwd_status ? "Yes" : "No"],
                 ["4Ps", selectedResident.four_ps_status ? "Yes" : "No"],
