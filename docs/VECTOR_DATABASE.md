@@ -24,13 +24,17 @@ embedding tables, ingestion jobs and matching RPCs.
 7. Monitor queue age, retries/dead letters, embedding latency, retrieval latency, recall
    and stale embedding counts.
 
-## Security blocker
+## Security and publication controls
 
-The original vector initialization migration creates a public SELECT policy on
-knowledge_chunks. Confirm all rows are public before relying on this policy. If the table
-can contain staff-only or resident-private information, a reviewed migration must replace
-broad access with the actual authorization model. Do not apply a generic auth.uid() policy
-to shared knowledge without defining ownership and audience.
+Migration `20261109000001_knowledge_chunks_access_control.sql` removes direct
+anon/authenticated table access and restricts resident-facing vector and keyword RPCs
+to explicitly `audience='public'`, `publication_status='approved'`, currently
+effective, non-expired, deployment-wide rows. Existing rows are deliberately migrated
+to the safe `staff/draft` defaults. New ingestion is also forced to `staff/draft`;
+it cannot publish content by supplying metadata. Publishing must be a separate reviewed
+database/admin action after the source has been verified. Tenant-specific rows are
+excluded until a trusted barangay scope is wired end-to-end. Backend retrieval uses the
+server-only service role; never expose that credential to a browser.
 
 ## References
 
