@@ -22,7 +22,7 @@ LANGUAGES = {"tgl": "Filipino (Tagalog)", "ceb": "Cebuano (Bisaya)", "en": "Engl
 class TranscribeRequest(BaseModel):
     audio_base64: str = Field(min_length=4, max_length=6_000_000)
     mime_type: str = Field(default="audio/webm")
-    language: str = Field(default="tgl", pattern="^(tgl|ceb|en)$")
+    language: str = Field(default="ceb", pattern="^(tgl|ceb|en)$")
 
 
 @router.post("/voice/transcribe")
