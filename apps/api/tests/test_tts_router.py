@@ -18,7 +18,7 @@ class TTSContractTests(unittest.TestCase):
             TTSRequest(text="Hello", language="fr")
 
     def test_elevenlabs_payload_uses_configured_model(self):
-        payload = build_elevenlabs_payload("Maayong adlaw", "eleven_v3")
+        payload = build_elevenlabs_payload("Maayong adlaw", "eleven_v4")
         self.assertEqual(payload["text"], "Maayong adlaw")
         self.assertEqual(payload["model_id"], "eleven_v3")
         self.assertIn("similarity_boost", payload["voice_settings"])
