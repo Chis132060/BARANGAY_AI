@@ -99,9 +99,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: 'https://build-only.invalid'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-only-placeholder-key'
         run: |
-          npm run start --workspace=apps/resident-pwa -- --hostname 127.0.0.1 --port 5173 > /tmp/resident-pwa.log 2>&1 &
+          npm run start --workspace=apps/resident-pwa -- --hostname localhost --port 5173 > /tmp/resident-pwa.log 2>&1 &
           for i in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:5173/~offline >/dev/null; then break; fi
+            if curl -fsS http://localhost:5173/~offline >/dev/null; then break; fi
             sleep 2
           done
           node apps/resident-pwa/tests/offline-browser-smoke.mjs
