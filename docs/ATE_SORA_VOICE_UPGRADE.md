@@ -15,7 +15,7 @@ Set these in the FastAPI deployment environment only; never expose them through 
 | TTS_PROVIDER | elevenlabs | Primary provider |
 | ELEVENLABS_API_KEY | empty | Secret API key |
 | ELEVENLABS_VOICE_ID | empty | Account-authorized female voice ID |
-| ELEVENLABS_TTS_MODEL | eleven_v3 | TTS model |
+| ELEVENLABS_TTS_MODEL | eleven_v4 | TTS model |
 | ELEVENLABS_OUTPUT_FORMAT | mp3_44100_128 | Audio format |
 | TTS_FALLBACK_PROVIDERS | gemini,openai | Ordered fallback list |
 
