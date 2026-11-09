@@ -35,7 +35,7 @@ async def generate_speech(payload: TtsGenerateRequest, request: Request):
     rate_limiter.check(_client_key(request), settings.TTS_RATE_LIMIT_PER_MINUTE)
 
     text = payload.text.strip()
-    language = (payload.language or "tgl").lower().strip()
+    language = (payload.language or "ceb").lower().strip()
     if not text:
         raise ServiceError("EMPTY_INPUT", "Text cannot be empty.", status_code=422)
     if len(text) > settings.TTS_MAX_TEXT_LENGTH:
