@@ -43,7 +43,7 @@ export function useSoraVoiceConversation(options: {
   sessionId?: string;
   onReply?: (reply: VoiceReply) => void;
 }) {
-  const { language = "tgl", sessionId, onReply } = options;
+  const { language = "ceb", sessionId, onReply } = options;
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [lastReply, setLastReply] = useState<VoiceReply | null>(null);
