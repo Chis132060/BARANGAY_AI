@@ -21,6 +21,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hideMainScrollbar = pathname === "/announcements" || pathname === "/chat" || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
 
   useEffect(() => {
+    const applyTextPreference = () => {
+      try {
+        const enlarged = window.localStorage.getItem("barangay:large-text") === "true";
+        document.documentElement.style.fontSize = enlarged ? "112.5%" : "";
+      } catch {
+        document.documentElement.style.fontSize = "";
+      }
+    };
+    applyTextPreference();
+    window.addEventListener("barangay:appearance-changed", applyTextPreference);
+    return () => {
+      window.removeEventListener("barangay:appearance-changed", applyTextPreference);
+      document.documentElement.style.fontSize = "";
+    };
+  }, []);
+
+  useEffect(() => {
     const supabase = createClient();
     let active = true;
     // getSession reads cached auth context so the offline app shell stays available.
