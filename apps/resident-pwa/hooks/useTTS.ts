@@ -51,7 +51,7 @@ export function useTTS(): UseTTSReturn {
         resolve(false); return;
       }
       const utterance = new SpeechSynthesisUtterance(cleanText(text));
-      utterance.lang = language === "en" ? "en-US" : "fil-PH";
+      utterance.lang = language === "en" ? "en-US" : language === "tgl" ? "fil-PH" : "ceb-PH";
       utterance.rate = 0.95;
       utterance.onstart = () => {
         if (generationRef.current !== generation) { window.speechSynthesis.cancel(); resolve(false); return; }
@@ -78,7 +78,7 @@ export function useTTS(): UseTTSReturn {
       audio.play().catch(() => { audioRef.current = null; resolve(false); });
     }), []);
 
-  const speak = useCallback((messageId: string, text: string, language: TTSLanguage = "tgl") => {
+  const speak = useCallback((messageId: string, text: string, language: TTSLanguage = "ceb") => {
     if (speakingId === messageId || loadingId === messageId) { stop(); return; }
     const generation = ++generationRef.current;
     stopInternal();
@@ -101,7 +101,7 @@ export function useTTS(): UseTTSReturn {
             played = await playGeneratedAudio(data.data.audio_url, messageId, generation);
           }
         } else {
-          console.warn("[TTS] OpenAI voice request failed:", res.status);
+          console.warn("[TTS] Generated voice request failed:", res.status);
         }
       } catch (error) {
         if ((error as { name?: string })?.name === "AbortError") return;
