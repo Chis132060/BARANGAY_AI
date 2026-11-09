@@ -11,7 +11,6 @@ import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ResidentOnboardingDialog } from "@/components/onboarding/ResidentOnboardingDialog";
 import { ConnectionBanner } from "@/components/offline/ConnectionBanner";
-import { OfflineStatusCenter } from "@/components/offline/OfflineStatusCenter";
 import { OfflineSyncRunner } from "@/components/offline/OfflineSyncRunner";
 import { createClient } from "@/lib/supabase/client";
 import { clearRequestSummaries } from "@/lib/offline/request-summaries";
@@ -64,7 +63,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="relative flex flex-col h-full max-w-md mx-auto bg-white shadow-xl min-h-screen">
       <TopBar />
       <ConnectionBanner />
-      <OfflineStatusCenter />
       <OfflineSyncRunner />
       <main
         className={`flex-1 overflow-y-auto${hideMainScrollbar ? " no-scrollbar" : ""}`}
