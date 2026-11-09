@@ -24,6 +24,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
       urlPattern: ({ request, url }) =>
         url.origin === self.location.origin && request.mode === "navigate",
       handler: "NetworkOnly",
+      // Explicit precache fallback for cold offline navigation. Never cache
+      // authenticated documents or API responses.
+      options: { precacheFallback: { fallbackURL: "/~offline" } },
     },
     {
       urlPattern: ({ url, request }) =>
