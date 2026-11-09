@@ -9,6 +9,9 @@ const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some(
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // The precached offline page must stay public and must never require a
+  // network Supabase auth round trip when the device has no connection.
+  if (pathname === "/~offline") return NextResponse.next({ request });
   if (
     pathname === "/sw.js" ||
     pathname.startsWith("/_next/") ||

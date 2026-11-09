@@ -26,6 +26,18 @@ type DocumentType = {
   requirements_json: string[];
 };
 
+// Shortcuts identify a category, never a fee, eligibility rule, or official status.
+function findShortcutDocument(types: DocumentType[], shortcut: string | null): DocumentType | undefined {
+  const kind = shortcut?.toLowerCase();
+  if (kind !== "clearance" && kind !== "indigency" && kind !== "business") return undefined;
+  return types.find((type) => {
+    const name = type.name.toLowerCase();
+    if (kind === "clearance") return name.includes("clearance") && !name.includes("business");
+    if (kind === "indigency") return name.includes("indigency");
+    return name.includes("business");
+  });
+}
+
 export default function NewRequestPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -40,8 +52,20 @@ export default function NewRequestPage() {
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchDocTypes() {
@@ -52,13 +76,22 @@ export default function NewRequestPage() {
           .order("name");
         
         if (error) throw error;
-        setDocumentTypes(data || []);
-        try { await savePublicSnapshot("document-types", data || [], 24 * 60 * 60 * 1000); } catch { /* browser storage disabled */ }
+        const types = (data || []) as DocumentType[];
+        setDocumentTypes(types);
+        const shortcut = new URLSearchParams(window.location.search).get("document");
+        const matched = findShortcutDocument(types, shortcut);
+        if (matched) setSelectedType(matched);
+        try { await savePublicSnapshot("document-types", types, 24 * 60 * 60 * 1000); } catch { /* browser storage disabled */ }
       } catch (err: any) {
         console.error("Failed to fetch doc types", err);
         try {
           const cached = await loadPublicSnapshot<DocumentType[]>("document-types");
-          if (cached) setDocumentTypes(cached.data);
+          if (cached) {
+            setDocumentTypes(cached.data);
+            const shortcut = new URLSearchParams(window.location.search).get("document");
+            const matched = findShortcutDocument(cached.data, shortcut);
+            if (matched) setSelectedType(matched);
+          }
           else setErrorMsg("Document types unavailable offline. Open this page online first.");
         } catch { setErrorMsg("Document types unavailable offline."); }
       } finally {
@@ -192,15 +225,19 @@ export default function NewRequestPage() {
         </Link>
         <div>
           <h1 className="text-lg font-bold text-gray-900">Request Document</h1>
-          <p className="text-xs text-gray-500">Submit an online document application</p>
+          <p className="text-sm text-gray-500">Choose a service, add details, then submit</p>
         </div>
       </div>
 
-      <section className="rounded-xl border border-blue-200 bg-blue-50 p-3 space-y-2">
-        <p className="text-xs font-semibold text-blue-900">Offline document drafts</p>
-        <p className="text-xs text-blue-800">Save the selected form and purpose locally. Attachments are not stored. No official request is created until online submission succeeds.</p>
+      <details className="rounded-xl border border-gray-200 bg-slate-50 p-3">
+        <summary className="cursor-pointer py-1 text-sm font-semibold text-gray-800">
+          Save for later / Offline drafts
+        </summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-xs leading-relaxed text-gray-600">
+            Save a draft on this device if you cannot submit yet. Attachments are not stored. The barangay will not receive your request until submission succeeds.
+          </p>
         <button type="button" onClick={()=>void saveDraft()} disabled={!selectedType} className="rounded-lg bg-blue-700 text-white px-3 py-2 text-xs font-bold disabled:opacity-40">Save draft on this device</button>
-        {draftMessage&&<p className="text-xs" role="status">{draftMessage}</p>}
         {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
           <button type="button" onClick={()=>{
             const type=documentTypes.find(t=>t.id===d.documentTypeId);
@@ -209,7 +246,13 @@ export default function NewRequestPage() {
           }} className="text-left underline">{d.documentTypeName} — {new Date(d.updatedAt).toLocaleString()}</button>
           <button type="button" onClick={()=>void removeDocumentDraft(d.id).then(refreshDrafts)} className="text-red-700">Delete</button>
         </div>)}
-      </section>
+        </div>
+      </details>
+      {draftMessage && (
+        <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          {draftMessage}
+        </p>
+      )}
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
           {errorMsg}
@@ -224,7 +267,7 @@ export default function NewRequestPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
-              1. Select Document Type
+              Step 1: Choose a document
             </p>
             <div className="space-y-2">
               {documentTypes.map((docType) => {
@@ -235,6 +278,7 @@ export default function NewRequestPage() {
                   <button
                     type="button"
                     key={docType.id}
+                    aria-pressed={isSelected}
                     onClick={() => {
                       setSelectedType(docType);
                       setFiles({});
@@ -249,8 +293,8 @@ export default function NewRequestPage() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-gray-900">{docType.name}</p>
-                      <p className="text-[11px] text-gray-500">{docType.description}</p>
+                      <p className="text-sm font-bold text-gray-900">{docType.name}</p>
+                      <p className="text-xs text-gray-600">{docType.description}</p>
                     </div>
                     {isBusinessClearance && (
                       <span className="flex-shrink-0 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">In-Person Only</span>
@@ -297,14 +341,14 @@ export default function NewRequestPage() {
                 <>
                   <div className="space-y-3">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      2. Purpose / Notes
+                      Step 2: Purpose / Notes
                     </p>
                     <textarea
                       rows={3}
                       placeholder={`State the purpose for this ${selectedType.name}...`}
                       value={purpose}
                       onChange={(e) => setPurpose(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       required
                     />
                   </div>
@@ -312,7 +356,7 @@ export default function NewRequestPage() {
                   {selectedType.requirements_json && selectedType.requirements_json.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        3. Required Attachments
+                        Step 3: Attach requirements
                       </p>
                       <p className="text-[10px] text-gray-500 mb-2">Maximum 5MB per file. Accepted formats: PDF, JPG, PNG.</p>
                       
@@ -343,13 +387,23 @@ export default function NewRequestPage() {
                     </div>
                   )}
 
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
+                    <p className="text-sm font-bold text-gray-800">Review before submitting</p>
+                    <p className="text-xs text-gray-700">Document: {selectedType.name}</p>
+                    <p className="text-xs text-gray-700">Attached files: {Object.keys(files).length}</p>
+                    <p className="text-xs text-gray-600">
+                      {isOnline
+                        ? "Submitting sends your request to the barangay for review."
+                        : "You are offline. If this request needs attachments, save a draft and reconnect. Otherwise, it will be queued on this device, not sent yet."}
+                    </p>
+                  </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
+                    className="w-full min-h-12 py-3 mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
                   >
                     {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {loading ? "Uploading & Submitting..." : "Submit Application"}
+                    {loading ? "Processing..." : isOnline ? "Submit Application" : "Queue on this device"}
                   </button>
                 </>
               )}

@@ -27,6 +27,27 @@ interface DocRequest {
   };
 }
 
+// Status guidance is informational; only the server-stored status is authoritative.
+function getRequestNextStep(status: string): string {
+  const current = status.toLowerCase();
+  if (current.includes("ready") || current.includes("pickup")) {
+    return "Ready for pickup. Check the official pickup details before visiting.";
+  }
+  if (current === "released" || current === "completed") {
+    return "This request has been marked completed.";
+  }
+  if (current === "rejected") {
+    return "This application was not approved. Contact the barangay for the reason and next steps.";
+  }
+  if (current === "approved") {
+    return "Your request is approved. Wait for official release or pickup instructions.";
+  }
+  if (current.includes("pending") || current.includes("review") || current.includes("process")) {
+    return "Your application is being processed. Check again for updates.";
+  }
+  return "Check your latest status and ask the barangay office if you need help.";
+}
+
 export default function RequestsPage() {
   const [requests, setRequests] = useState<DocRequest[]>([]);
   const [activeTab, setActiveTab] = useState("All");
@@ -176,7 +197,7 @@ export default function RequestsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-extrabold text-gray-900">My Document Requests</h1>
-          <p className="text-xs text-gray-500">Track status, fees, and pickup schedules</p>
+          <p className="text-sm text-gray-500">Follow your application and see what to do next</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -232,16 +253,28 @@ export default function RequestsPage() {
           <ClipboardList className="h-10 w-10 text-gray-300 mx-auto" />
           <div>
             <p className="text-sm font-bold text-gray-700">No requests found</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Ask the AI Assistant or tap below to apply for a Clearance or Certificate.
+            <p className="text-sm text-gray-600 mt-1">
+              {activeTab === "All"
+                ? "Start a document request to see its progress here."
+                : "No requests match this filter. Try viewing all requests."}
             </p>
           </div>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs"
-          >
-            Open Chatbot Assistant <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          {activeTab === "All" ? (
+            <Link
+              href="/requests/new"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white"
+            >
+              Request a Document <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveTab("All")}
+              className="min-h-11 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white"
+            >
+              View all requests
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -249,8 +282,11 @@ export default function RequestsPage() {
             const isReadyForPickup =
               req.status.toLowerCase().includes("ready") ||
               req.status.toLowerCase().includes("pickup");
-            const fee = req.fee_amount ?? 0;
-            const isFree = fee === 0 || req.payment_status === "Free";
+            const fee = typeof req.fee_amount === "number" ? req.fee_amount : Number.NaN;
+            const hasConfirmedFee = Number.isFinite(fee) && fee >= 0;
+            const isFree = req.payment_status === "Free" || (hasConfirmedFee && fee === 0);
+            const canPay = hasConfirmedFee && fee > 0 &&
+              (!req.payment_status || req.payment_status === "Unpaid" || req.payment_status === "Rejected");
 
             return (
               <div
@@ -292,6 +328,10 @@ export default function RequestsPage() {
                   </div>
                 </div>
 
+                <p className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+                  {getRequestNextStep(req.status)}
+                </p>
+
                 {/* Pickup Ready Alert Banner (Compact) */}
                 {isReadyForPickup && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-950 animate-in fade-in">
@@ -313,7 +353,7 @@ export default function RequestsPage() {
                     <DollarSign className="h-3.5 w-3.5 text-gray-400" />
                     <span className="text-[11px]">Payment:</span>
                     <span className={`font-bold text-[11px] ${isFree ? "text-emerald-700" : "text-blue-700"}`}>
-                      {isFree ? "FREE (₱0.00)" : `₱${fee.toFixed(2)}`}
+                      {isFree ? "FREE (₱0.00)" : hasConfirmedFee ? `₱${fee.toFixed(2)}` : "To be confirmed"}
                     </span>
                   </div>
                   
@@ -327,9 +367,9 @@ export default function RequestsPage() {
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-amber-100 text-amber-800"
                     }`}>
-                      {req.payment_status || (isFree ? "Free" : "Unpaid")}
+                      {req.payment_status || (isFree ? "Free" : hasConfirmedFee ? "Unpaid" : "Not confirmed")}
                     </span>
-                    {!isFree && (!req.payment_status || req.payment_status === 'Unpaid' || req.payment_status === 'Rejected') && (
+                    {canPay && (
                       <button 
                         onClick={() => setPayingRequest(req)}
                         className="flex items-center gap-1 bg-gray-900 text-white px-2 py-1 rounded-md text-[10px] font-bold hover:bg-gray-800"
@@ -452,12 +492,12 @@ export default function RequestsPage() {
                 <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
                   <p className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider mb-1">Pickup Instructions</p>
                   <p className="text-xs text-emerald-900">
-                    {viewingRequest.pickup_instructions || "Please proceed to Frontline Window 2. Bring 1 Valid ID."}
+                    {viewingRequest.pickup_instructions || "The barangay has not provided specific pickup instructions yet. Confirm with the office before visiting."}
                   </p>
                   {viewingRequest.pickup_date && (
                     <p className="text-[10px] text-emerald-700 mt-2 font-bold">
                       <Clock className="h-3 w-3 inline mr-1" />
-                      {new Date(viewingRequest.pickup_date).toLocaleDateString()} (8:00 AM - 5:00 PM)
+                      {new Date(viewingRequest.pickup_date).toLocaleDateString()} · Confirm office hours before visiting
                     </p>
                   )}
                 </div>
@@ -472,13 +512,16 @@ export default function RequestsPage() {
                     viewingRequest.payment_status === "Free" || viewingRequest.fee_amount === 0 ? "bg-emerald-50 text-emerald-700" :
                     "bg-amber-100 text-amber-800"
                   }`}>
-                    {viewingRequest.payment_status || (viewingRequest.fee_amount === 0 ? "Free" : "Unpaid")}
+                    {viewingRequest.payment_status || (viewingRequest.fee_amount === 0 ? "Free" : typeof viewingRequest.fee_amount === "number" ? "Unpaid" : "Not confirmed")}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <p className="text-xs font-bold text-gray-600">Fee Amount</p>
                   <p className="text-sm font-extrabold text-gray-900">
-                    {viewingRequest.fee_amount === 0 ? "FREE" : `₱${(viewingRequest.fee_amount || 0).toFixed(2)}`}
+                    {viewingRequest.fee_amount === 0 ? "FREE" :
+                      typeof viewingRequest.fee_amount === "number" && Number.isFinite(viewingRequest.fee_amount)
+                        ? `₱${viewingRequest.fee_amount.toFixed(2)}`
+                        : "To be confirmed"}
                   </p>
                 </div>
               </div>
