@@ -138,7 +138,7 @@ class BoundedOrchestrator:
 
         return len(stored_chunks)
 
-    async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None, language: str = "tgl") -> dict:
+    async def generate_response(self, query: str, session_id: Optional[str] = None, user_id: Optional[str] = None, language: str = "ceb") -> dict:
         start = time.time()
         
         # 1. Auth & Input Policy
