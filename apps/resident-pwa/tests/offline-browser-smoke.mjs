@@ -62,7 +62,7 @@ try {
   console.log("Offline navigation diagnostics:", JSON.stringify({
     url: page.url(),
     status: offlineResponse?.status(),
-    headers: await offlineResponse?.allHeaders(),
+    contentType: offlineResponse?.headers()["content-type"] || "(missing)",
     text: (await page.locator("body").innerText().catch(() => "(no body)")).slice(0, 1200),
   }));
   await page.getByRole("heading", { name: "No connection right now" }).waitFor({ timeout: 15000 });
