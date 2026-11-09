@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class TtsGenerateRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Text to synthesize.")
-    language: str = Field("tgl", description="Language code: 'tgl' (Tagalog), 'ceb' (Cebuano/Bisaya), or 'en' (English).")
+    language: str = Field("ceb", description="Language code: 'tgl' (Tagalog), 'ceb' (Cebuano/Bisaya), or 'en' (English).")
 
 
 class TtsGenerationResult(BaseModel):
