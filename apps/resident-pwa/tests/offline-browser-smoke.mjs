@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 
-const base = process.env.PWA_TEST_BASE_URL || "http://127.0.0.1:5173";
+const base = process.env.PWA_TEST_BASE_URL || "http://localhost:5173";
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ serviceWorkers: "allow" });
 const page = await context.newPage();
@@ -35,6 +35,9 @@ try {
     worker.url().includes("/sw.js")
   );
   assert.ok(activeWorker, "active service worker execution context should be available");
+  const workerScope = await activeWorker.evaluate(() => self.registration.scope);
+  assert.equal(new URL(workerScope).origin, new URL(base).origin,
+    "service worker scope must match the browser test origin");
   const cachesBefore = await activeWorker.evaluate(async () => await caches.keys());
   assert.ok(cachesBefore.length > 0, "PWA precache should exist");
   console.log("Worker activated; cache names:", cachesBefore.join(", "));
