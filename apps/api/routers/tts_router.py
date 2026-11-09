@@ -40,16 +40,20 @@ def _pcm_to_wav_data_url(encoded_pcm: str, sample_rate: int = 24000) -> str:
 
 def build_elevenlabs_payload(text: str, model_id: str) -> dict:
     """Build a deterministic provider payload; secrets and voice ID stay server-side."""
-    return {
-        "text": text,
-        "model_id": model_id,
-        "voice_settings": {
+    model = model_id.lower()
+    if model.startswith("eleven_v4"):
+        voice_settings = {"stability": 0.45, "similarity_boost": 0.8}
+    elif model.startswith("eleven_v3"):
+        # Eleven v3 does not support similarity_boost or speaker boost.
+        voice_settings = {"stability": 0.45}
+    else:
+        voice_settings = {
             "stability": 0.45,
             "similarity_boost": 0.8,
-            "style": 0.25,
+            "style": 0.0,
             "use_speaker_boost": True,
-        },
-    }
+        }
+    return {"text": text, "model_id": model_id, "voice_settings": voice_settings}
 
 
 async def _elevenlabs(request: TTSRequest) -> dict:
