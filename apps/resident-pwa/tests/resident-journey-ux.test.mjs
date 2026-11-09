@@ -74,3 +74,10 @@ test("navigation and notifications have larger accessible controls", () => {
   assert.match(notifications, /View all requests|My requests/);
   assert.match(notifications, /href="\/support"/);
 });
+
+
+test("offline warning provides a direct link to the cached public help page", () => {
+  const connection = read("../components/offline/ConnectionBanner.tsx");
+  assert.match(connection, /href="\/~offline"/);
+  assert.match(connection, /View offline help/);
+});
