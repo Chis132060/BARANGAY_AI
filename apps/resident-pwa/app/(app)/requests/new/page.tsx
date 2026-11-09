@@ -235,7 +235,7 @@ export default function NewRequestPage() {
         </summary>
         <div className="mt-3 space-y-3">
           <p className="text-xs leading-relaxed text-gray-600">
-            Save a draft on this device if you cannot submit yet. Attachments are not saved and the barangay will not receive your request until submission succeeds.
+            Save a draft on this device if you cannot submit yet. Attachments are not stored. The barangay will not receive your request until submission succeeds.
           </p>
         <button type="button" onClick={()=>void saveDraft()} disabled={!selectedType} className="rounded-lg bg-blue-700 text-white px-3 py-2 text-xs font-bold disabled:opacity-40">Save draft on this device</button>
         {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
