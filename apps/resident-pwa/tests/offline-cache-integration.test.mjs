@@ -3,11 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("offline status panel is mounted and manual sync is wired", () => {
+test("offline status panel is in Profile settings while background/manual sync stays wired", () => {
   const layout = read("../app/(app)/layout.tsx");
+  const profile = read("../app/(app)/profile/page.tsx");
   const panel = read("../components/offline/OfflineStatusCenter.tsx");
   const runner = read("../components/offline/OfflineSyncRunner.tsx");
-  assert.match(layout, /<OfflineStatusCenter\s*\/>/);
+  assert.doesNotMatch(layout, /<OfflineStatusCenter\s*\/>/);
+  assert.match(profile, /<OfflineStatusCenter\s*\/>/);
+  assert.match(layout, /<OfflineSyncRunner\s*\/>/);
   assert.match(panel, /barangay-sync-request/);
   assert.match(runner, /addEventListener\("barangay-sync-request"/);
   assert.match(runner, /barangay-sync-status/);
