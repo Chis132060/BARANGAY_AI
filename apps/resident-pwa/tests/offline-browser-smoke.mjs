@@ -43,10 +43,28 @@ try {
   const cachesBefore = await activeWorker.evaluate(async () => await caches.keys());
   assert.ok(cachesBefore.length > 0, "PWA precache should exist");
   console.log("Worker activated; cache names:", cachesBefore.join(", "));
+  const cachedRoutes = await activeWorker.evaluate(async () => {
+    const routes = [];
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const entry of await cache.keys()) {
+        const p = new URL(entry.url).pathname;
+        if (p.includes("offline") || p.includes("home") || p.includes("login")) routes.push(name + " :: " + p);
+      }
+    }
+    return routes;
+  });
+  console.log("Cached fallback-related URLs:", cachedRoutes.join(", ") || "(none)");
 
   await context.setOffline(true);
   const offlineResponse = await page.goto(base + "/home", { waitUntil: "domcontentloaded", timeout: 20000 });
   assert.ok(offlineResponse, "offline navigation should return fallback response");
+  console.log("Offline navigation diagnostics:", JSON.stringify({
+    url: page.url(),
+    status: offlineResponse?.status(),
+    headers: await offlineResponse?.allHeaders(),
+    text: (await page.locator("body").innerText().catch(() => "(no body)")).slice(0, 1200),
+  }));
   await page.getByRole("heading", { name: "No connection right now" }).waitFor({ timeout: 15000 });
   console.log("PASS: cold offline navigation produces usable fallback");
 
