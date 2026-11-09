@@ -3,7 +3,7 @@ from pathlib import Path
 
 MIGRATION = (
     Path(__file__).resolve().parents[3]
-    / "infra"
+    / "supabase"
     / "supabase"
     / "migrations"
     / "20261109000001_knowledge_chunks_access_control.sql"
