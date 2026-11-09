@@ -18,7 +18,7 @@ test("stale missing-refresh-token sessions clear auth cookies without logging an
   assert.doesNotMatch(authCatch, /cookie\.name\.startsWith\("sb-"\)/);
   assert.match(authCatch, /request\.cookies\.delete\(cookie\.name\)/);
   assert.match(authCatch, /response\.cookies\.delete\(cookie\.name\)/);
-  assert.match(authCatch, /else \{\s*console\.warn/);
+  assert.match(authCatch, /else if \(!authError\.message\?\.includes\("Auth session missing"\)\) \{\s*console\.warn/);
 });
 
 test("middleware refresh preserves every chunked auth cookie across redirects", () => {
