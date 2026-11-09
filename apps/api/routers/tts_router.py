@@ -16,6 +16,7 @@ router = APIRouter(dependencies=[Depends(require_voice_access)])
 logger = logging.getLogger(__name__)
 
 LANGUAGES = {"ceb": "Cebuano (Bisaya)", "tgl": "Filipino (Tagalog)", "en": "English"}
+ELEVENLABS_LANGUAGE_CODES = {"ceb": "ceb", "tgl": "fil", "en": "en"}
 ALLOWED_OUTPUT_FORMATS = {
     "mp3_22050_32", "mp3_44100_32", "mp3_44100_64",
     "mp3_44100_96", "mp3_44100_128", "mp3_44100_192",
@@ -42,13 +43,13 @@ def _pcm_to_wav_data_url(encoded_pcm: str, sample_rate: int = 24000) -> str:
     return _data_url(output.getvalue(), "audio/wav")
 
 
-def build_elevenlabs_payload(text: str, model_id: str) -> dict:
+def build_elevenlabs_payload(text: str, model_id: str, language: str = "ceb") -> dict:
     """Build a request compatible with ElevenLabs model-specific parameters.
 
     Eleven v3 uses its own expressive controls and rejects legacy similarity/style
     fields. Keep the v3 request minimal; legacy multilingual models accept them.
     """
-    payload = {"text": text, "model_id": model_id}
+    payload = {"text": text, "model_id": model_id, "language_code": ELEVENLABS_LANGUAGE_CODES[language]}
     if not model_id.lower().startswith("eleven_v3"):
         payload["voice_settings"] = {
             "stability": 0.45,
@@ -79,7 +80,7 @@ async def _elevenlabs(request: TTSRequest) -> dict:
                     "Accept": "audio/mpeg",
                     "Content-Type": "application/json",
                 },
-                json=build_elevenlabs_payload(request.text, settings.ELEVENLABS_TTS_MODEL),
+                json=build_elevenlabs_payload(request.text, settings.ELEVENLABS_TTS_MODEL, request.language),
             )
     except httpx.HTTPError as exc:
         logger.warning("ElevenLabs transport failure: %s", type(exc).__name__)
