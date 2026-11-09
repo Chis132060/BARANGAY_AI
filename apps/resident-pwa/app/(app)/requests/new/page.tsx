@@ -26,6 +26,18 @@ type DocumentType = {
   requirements_json: string[];
 };
 
+// Shortcuts identify a category, never a fee, eligibility rule, or official status.
+function findShortcutDocument(types: DocumentType[], shortcut: string | null): DocumentType | undefined {
+  const kind = shortcut?.toLowerCase();
+  if (kind !== "clearance" && kind !== "indigency" && kind !== "business") return undefined;
+  return types.find((type) => {
+    const name = type.name.toLowerCase();
+    if (kind === "clearance") return name.includes("clearance") && !name.includes("business");
+    if (kind === "indigency") return name.includes("indigency");
+    return name.includes("business");
+  });
+}
+
 export default function NewRequestPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -52,13 +64,22 @@ export default function NewRequestPage() {
           .order("name");
         
         if (error) throw error;
-        setDocumentTypes(data || []);
-        try { await savePublicSnapshot("document-types", data || [], 24 * 60 * 60 * 1000); } catch { /* browser storage disabled */ }
+        const types = (data || []) as DocumentType[];
+        setDocumentTypes(types);
+        const shortcut = new URLSearchParams(window.location.search).get("document");
+        const matched = findShortcutDocument(types, shortcut);
+        if (matched) setSelectedType(matched);
+        try { await savePublicSnapshot("document-types", types, 24 * 60 * 60 * 1000); } catch { /* browser storage disabled */ }
       } catch (err: any) {
         console.error("Failed to fetch doc types", err);
         try {
           const cached = await loadPublicSnapshot<DocumentType[]>("document-types");
-          if (cached) setDocumentTypes(cached.data);
+          if (cached) {
+            setDocumentTypes(cached.data);
+            const shortcut = new URLSearchParams(window.location.search).get("document");
+            const matched = findShortcutDocument(cached.data, shortcut);
+            if (matched) setSelectedType(matched);
+          }
           else setErrorMsg("Document types unavailable offline. Open this page online first.");
         } catch { setErrorMsg("Document types unavailable offline."); }
       } finally {
@@ -192,7 +213,7 @@ export default function NewRequestPage() {
         </Link>
         <div>
           <h1 className="text-lg font-bold text-gray-900">Request Document</h1>
-          <p className="text-xs text-gray-500">Submit an online document application</p>
+          <p className="text-sm text-gray-500">Choose a service, add details, then submit</p>
         </div>
       </div>
 
@@ -224,7 +245,7 @@ export default function NewRequestPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
-              1. Select Document Type
+              Step 1 of 3: Choose a document
             </p>
             <div className="space-y-2">
               {documentTypes.map((docType) => {
@@ -297,7 +318,7 @@ export default function NewRequestPage() {
                 <>
                   <div className="space-y-3">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      2. Purpose / Notes
+                      Step 2 of 3: Purpose / Notes
                     </p>
                     <textarea
                       rows={3}
@@ -312,7 +333,7 @@ export default function NewRequestPage() {
                   {selectedType.requirements_json && selectedType.requirements_json.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        3. Required Attachments
+                        Step 3 of 3: Attach requirements
                       </p>
                       <p className="text-[10px] text-gray-500 mb-2">Maximum 5MB per file. Accepted formats: PDF, JPG, PNG.</p>
                       
