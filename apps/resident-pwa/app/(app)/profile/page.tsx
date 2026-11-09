@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, LogOut, Bell, Shield, HelpCircle, RefreshCw, X, Check } from "lucide-react";
+import { ChevronRight, LogOut, Bell, Shield, HelpCircle, RefreshCw, Languages, X, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { listTickets, clearTickets } from "@/lib/offline/support-outbox";
 import { loadDocumentDrafts, clearDocumentDrafts } from "@/lib/offline/document-drafts";
@@ -23,6 +23,31 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
+  const [aiLanguage, setAiLanguage] = useState<"tgl" | "ceb" | "en">("tgl");
+  const [largeText, setLargeText] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("barangay-ai-language");
+      if (stored === "tgl" || stored === "ceb" || stored === "en") setAiLanguage(stored);
+      setLargeText(window.localStorage.getItem("barangay:large-text") === "true");
+    } catch { /* browser storage may be disabled */ }
+  }, []);
+
+  function changeAiLanguage(next: "tgl" | "ceb" | "en") {
+    setAiLanguage(next);
+    try { window.localStorage.setItem("barangay-ai-language", next); }
+    catch { setFeedback("Could not save language preference on this device."); }
+  }
+
+  function toggleLargeText() {
+    const next = !largeText;
+    setLargeText(next);
+    try {
+      window.localStorage.setItem("barangay:large-text", String(next));
+      window.dispatchEvent(new Event("barangay:appearance-changed"));
+    } catch { setFeedback("Could not save text-size preference on this device."); }
+  }
   useEffect(() => {
     if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) return;
     setPushSupported(true);
@@ -194,6 +219,17 @@ export default function ProfilePage() {
         </button>
 
         <button
+          onClick={() => { setFeedback(""); setActiveModal("Language & Accessibility"); }}
+          className="w-full flex min-h-14 items-center justify-between p-4 text-left transition-colors hover:bg-gray-50"
+        >
+          <div className="flex items-center gap-3">
+            <Languages className="h-5 w-5 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">Language & Accessibility</span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+        </button>
+
+        <button
           onClick={() => { setFeedback(""); setActiveModal("Offline & Sync"); }}
           className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
         >
@@ -312,6 +348,34 @@ export default function ProfilePage() {
                   {busy ? "Sending..." : "Send password reset email"}
                 </button>
                 {feedback && <p role="status" className="text-xs text-blue-700">{feedback}</p>}
+              </div>
+            )}
+            {activeModal === "Language & Accessibility" && (
+              <div className="space-y-4 text-sm text-gray-700">
+                <div className="space-y-2">
+                  <label htmlFor="ai-language" className="block font-semibold text-gray-900">
+                    Ate Sora language
+                  </label>
+                  <select id="ai-language" value={aiLanguage}
+                    onChange={(event) => changeAiLanguage(event.target.value as "tgl" | "ceb" | "en")}
+                    className="min-h-12 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+                    <option value="tgl">Tagalog</option>
+                    <option value="ceb">Bisaya / Cebuano</option>
+                    <option value="en">English</option>
+                  </select>
+                  <p className="text-xs text-gray-500">Sets the preferred language when you open Ate Sora. Other pages currently use English.</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-3">
+                  <div>
+                    <p className="font-semibold text-gray-900">Larger text</p>
+                    <p className="mt-1 text-xs text-gray-500">Make text easier to read across the resident app.</p>
+                  </div>
+                  <button type="button" role="switch" aria-checked={largeText}
+                    aria-label="Use larger text" onClick={toggleLargeText}
+                    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${largeText?"bg-blue-600":"bg-gray-300"}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${largeText?"translate-x-6":"translate-x-1"}`} />
+                  </button>
+                </div>
               </div>
             )}
             {activeModal === "Offline & Sync" && (
