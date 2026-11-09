@@ -8,6 +8,11 @@ type Language = (typeof LANGUAGES)[number];
 const LANGUAGE_NAMES: Record<Language, string> = { tgl: "Filipino/Tagalog", ceb: "Cebuano/Bisaya", en: "English" };
 
 export async function POST(request: Request) {
+  // A client-side feature flag is not an authorization or rollout boundary.
+  // Keep provider sessions unavailable until staging acceptance is complete.
+  if (process.env.SORA_REALTIME_SERVER_ENABLED !== "true") {
+    return NextResponse.json({ error: "Real-time voice is not enabled." }, { status: 503 });
+  }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Real-time voice is not configured." }, { status: 503 });
   if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/sdp") {
