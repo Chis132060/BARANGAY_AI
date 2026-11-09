@@ -110,6 +110,10 @@ class BoundedOrchestrator:
                 "source_type": metadata.get("source_type", "LOCAL"),
                 "source_domain": metadata.get("source_domain"),
                 "trust_level": metadata.get("trust_level", "VERIFIED"),
+                # Publishing is a separate, reviewed action. Ingestion must never
+                # make newly uploaded material resident-visible by default.
+                "audience": "staff",
+                "publication_status": "draft",
             }
 
             existing = (
