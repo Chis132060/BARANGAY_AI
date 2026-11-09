@@ -217,9 +217,14 @@ export default function NewRequestPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border border-blue-200 bg-blue-50 p-3 space-y-2">
-        <p className="text-xs font-semibold text-blue-900">Offline document drafts</p>
-        <p className="text-xs text-blue-800">Save the selected form and purpose locally. Attachments are not stored. No official request is created until online submission succeeds.</p>
+      <details className="rounded-xl border border-gray-200 bg-slate-50 p-3">
+        <summary className="cursor-pointer py-1 text-sm font-semibold text-gray-800">
+          Save for later / Offline drafts
+        </summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-xs leading-relaxed text-gray-600">
+            Save a draft on this device if you cannot submit yet. Attachments are not saved and the barangay will not receive your request until submission succeeds.
+          </p>
         <button type="button" onClick={()=>void saveDraft()} disabled={!selectedType} className="rounded-lg bg-blue-700 text-white px-3 py-2 text-xs font-bold disabled:opacity-40">Save draft on this device</button>
         {draftMessage&&<p className="text-xs" role="status">{draftMessage}</p>}
         {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
@@ -230,7 +235,8 @@ export default function NewRequestPage() {
           }} className="text-left underline">{d.documentTypeName} — {new Date(d.updatedAt).toLocaleString()}</button>
           <button type="button" onClick={()=>void removeDocumentDraft(d.id).then(refreshDrafts)} className="text-red-700">Delete</button>
         </div>)}
-      </section>
+        </div>
+      </details>
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
           {errorMsg}
@@ -270,8 +276,8 @@ export default function NewRequestPage() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-gray-900">{docType.name}</p>
-                      <p className="text-[11px] text-gray-500">{docType.description}</p>
+                      <p className="text-sm font-bold text-gray-900">{docType.name}</p>
+                      <p className="text-xs text-gray-600">{docType.description}</p>
                     </div>
                     {isBusinessClearance && (
                       <span className="flex-shrink-0 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">In-Person Only</span>
@@ -325,7 +331,7 @@ export default function NewRequestPage() {
                       placeholder={`State the purpose for this ${selectedType.name}...`}
                       value={purpose}
                       onChange={(e) => setPurpose(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       required
                     />
                   </div>
