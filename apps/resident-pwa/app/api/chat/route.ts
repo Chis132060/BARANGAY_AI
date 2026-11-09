@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { findMatchingKnowledge } from "@/lib/ai/policy-knowledge";
-import { getAIGreeting } from "@/lib/ai/config";
 import { runSoraAgent } from "@/lib/ai/sora-agent";
 
 export const runtime = "nodejs";
@@ -11,10 +9,15 @@ async function fetchMatchingPolicies(supabase: any, query: string): Promise<{ ti
   const keywords = query.toLowerCase().split(' ').filter(w => w.length > 3);
   if (!keywords.length) return [];
 
+  // Active rows must also be in their current effective date window.
+  // RLS independently restricts residents to Active records.
+  const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from('policies')
     .select('policy_number, title, description, full_text')
     .eq('status', 'Active')
+    .or(`effective_date.is.null,effective_date.lte.${today}`)
+    .or(`expiry_date.is.null,expiry_date.gte.${today}`)
     .limit(100);
 
   if (!data || !data.length) return [];
@@ -107,8 +110,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const match = findMatchingKnowledge(message, !!user, language);
-
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
   const agentResponse = await runSoraAgent({
@@ -123,11 +124,8 @@ export async function POST(request: NextRequest) {
   if (agentResponse) {
     return NextResponse.json({
       ...agentResponse,
-      formType: match?.formType ?? agentResponse.form_type,
+      formType: agentResponse.form_type,
       formSchema: agentResponse.form_schema,
-      formTitle: match?.formTitle,
-      estimatedFee: match?.estimatedFee,
-      guestActionTrigger: match?.guestActionTrigger,
       auditRecorded: agentResponse.audit_recorded === true,
     });
   }
@@ -153,38 +151,16 @@ export async function POST(request: NextRequest) {
       const data = await fastApiRes.json();
       return NextResponse.json({
         ...data,
-        formType: match?.formType,
-        formTitle: match?.formTitle,
-        estimatedFee: match?.estimatedFee,
-        guestActionTrigger: match?.guestActionTrigger,
+        formType: data.form_type,
         auditRecorded: data.audit_recorded === true,
       });
     }
   } catch (err) {
-    console.warn("[/api/chat] API backend offline or timed out, using local policy fallback.");
+    console.warn("[/api/chat] API backend offline or timed out; checking current active DB policies.");
   }
 
-  // Local knowledge response fallback
-  if (match) {
-    const answer = match.reply;
-    const auditRecorded = await writeFallbackAudit(supabase, {
-      userId: user?.id,
-      sessionId,
-      query: message,
-      answer,
-      citations: [match.topic.title],
-    });
-    return NextResponse.json({
-      answer,
-      citations: [match.topic.title],
-      context_used: true,
-      formType: match.formType,
-      formTitle: match.formTitle,
-      estimatedFee: match.estimatedFee,
-      guestActionTrigger: match.guestActionTrigger,
-      auditRecorded,
-    });
-  }
+  // Do not answer from hard-coded policy facts, fees, office hours, or events.
+  // These local constants have no publication status or expiry guarantee.
 
   // Dynamic DB policy lookup — check Published barangay_policies for matching content
   const dbPolicies = await fetchMatchingPolicies(supabase, message);
@@ -198,24 +174,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ answer, citations, context_used: true, auditRecorded });
   }
 
-  const localFallbackGreetings: Record<string, string> = {
-    tgl: `${getAIGreeting('tagalog')}`,
-    ceb: `${getAIGreeting('cebuano')}`,
-    en: `${getAIGreeting('english')}`,
+  // If no approved, current record is available, return uncertainty instead of
+  // inventing an official answer or attaching a misleading official citation.
+  const unavailable: Record<string, string> = {
+    tgl: "Hindi ko pa ma-verify ang opisyal at kasalukuyang impormasyon. Pakikumpirma muna sa tanggapan ng barangay.",
+    ceb: "Dili pa nako ma-verify ang opisyal ug kasamtangang impormasyon. Palihug kumpirmaha una sa opisina sa barangay.",
+    en: "I cannot verify current official information right now. Please confirm with the barangay office.",
   };
-
-  const answer = localFallbackGreetings[language] || localFallbackGreetings.en;
+  const answer = unavailable[language] || unavailable.en;
   const auditRecorded = await writeFallbackAudit(supabase, {
     userId: user?.id,
     sessionId,
     query: message,
     answer,
-    citations: ["Barangay Official Knowledge"],
+    citations: [],
+    flagged: true,
   });
 
   return NextResponse.json({
     answer,
-    citations: ["Barangay Official Knowledge"],
+    citations: [],
     context_used: false,
     auditRecorded,
   });
