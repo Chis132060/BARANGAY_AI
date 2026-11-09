@@ -52,8 +52,20 @@ export default function NewRequestPage() {
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchDocTypes() {
@@ -226,7 +238,6 @@ export default function NewRequestPage() {
             Save a draft on this device if you cannot submit yet. Attachments are not saved and the barangay will not receive your request until submission succeeds.
           </p>
         <button type="button" onClick={()=>void saveDraft()} disabled={!selectedType} className="rounded-lg bg-blue-700 text-white px-3 py-2 text-xs font-bold disabled:opacity-40">Save draft on this device</button>
-        {draftMessage&&<p className="text-xs" role="status">{draftMessage}</p>}
         {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
           <button type="button" onClick={()=>{
             const type=documentTypes.find(t=>t.id===d.documentTypeId);
@@ -237,6 +248,11 @@ export default function NewRequestPage() {
         </div>)}
         </div>
       </details>
+      {draftMessage && (
+        <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          {draftMessage}
+        </p>
+      )}
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
           {errorMsg}
@@ -251,7 +267,7 @@ export default function NewRequestPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
-              Step 1 of 3: Choose a document
+              Step 1: Choose a document
             </p>
             <div className="space-y-2">
               {documentTypes.map((docType) => {
@@ -262,6 +278,7 @@ export default function NewRequestPage() {
                   <button
                     type="button"
                     key={docType.id}
+                    aria-pressed={isSelected}
                     onClick={() => {
                       setSelectedType(docType);
                       setFiles({});
@@ -324,7 +341,7 @@ export default function NewRequestPage() {
                 <>
                   <div className="space-y-3">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Step 2 of 3: Purpose / Notes
+                      Step 2: Purpose / Notes
                     </p>
                     <textarea
                       rows={3}
@@ -339,7 +356,7 @@ export default function NewRequestPage() {
                   {selectedType.requirements_json && selectedType.requirements_json.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Step 3 of 3: Attach requirements
+                        Step 3: Attach requirements
                       </p>
                       <p className="text-[10px] text-gray-500 mb-2">Maximum 5MB per file. Accepted formats: PDF, JPG, PNG.</p>
                       
@@ -370,13 +387,23 @@ export default function NewRequestPage() {
                     </div>
                   )}
 
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
+                    <p className="text-sm font-bold text-gray-800">Review before submitting</p>
+                    <p className="text-xs text-gray-700">Document: {selectedType.name}</p>
+                    <p className="text-xs text-gray-700">Attached files: {Object.keys(files).length}</p>
+                    <p className="text-xs text-gray-600">
+                      {isOnline
+                        ? "Submitting sends your request to the barangay for review."
+                        : "You are offline. If this request needs attachments, save a draft and reconnect. Otherwise, it will be queued on this device, not sent yet."}
+                    </p>
+                  </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
+                    className="w-full min-h-12 py-3 mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
                   >
                     {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {loading ? "Uploading & Submitting..." : "Submit Application"}
+                    {loading ? "Processing..." : isOnline ? "Submit Application" : "Queue on this device"}
                   </button>
                 </>
               )}
