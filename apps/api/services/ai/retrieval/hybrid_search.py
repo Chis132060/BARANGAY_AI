@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from services.supabase_service import get_supabase_client
 from services.ai.embeddings import embedding_manager
 from services.ai.retrieval.reranker import reranker
+from services.ai.retrieval.result_normalizer import normalize_retrieval_result
 
 logger = logging.getLogger(__name__)
 
@@ -64,24 +65,38 @@ class HybridRetriever:
         vector_results = await self._vector_search(query, limit=30)
         keyword_results = await self._keyword_search(query, limit=20)
         
-        # Deduplicate based on chunk ID
-        merged_dict = {}
-        
-        for chunk in vector_results:
-            merged_dict[str(chunk["id"])] = chunk
-            
-        for chunk in keyword_results:
-            if str(chunk["id"]) not in merged_dict:
-                merged_dict[str(chunk["id"])] = chunk
-                
+        # Normalize provider-specific RPC shapes before merging. Vector RPCs
+        # return chunk_id; legacy keyword search implementations may return id.
+        merged_dict: Dict[str, Dict[str, Any]] = {}
+        for raw_chunk in [*vector_results, *keyword_results]:
+            chunk = normalize_retrieval_result(raw_chunk)
+            if chunk is None:
+                logger.warning("Skipping retrieval row without a chunk identifier.")
+                continue
+
+            chunk_id = chunk["id"]
+            existing = merged_dict.get(chunk_id)
+            if existing is None:
+                merged_dict[chunk_id] = chunk
+                continue
+
+            # Merge metadata from both channels and keep the strongest similarity.
+            merged = {**existing, **chunk}
+            scores = [
+                value for value in (existing.get("similarity"), chunk.get("similarity"))
+                if isinstance(value, (int, float))
+            ]
+            if scores:
+                merged["similarity"] = max(scores)
+            merged_dict[chunk_id] = merged
+
         candidates = list(merged_dict.values())
-        
         if not candidates:
             return []
-            
-        # Rerank the merged candidates
+
         reranked = reranker.rerank(query, candidates, top_k=top_k)
-        
+        for rank, chunk in enumerate(reranked):
+            chunk["retrieval_rank"] = rank
         return reranked
 
 # Singleton

@@ -18,11 +18,24 @@ try {
   // Do the navigation directly instead of evaluating controller and then
   // reloading: activation can trigger the reload between those two operations.
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), { timeout: 15000 });
-  const hasController = await page.evaluate(() => Boolean(navigator.serviceWorker?.controller));
-  assert.ok(hasController, "production service worker should control the page");
+  await page.waitForFunction(
+    () => Boolean(navigator.serviceWorker?.controller),
+    null,
+    { timeout: 15000 },
+  );
+  // The controller-change navigation can destroy the previous execution
+  // context. waitForFunction already proves the page is controlled; avoid a
+  // second evaluate round-trip against a context that may just have navigated.
+  await page.waitForLoadState("domcontentloaded");
 
-  const cachesBefore = await page.evaluate(async () => await caches.keys());
+  // Read Cache Storage from the active service-worker execution context.
+  // The worker's activate handler navigates open clients; page.evaluate can
+  // therefore lose its document context between navigation and evaluation.
+  const activeWorker = context.serviceWorkers().find((worker) =>
+    worker.url().includes("/sw.js")
+  );
+  assert.ok(activeWorker, "active service worker execution context should be available");
+  const cachesBefore = await activeWorker.evaluate(async () => await caches.keys());
   assert.ok(cachesBefore.length > 0, "PWA precache should exist");
   console.log("Worker activated; cache names:", cachesBefore.join(", "));
 

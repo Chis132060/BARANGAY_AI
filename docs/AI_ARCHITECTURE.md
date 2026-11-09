@@ -77,3 +77,11 @@ AI endpoints should use timeouts, retries, streaming where helpful, and response
 - [VECTOR_DATABASE.md](VECTOR_DATABASE.md)
 - [PROMPT_ENGINEERING.md](PROMPT_ENGINEERING.md)
 
+
+
+## Unified Ate Sora target architecture
+
+The consolidated seven-layer AI stack and twelve-stage RAG implementation inventory is
+documented in [ATE_SORA_AI_STACK.md](ATE_SORA_AI_STACK.md). That document distinguishes
+existing foundations from incomplete production gates; it does not imply that every
+diagram capability is already production-ready.
