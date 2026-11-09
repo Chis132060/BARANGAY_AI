@@ -3,16 +3,22 @@ import { NotificationOnboarding } from "@/components/onboarding/NotificationOnbo
 
 
 import { useEffect, useState } from "react";
-import { ClipboardList, Megaphone, ChevronRight, Sparkles, Clock, CheckCircle2, FileText, Building2, Bot } from "lucide-react";
+import { ClipboardList, Megaphone, ChevronRight, Sparkles, FileText, Bot } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
 
 const quickActions = [
-  { href: "/requests/new", label: "Barangay Clearance", icon: FileText },
-  { href: "/requests/new", label: "Indigency Certificate", icon: ClipboardList },
-  { href: "/requests/new", label: "Business Permit", icon: Building2 },
-  { href: "/chat", label: "AI Resident Assistant", icon: Bot },
+  { href: "/requests/new", label: "Request a Document", description: "Apply for a certificate or clearance", icon: FileText },
+  { href: "/requests", label: "Track My Requests", description: "See progress and pickup details", icon: ClipboardList },
+  { href: "/chat", label: "Ask Ate Sora", description: "Get help with barangay services", icon: Bot },
+  { href: "/announcements", label: "Barangay Updates", description: "Read official announcements", icon: Megaphone },
+];
+
+const popularDocuments = [
+  { href: "/requests/new?document=clearance", label: "Barangay Clearance" },
+  { href: "/requests/new?document=indigency", label: "Certificate of Indigency" },
+  { href: "/requests/new?document=business", label: "Business Clearance" },
 ];
 
 export default function HomePage() {
@@ -88,28 +94,49 @@ export default function HomePage() {
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-200 flex items-center gap-1">
           <Sparkles className="h-3 w-3 text-amber-300" /> Smart Barangay Resident Portal
         </span>
-        <h1 className="text-xl font-extrabold mt-1">Hello, {residentName}</h1>
-        <p className="text-xs text-blue-100 mt-0.5">Welcome to your online barangay services portal.</p>
+        <h1 className="text-xl font-extrabold mt-1">Kumusta, {residentName}!</h1>
+        <p className="text-sm text-blue-100 mt-1">What would you like to do today?</p>
       </section>
 
       <NotificationOnboarding />
       {/* Quick Actions */}
       <section>
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-          Quick Barangay Services
+          What do you need?
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          {quickActions.map(({ href, label, icon: Icon }) => (
+          {quickActions.map(({ href, label, description, icon: Icon }) => (
             <Link
-              key={label}
+              key={href}
               href={href}
-              className="flex flex-col items-start gap-2 p-3.5 bg-blue-50/60 hover:bg-blue-100/70
-                         rounded-2xl border border-blue-100 transition-all shadow-2xs group"
+              className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl border border-blue-100
+                         bg-blue-50/60 p-4 transition-colors hover:bg-blue-100/70
+                         focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             >
-              <div className="p-2 rounded-xl bg-white text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
-                <Icon className="h-5 w-5" />
+              <div className="rounded-xl bg-white p-2.5 text-blue-600">
+                <Icon className="h-5 w-5" aria-hidden="true" />
               </div>
-              <span className="text-xs font-bold text-gray-800 leading-tight">{label}</span>
+              <span className="text-sm font-bold leading-tight text-gray-900">{label}</span>
+              <span className="text-xs leading-snug text-gray-600">{description}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Direct shortcuts keep the selected document when the application opens. */}
+      <section aria-label="Popular document applications">
+        <h2 className="mb-2 text-sm font-bold text-gray-800">Popular documents</h2>
+        <p className="mb-3 text-xs text-gray-600">Tap a document to start its application.</p>
+        <div className="flex flex-wrap gap-2">
+          {popularDocuments.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="inline-flex min-h-11 items-center rounded-full border border-blue-200 bg-white px-3.5 py-2
+                         text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline
+                         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            >
+              {item.label}
             </Link>
           ))}
         </div>
@@ -159,32 +186,32 @@ export default function HomePage() {
         </div>
 
         {activeRequest ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-2xs flex items-center justify-between">
+          <Link href="/requests" className="bg-white rounded-2xl border border-gray-100 p-4 shadow-2xs flex items-center justify-between gap-3 hover:border-blue-300" aria-label="View latest document request">
             <div className="space-y-1">
               <p className="text-xs font-bold text-gray-900">
-                {activeRequest.document_type?.name || "Barangay Clearance"}
+                {activeRequest.document_type?.name || "Barangay Document"}
               </p>
-              <p className="text-[10px] text-gray-400 font-mono">
+              <p className="text-xs text-gray-500">
                 Submitted {new Date(activeRequest.requested_date).toLocaleDateString()}
               </p>
             </div>
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
               activeRequest.status === "Approved" || activeRequest.status === "Released"
                 ? "bg-emerald-100 text-emerald-800"
                 : "bg-amber-100 text-amber-800"
             }`}>
               {activeRequest.status}
             </span>
-          </div>
+          </Link>
         ) : (
           <div className="rounded-2xl border border-dashed border-gray-200 p-6 text-center bg-gray-50/50 space-y-2">
             <ClipboardList className="h-7 w-7 text-gray-300 mx-auto" />
-            <p className="text-xs font-semibold text-gray-500">No active requests pending</p>
+            <p className="text-sm font-semibold text-gray-600">No recent document requests</p>
             <Link
               href="/requests/new"
               className="inline-block text-xs font-bold text-blue-600 hover:underline"
             >
-              Submit a request â†’
+              Start a document request
             </Link>
           </div>
         )}
