@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-  const { message, sessionId, language = "tgl" } = body as {
+  const { message, sessionId, language = "ceb" } = body as {
     message: string;
     sessionId?: string;
     language?: "tgl" | "ceb" | "en";
