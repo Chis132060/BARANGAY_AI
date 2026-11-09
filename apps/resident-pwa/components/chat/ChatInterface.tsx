@@ -60,7 +60,7 @@ export function ChatInterface() {
   };
 
   const [messages, setMessages] = useState<Message[]>([
-    { id: "welcome", sender: "ai", text: welcomeByLanguage["tgl"], timestamp: Date.now() },
+    { id: "welcome", sender: "ai", text: welcomeByLanguage["ceb"], timestamp: Date.now() },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,7 +69,7 @@ export function ChatInterface() {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [sessionId] = useState<string>(() => uuidv4());
-  const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
+  const [ttsLang, setTtsLang] = useState<TTSLanguage>("ceb");
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -103,7 +103,7 @@ export function ChatInterface() {
   useEffect(() => {
     const saved = window.localStorage.getItem("barangay-ai-language") as TTSLanguage | null;
     if (saved === "tgl" || saved === "ceb" || saved === "en") setTtsLang(saved);
-    else setShowLanguagePicker(true);
+    else setTtsLang("ceb");
   }, []);
 
   useEffect(() => {
