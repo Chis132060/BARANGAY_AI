@@ -282,8 +282,8 @@ export default function RequestsPage() {
             const isReadyForPickup =
               req.status.toLowerCase().includes("ready") ||
               req.status.toLowerCase().includes("pickup");
-            const fee = req.fee_amount;
-            const hasConfirmedFee = typeof fee === "number" && Number.isFinite(fee) && fee >= 0;
+            const fee = typeof req.fee_amount === "number" ? req.fee_amount : Number.NaN;
+            const hasConfirmedFee = Number.isFinite(fee) && fee >= 0;
             const isFree = req.payment_status === "Free" || (hasConfirmedFee && fee === 0);
             const canPay = hasConfirmedFee && fee > 0 &&
               (!req.payment_status || req.payment_status === "Unpaid" || req.payment_status === "Rejected");
