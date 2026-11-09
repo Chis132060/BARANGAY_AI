@@ -28,7 +28,14 @@ try {
   // second evaluate round-trip against a context that may just have navigated.
   await page.waitForLoadState("domcontentloaded");
 
-  const cachesBefore = await page.evaluate(async () => await caches.keys());
+  // Read Cache Storage from the active service-worker execution context.
+  // The worker's activate handler navigates open clients; page.evaluate can
+  // therefore lose its document context between navigation and evaluation.
+  const activeWorker = context.serviceWorkers().find((worker) =>
+    worker.url().includes("/sw.js")
+  );
+  assert.ok(activeWorker, "active service worker execution context should be available");
+  const cachesBefore = await activeWorker.evaluate(async () => await caches.keys());
   assert.ok(cachesBefore.length > 0, "PWA precache should exist");
   console.log("Worker activated; cache names:", cachesBefore.join(", "));
 
