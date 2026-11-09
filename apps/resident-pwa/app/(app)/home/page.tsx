@@ -153,7 +153,11 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {latestAnnouncement ? (
+        {loading ? (
+          <div role="status" className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-500">
+            Loading the latest advisory...
+          </div>
+        ) : latestAnnouncement ? (
           <div className="bg-white rounded-2xl border border-blue-100 p-4 shadow-2xs space-y-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
@@ -185,7 +189,11 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {activeRequest ? (
+        {loading ? (
+          <div role="status" className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-500">
+            Loading your latest request...
+          </div>
+        ) : activeRequest ? (
           <Link href="/requests" className="bg-white rounded-2xl border border-gray-100 p-4 shadow-2xs flex items-center justify-between gap-3 hover:border-blue-300" aria-label="View latest document request">
             <div className="space-y-1">
               <p className="text-xs font-bold text-gray-900">
