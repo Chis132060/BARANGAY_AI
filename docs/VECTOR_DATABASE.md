@@ -26,7 +26,7 @@ embedding tables, ingestion jobs and matching RPCs.
 
 ## Security and publication controls
 
-Migration `20261109000001_knowledge_chunks_access_control.sql` removes direct
+Migration `supabase/migrations/20261109000001_knowledge_chunks_access_control.sql` removes direct
 anon/authenticated table access and restricts resident-facing vector and keyword RPCs
 to explicitly `audience='public'`, `publication_status='approved'`, currently
 effective, non-expired, deployment-wide rows. Existing rows are deliberately migrated
