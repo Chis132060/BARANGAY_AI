@@ -8,6 +8,8 @@ const page = await context.newPage();
 try {
   const response = await page.goto(base + "/~offline", { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.equal(response?.status(), 200, "offline fallback page must load while connected");
+  assert.equal(new URL(page.url()).pathname, "/~offline", "offline fallback must remain public and must not redirect to login");
+  await page.getByRole("heading", { name: "No connection right now" }).waitFor({ timeout: 15000 });
   await page.waitForFunction(async () => {
     if (!("serviceWorker" in navigator)) return false;
     const registrations = await navigator.serviceWorker.getRegistrations();
@@ -45,7 +47,7 @@ try {
   await context.setOffline(true);
   const offlineResponse = await page.goto(base + "/home", { waitUntil: "domcontentloaded", timeout: 20000 });
   assert.ok(offlineResponse, "offline navigation should return fallback response");
-  await page.getByText("No connection right now").waitFor({ timeout: 15000 });
+  await page.getByRole("heading", { name: "No connection right now" }).waitFor({ timeout: 15000 });
   console.log("PASS: cold offline navigation produces usable fallback");
 
   const leaks = await page.evaluate(async () => {
