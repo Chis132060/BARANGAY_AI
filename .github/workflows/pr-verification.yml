@@ -67,6 +67,10 @@ jobs:
         env:
           PYTHONPATH: apps/api
         run: python -m pytest -q apps/api/tests/test_voice_auth.py
+      - name: Verify Ate Sora brain personality and autonomy policy
+        env:
+          PYTHONPATH: apps/api
+        run: python -m pytest -q apps/api/tests/test_sora_brain_policy.py
 
   pwa-offline-browser:
     name: Resident PWA Chromium offline smoke
