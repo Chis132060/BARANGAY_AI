@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=4000)
     session_id: Optional[str] = None
     user_id: Optional[str] = None  # ignored; identity is derived from the verified token
-    language: str = "tgl"
+    language: str = "ceb"
 
 
 class ChatResponse(BaseModel):
