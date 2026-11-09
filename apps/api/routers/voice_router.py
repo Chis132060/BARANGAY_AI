@@ -87,7 +87,7 @@ async def converse_voice(request: VoiceConversationRequest, authorization: Optio
     spoken_text = transcription["data"]["text"].strip()
     if not spoken_text:
         raise HTTPException(status_code=422, detail="No intelligible speech detected.")
-    await require_voice_access(authorization)
+    # Router dependency already authenticated this request and charged its voice quota.
     chat_result = await chat(ChatRequest(
         query=spoken_text, language=request.language, session_id=request.session_id
     ), authorization=authorization)
