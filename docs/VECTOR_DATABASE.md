@@ -1,71 +1,37 @@
 # Vector Database
 
-## Purpose
+BARANGAY_AI uses Supabase PostgreSQL with pgvector; a separate vector service is not
+required for current scale. Existing migrations define knowledge_chunks, provider-specific
+embedding tables, ingestion jobs and matching RPCs.
 
-This document explains how Smart Barangay uses Supabase PostgreSQL with pgvector for semantic search.
+## Existing implementation
 
-## Overview
+- knowledge_chunks stores text, metadata, source/trust fields, content hashes and versions.
+- knowledge_embeddings_gemini and knowledge_embeddings_local isolate vector dimensions.
+- ingestion_jobs tracks pending, processing, retry, completed and dead-letter work.
+- match_knowledge_embeddings_gemini and _local perform cosine-distance retrieval.
+- The API normalizes provider-specific chunk identifiers before downstream RAG processing.
 
-The vector database stores embeddings for approved knowledge chunks. At query time, the AI service embeds the user question and retrieves semantically similar chunks subject to audience, status, and metadata filters.
+## Operational rules
 
-## Architecture
+1. Never compare vectors from different embedding spaces or dimensions.
+2. Re-embed when source content hash, model, model version or dimension changes.
+3. Keep ingestion idempotent with bounded batches and retries.
+4. Choose HNSW/IVFFlat/exact search only after measuring data volume and query plans.
+5. Filter approved status, audience, effective dates and barangay scope in the database
+   before returning candidates to the application.
+6. Keep service-role credentials server-side and enable RLS on exposed tables.
+7. Monitor queue age, retries/dead letters, embedding latency, retrieval latency, recall
+   and stale embedding counts.
 
-```mermaid
-flowchart LR
-  Documents[knowledge_documents] --> Chunks[knowledge_chunks]
-  Chunks --> Vectors[knowledge_embeddings vector column]
-  Question[User Question] --> QueryVector[Query Embedding]
-  QueryVector --> Search[pgvector Similarity Search]
-  Vectors --> Search
-  Search --> Context[Top Relevant Chunks]
-```
+## Security blocker
 
-## Implementation Details
-
-Recommended fields:
-
-| Table | Fields |
-| --- | --- |
-| `knowledge_chunks` | `id`, `document_id`, `chunk_index`, `heading`, `content`, `token_count`, `content_hash`, `audience`, `created_at` |
-| `knowledge_embeddings` | `id`, `chunk_id`, `embedding_model`, `embedding`, `dimensions`, `created_at` |
-
-Retrieval should filter on approved document status, audience, language, and optional service category before vector similarity ordering. Store embedding model and dimensions to support future reindexing.
-
-## Design Decisions
-
-pgvector is used inside Supabase PostgreSQL instead of a separate vector database to simplify operations and preserve relational links between documents, chunks, approvals, and embeddings.
-
-## Advantages
-
-- One managed database for relational and vector data.
-- Easier permission and metadata joins.
-- Lower infrastructure complexity for the initial system.
-
-## Disadvantages
-
-- Dedicated vector databases may outperform pgvector at very large scale.
-- Index tuning requires real query volume.
-- Embedding model migrations require careful reindexing.
-
-## Security Considerations
-
-Vector rows can leak meaning even without raw documents, so they must inherit access restrictions from their source documents. Retrieval queries must never ignore audience and status filters.
-
-## Performance Considerations
-
-Use exact search while data volume is small. Add HNSW or IVFFlat indexes after measuring row count and latency. Keep chunk content concise to reduce prompt tokens.
-
-## Future Improvements
-
-- Add hybrid full-text and vector retrieval.
-- Add reranking model support.
-- Add embedding drift checks.
-- Add index maintenance runbooks.
+The original vector initialization migration creates a public SELECT policy on
+knowledge_chunks. Confirm all rows are public before relying on this policy. If the table
+can contain staff-only or resident-private information, a reviewed migration must replace
+broad access with the actual authorization model. Do not apply a generic auth.uid() policy
+to shared knowledge without defining ownership and audience.
 
 ## References
 
-- [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
-- [RAG_PIPELINE.md](RAG_PIPELINE.md)
-- [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)
-- [PERFORMANCE.md](PERFORMANCE.md)
-
+See ATE_SORA_AI_STACK.md, RAG_PIPELINE.md and KNOWLEDGE_BASE.md.

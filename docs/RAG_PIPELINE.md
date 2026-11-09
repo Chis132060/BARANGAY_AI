@@ -1,82 +1,53 @@
-# RAG Pipeline
+# Ate Sora RAG Pipeline
 
-## Purpose
+This document records the implementation and production acceptance criteria for the
+12-stage RAG pipeline. See ATE_SORA_AI_STACK.md for the unified seven-layer architecture.
 
-This document defines the Retrieval-Augmented Generation pipeline for Smart Barangay.
+## Runtime flow
 
-## Overview
+Resident question → language detection and terminology expansion → vector and keyword
+retrieval → canonical ID normalization and de-duplication → cross-encoder re-ranking
+→ trust/relevance and audience filters → bounded context with provenance → LLM generation
+→ safety, schema and citation validation → grounded answer or abstention.
 
-The RAG pipeline retrieves approved barangay knowledge and supplies it to an LLM so responses are grounded in local procedures. The pipeline covers ingestion, chunking, embedding, retrieval, prompt assembly, answer generation, and evaluation.
+## Stage implementation
 
-## Architecture
+| Stage | Existing implementation | Status |
+| --- | --- | --- |
+| Embeddings | Gemini/local providers and model-specific spaces | Foundation exists |
+| Vector store | Supabase pgvector and provider-specific RPCs | Foundation exists; access policies require audit |
+| Semantic retrieval | HybridRetriever vector search | Implemented |
+| Chunking | BoundedOrchestrator character-based overlapping chunks | Implemented; not token/section aware |
+| Re-ranking | Optional CrossEncoder | Optional; fallback available |
+| Hybrid retrieval | Vector plus keyword_search_chunks | Partial; deployed RPC must be verified |
+| Metadata filters | Trust-level filter in vector RPC | Partial; audience/status/effective date filtering not proven |
+| Context window | Top-k retrieval plus session memory | Partial; token-budget enforcement not proven |
+| Hallucination guard | Input/output guard and schema/citation validation | Partial; not claim-level evidence verification |
+| Grounding | Trust score, chunk IDs, citation validation and audit | Foundation exists; approval/audience constraints need enforcement |
+| Data drift | Content hashes, versions and persistent ingestion jobs | Partial; scheduled drift reconciliation not demonstrated |
+| Knowledge graph | Entity/edge storage with source provenance | Foundation exists; approval-aware traversal needs tests |
 
-```mermaid
-flowchart TD
-  Source[Approved Source Document] --> Normalize[Normalize Text]
-  Normalize --> Chunk[Chunk Content]
-  Chunk --> Embed[Generate Embeddings]
-  Embed --> Store[Store in pgvector]
-  Query[User Question] --> QueryEmbed[Embed Query]
-  QueryEmbed --> Retrieve[Similarity Search]
-  Store --> Retrieve
-  Retrieve --> Rerank[Filter and Rank Context]
-  Rerank --> Prompt[Build Prompt]
-  Prompt --> Generate[LLM Answer]
-  Generate --> Validate[Validate and Cite]
-  Validate --> User[Response]
-```
+## Retrieval contract
 
-## Implementation Details
+All retrieval sources are normalized to a canonical string ID before merge, de-duplication,
+grounding, prompt assembly and citation validation. Current vector RPCs expose chunk_id;
+legacy keyword search may expose id. The adapter in
+services/ai/retrieval/result_normalizer.py normalizes both shapes.
 
-Pipeline stages:
+The reranker order must be preserved through context validation. Relevance/trust thresholds
+remain eligibility gates and must not silently undo cross-encoder ordering.
 
-| Stage | Implementation Requirement |
-| --- | --- |
-| Source approval | Admin approves document before ingestion |
-| Normalization | Extract text, remove boilerplate, preserve headings |
-| Chunking | Split by semantic section with bounded token length |
-| Embedding | Generate embeddings using configured provider |
-| Storage | Save chunk metadata, content hash, and vector |
-| Retrieval | Query by vector similarity and optional metadata filters |
-| Prompt assembly | Include only relevant approved chunks |
-| Response | Answer concisely, cite sources, state uncertainty |
-| Evaluation | Track helpfulness, groundedness, refusal correctness |
+## Metadata policy
 
-## Design Decisions
+Before resident-facing retrieval includes mixed public/staff documents, the database must
+enforce approved status, audience, effective dates and barangay scope. Filtering only after
+retrieval or in the prompt is insufficient. See the CRITICAL gate in ATE_SORA_AI_STACK.md.
 
-The pipeline separates ingestion from chat requests so expensive document processing happens asynchronously. Approved-only indexing prevents draft or unverified content from entering resident-facing answers.
+## Evaluation
 
-## Advantages
+Maintain a versioned golden dataset of resident questions, expected source IDs, acceptable
+answer facts and required abstentions. Report Recall@k and nDCG, citation precision,
+evidence coverage, unsupported-claim rate, refusal correctness, language quality, p50/p95
+first-token and first-audio latency, provider cost, timeout, retry and fallback rates.
 
-- Keeps answers current with local documents.
-- Supports transparent source attribution.
-- Enables targeted reindexing when documents change.
-
-## Disadvantages
-
-- Requires ongoing knowledge-base maintenance.
-- Poor chunking can reduce retrieval accuracy.
-- Embedding model changes may require reindexing.
-
-## Security Considerations
-
-Uploaded documents are untrusted until approved. Retrieval must filter by document status and audience. Staff-only knowledge must not be returned to residents. Prompt instructions inside document text must not override system policy.
-
-## Performance Considerations
-
-Use background jobs for ingestion. Keep top-k retrieval bounded. Add vector indexes after data volume grows. Cache embeddings for identical content hashes.
-
-## Future Improvements
-
-- Add hybrid keyword plus vector search.
-- Add reranking for high-value answers.
-- Add automated stale document detection.
-- Add evaluation reports for answer quality.
-
-## References
-
-- [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)
-- [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)
-- [VECTOR_DATABASE.md](VECTOR_DATABASE.md)
-- [PROMPT_ENGINEERING.md](PROMPT_ENGINEERING.md)
-
+Do not claim a quality or latency target has passed until measured in CI/staging.

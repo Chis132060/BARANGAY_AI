@@ -47,6 +47,12 @@ class ContextValidator:
             else:
                 logger.debug(f"Chunk {chunk.get('id')} rejected. Score: {final_score:.2f} < {self.min_relevance_score}")
                 
-        # Sort descending by final score
-        valid_chunks.sort(key=lambda x: x["final_score"], reverse=True)
+        # Keep cross-encoder order when present. Relevance/trust remains the
+        # eligibility gate; it must not silently undo the reranker ordering.
+        valid_chunks.sort(
+            key=lambda chunk: (
+                chunk.get("retrieval_rank", float("inf")),
+                -chunk["final_score"],
+            )
+        )
         return valid_chunks
