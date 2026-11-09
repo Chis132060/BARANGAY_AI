@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ text, language: language || "tgl" }),
+      body: JSON.stringify({ text, language: language || "ceb" }),
       signal: AbortSignal.timeout(55000),
       cache: "no-store",
     });
