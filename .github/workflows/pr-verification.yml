@@ -70,7 +70,7 @@ jobs:
       - name: Verify Ate Sora brain personality and autonomy policy
         env:
           PYTHONPATH: apps/api
-        run: python -m pytest -q apps/api/tests/test_sora_brain_policy.py
+        run: python -m pytest -q apps/api/tests/test_sora_brain_policy.py apps/api/tests/test_knowledge_access_migration.py
 
   pwa-offline-browser:
     name: Resident PWA Chromium offline smoke
