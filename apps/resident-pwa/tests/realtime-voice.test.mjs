@@ -20,3 +20,12 @@ test("Realtime uses WebRTC and official chat for knowledge", () => {
   assert.match(chat, /consume_chat_rate_limit/);
 });
 test("Tool results use function_call_output", () => assert.match(hook, /function_call_output/));
+
+test("Realtime voice follows Ate Sora's warm controlled personality", () => {
+  assert.match(route, /warm, patient, respectful/);
+  assert.match(route, /Ask one focused clarification/);
+  assert.match(route, /controlled mode/);
+  assert.match(route, /read-only information access/);
+  assert.match(route, /Never interpret ambiguous language as consent/);
+  assert.match(route, /Never submit, file, approve, deny, edit, delete/);
+});
