@@ -27,10 +27,13 @@ from services.ai.language.language_detector import detect_language
 from services.ai.language.normalization import QueryNormalizer
 from services.ai.language.multilingual_retriever import multilingual_retriever
 from services.ai.language.response_language import build_language_instruction
+from services.ai.sora_brain import SoraRequestContext, sora_brain_policy
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are 'Barangay AI', a strictly grounded Smart Barangay portal assistant.
+SYSTEM_PROMPT = """{brain_policy}
+
+You are 'Barangay AI', a strictly grounded Smart Barangay portal assistant.
 
 STRICT RULES:
 1. ONLY use the provided context, tools, and knowledge graph data. NEVER guess.
@@ -148,7 +151,12 @@ class BoundedOrchestrator:
 
         # 2. Intent Detection & Language Normalization
         detected_lang = detect_language(query)
-        selected_language = language if language in ("tgl", "ceb", "en") else detected_lang
+        request_context = SoraRequestContext(
+            user_id=user_id,
+            session_id=session_id,
+            language=sora_brain_policy.normalize_language(language, detected_lang),
+        )
+        selected_language = request_context.language
         normalized_data = self.query_normalizer.normalize(query, detected_lang)
         intent = normalized_data.get("intent", "GENERAL")
         
@@ -175,7 +183,7 @@ class BoundedOrchestrator:
         # 4. Tool Planner (Bounded loop)
         tool_results = None
         if requires_tools:
-            executed, result = tool_planner.plan_and_execute(query, user_role="RESIDENT")
+            executed, result = tool_planner.plan_and_execute(query, user_role=sora_brain_policy.tool_role(request_context))
             if executed:
                 tool_results = result
                 
@@ -220,7 +228,7 @@ class BoundedOrchestrator:
             
         # 8. Memory Retrieval
         history_text = "NONE"
-        if session_id:
+        if sora_brain_policy.memory_is_available(request_context):
             history_text = memory_retriever.get_intelligent_context(session_id)
             
         # 9. Prompt Assembly with Response Language Policy
@@ -241,7 +249,7 @@ class BoundedOrchestrator:
         
         messages = [
             SystemMessage(content=SYSTEM_PROMPT.format(
-                context=context_text, kg_edges=kg_text, tools=tools_text, history=history_text, language_instruction=lang_instruction
+                brain_policy=sora_brain_policy.system_policy(), context=context_text, kg_edges=kg_text, tools=tools_text, history=history_text, language_instruction=lang_instruction
             )),
             HumanMessage(content=query)
         ]
