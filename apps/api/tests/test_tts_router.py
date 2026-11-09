@@ -26,13 +26,23 @@ class TTSContractTests(unittest.TestCase):
         payload = build_elevenlabs_payload("Maayong adlaw", "eleven_v3")
         self.assertEqual(payload["text"], "Maayong adlaw")
         self.assertEqual(payload["model_id"], "eleven_v3")
+        self.assertEqual(payload["language_code"], "ceb")
         self.assertNotIn("voice_settings", payload)
         self.assertNotIn("voice_id", payload)
 
     def test_legacy_multilingual_model_includes_voice_settings(self):
         payload = build_elevenlabs_payload("Maayong adlaw", "eleven_multilingual_v2")
         self.assertEqual(payload["model_id"], "eleven_multilingual_v2")
+        self.assertEqual(payload["language_code"], "ceb")
         self.assertIn("similarity_boost", payload["voice_settings"])
+
+    def test_tagalog_uses_elevenlabs_filipino_language_code(self):
+        payload = build_elevenlabs_payload("Magandang araw", "eleven_v3", "tgl")
+        self.assertEqual(payload["language_code"], "fil")
+
+    def test_english_uses_english_language_code(self):
+        payload = build_elevenlabs_payload("Hello", "eleven_v3", "en")
+        self.assertEqual(payload["language_code"], "en")
 
     def test_audio_data_url_preserves_mime_and_bytes(self):
         encoded = _data_url(b"sample-audio", "audio/mpeg")
