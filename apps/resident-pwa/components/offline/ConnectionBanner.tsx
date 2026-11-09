@@ -13,7 +13,10 @@ export function ConnectionBanner() {
     };
   }, []);
   if (online !== false) return null;
-  return <div role="status" aria-live="polite" className="bg-amber-100 border-b border-amber-300 text-amber-950 px-4 py-2 text-xs text-center font-semibold">
-    Offline — cached information may be outdated. Queued support tickets are not received until syncing succeeds.
+  return <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-amber-300 bg-amber-100 px-4 py-2 text-center text-xs font-semibold text-amber-950">
+    <span>Offline — saved information may be outdated. Queued changes are not submitted until syncing succeeds.</span>
+    <a href="/~offline" className="inline-flex min-h-11 items-center rounded-lg px-2 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-800">
+      View offline help
+    </a>
   </div>;
 }
