@@ -51,3 +51,31 @@ async def test_voice_quota_rejects_excessive_requests(monkeypatch):
             responses = [await client.post("/api/v1/tts/generate", json={"text":"Hello"}, headers={"Authorization":"Bearer test"}) for _ in range(3)]
     assert [r.status_code for r in responses] == [503, 503, 429]
     auth._voice_quota.clear()
+
+
+@pytest.mark.asyncio
+async def test_voice_conversation_consumes_one_voice_quota_check(monkeypatch):
+    """The router dependency is the single voice quota gate for one conversation."""
+    from core import auth
+    from routers import voice_router as voice_module
+    from routers.rag_router import ChatResponse
+
+    test_user = {"id": "00000000-0000-4000-8000-0000000000bb"}
+    auth._voice_quota.clear()
+    monkeypatch.setattr(voice_module, "transcribe_voice",
+        AsyncMock(return_value={"data": {"text": "When is the barangay office open?"}}))
+    monkeypatch.setattr("routers.rag_router.chat", AsyncMock(return_value=ChatResponse(
+        answer="Please check the official office schedule.", citations=[], context_used=True,
+        flagged=False, latency_ms=1, audit_recorded=True)), raising=False)
+    monkeypatch.setattr("routers.tts_router.generate_tts",
+        AsyncMock(return_value={"data": {"audio_url": "data:audio/wav;base64,AA=="}}), raising=False)
+
+    with patch("core.auth.verify_access_token", new_callable=AsyncMock, return_value=test_user):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post("/api/v1/voice/converse",
+                json={"audio_base64": "AAAA", "language": "en"},
+                headers={"Authorization": "Bearer test"})
+
+    assert response.status_code == 200
+    assert auth._voice_quota[test_user["id"]][0] == 1
+    auth._voice_quota.clear()

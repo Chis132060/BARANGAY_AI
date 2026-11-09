@@ -13,6 +13,7 @@ import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
 import { useSoraVoiceConversation } from "@/hooks/useSoraVoiceConversation";
+import { SoraRealtimeControls } from "./SoraRealtimeControls";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
@@ -601,8 +602,16 @@ export function ChatInterface() {
         </div>
       )}
 
+      {/* Optional real-time voice mode */}
+      {voiceMode && process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED === "true" && (
+        <SoraRealtimeControls language={ttsLang} sessionId={sessionId}
+          onUserTranscript={(transcript) => setMessages((prev) => [...prev, { id: "user-live-" + Date.now(), sender: "user", text: transcript, timestamp: Date.now() }])}
+          onAssistantMessage={(answer) => setMessages((prev) => [...prev, { id: "ai-live-" + Date.now(), sender: "ai", text: answer, timestamp: Date.now() }])}
+          onEnd={() => setVoiceMode(false)} />
+      )}
+
       {/* Voice mode status bar */}
-      {voiceMode && (
+      {voiceMode && process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true" && (
         <div className="px-4 py-2.5 bg-blue-50 border-t border-blue-100 flex items-center justify-between shrink-0">
           <div>
             <p className="text-xs font-bold text-blue-800">Voice Mode Active</p>
