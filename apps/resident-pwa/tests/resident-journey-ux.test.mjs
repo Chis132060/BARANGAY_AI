@@ -47,3 +47,30 @@ test("empty request list directs resident to a new application", () => {
   assert.match(requests, /href="\/requests\/new"/);
   assert.match(requests, /View all requests/);
 });
+
+
+test("offline fallback is public and bypasses auth network checks", () => {
+  const middleware = read("../middleware.ts");
+  assert.match(middleware, /pathname === "\/~offline"\) return NextResponse\.next/);
+  assert.match(middleware, /pathname === "\/~offline"[\s\S]*pathname === "\/sw\.js"/);
+});
+
+test("Profile keeps offline sync, language, and readable text preferences together", () => {
+  const profile = read("../app/(app)/profile/page.tsx");
+  assert.match(profile, /activeModal === "Offline & Sync"/);
+  assert.match(profile, /activeModal === "Language & Accessibility"/);
+  assert.match(profile, /window\.localStorage\.setItem\("barangay-ai-language", next\)/);
+  assert.match(profile, /window\.localStorage\.setItem\("barangay:large-text", String\(next\)\)/);
+  assert.match(layout, /barangay:appearance-changed/);
+});
+
+test("navigation and notifications have larger accessible controls", () => {
+  const nav = read("../components/layout/BottomNav.tsx");
+  const notifications = read("../app/(app)/notifications/page.tsx");
+  assert.match(nav, /aria-label="Main navigation"/);
+  assert.match(nav, /aria-current=\{active \? "page" : undefined\}/);
+  assert.match(nav, /label: "Ate Sora"/);
+  assert.match(notifications, /Filter notifications/);
+  assert.match(notifications, /View all requests|My requests/);
+  assert.match(notifications, /href="\/support"/);
+});
