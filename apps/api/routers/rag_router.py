@@ -6,7 +6,7 @@ from uuid import UUID
 from core.auth import require_chat_access, require_document_manager, require_user
 from services.orchestrator import rag_service
 from services.audit_service import audit_service
-from services.ai.usage_tracking import begin_usage_tracking, finish_usage_tracking
+from services.ai.usage_tracking import begin_usage_tracking, finish_usage_tracking, format_model_label
 from services.supabase_service import get_supabase_client
 
 router = APIRouter()
@@ -93,9 +93,7 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
 
         # Include query classification, tool-planning, and generation calls,
         # not just the final answer. Do not report zero if a provider omitted usage.
-        model_used = ", ".join(usage.models)[:50] if usage.models else (
-            "no-llm" if usage.attempted_calls == 0 else "unknown-provider-usage"
-        )
+        model_used = format_model_label(usage)
         audit_recorded = await audit_service.log(
             query_text=request.query,
             response_text=result["answer"],
