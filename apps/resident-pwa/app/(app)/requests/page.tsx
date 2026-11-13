@@ -53,6 +53,7 @@ export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState("All");
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
+  const [historyConnection, setHistoryConnection] = useState<"checking" | "synced" | "unavailable">("checking");
   const [requestError, setRequestError] = useState("");
   const [cachedAt, setCachedAt] = useState<number | null>(null);
   const supabase = createClient();
@@ -96,6 +97,7 @@ export default function RequestsPage() {
   async function loadRequests() {
     setLoading(true);
     setRequestError("");
+    setHistoryConnection("checking");
     try {
       // Cached Supabase session is checked locally; never load another user's data.
       const { data: { session } } = await supabase.auth.getSession();
@@ -111,12 +113,8 @@ export default function RequestsPage() {
         setRequests(cached.requests as DocRequest[]);
         setCachedAt(cached.updatedAt);
       }
-      if (!navigator.onLine) {
-        setRequestError(cached
-          ? "Offline: showing previously saved request summaries. Statuses and payments may have changed."
-          : "Offline: no saved request summaries on this device. Visit this page online first.");
-        return;
-      }
+      // Always attempt server refresh. navigator.onLine can report false
+      // even when the authenticated API is reachable.
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || user?.id !== userId) throw new Error("Unable to verify resident session.");
       const { data: resident, error: residentError } = await supabase
@@ -130,11 +128,13 @@ export default function RequestsPage() {
       const safe = (data || []) as unknown as DocRequest[];
       setRequests(safe);
       setCachedAt(Date.now());
+      setHistoryConnection("synced");
       try { await saveRequestSummaries(userId, safe); }
       catch { setRequestError("Request history loaded, but this device cannot save it for offline use."); }
     } catch (err) {
       console.error("Request history refresh failed:", err);
-      setRequestError("Could not refresh request history. Saved summaries, if available, may be outdated.");
+      setHistoryConnection("unavailable");
+      setRequestError("Unable to refresh request history from the server. Saved summaries, if available, may be outdated. This does not necessarily mean your device is offline.");
     } finally {
       setLoading(false);
     }
@@ -146,10 +146,8 @@ export default function RequestsPage() {
 
   const handlePaymentSubmit = async () => {
     if (!payingRequest || !referenceInput) return;
-    if (!navigator.onLine) {
-      setPaymentError("Payment references cannot be submitted offline. Reconnect and confirm the status before retrying.");
-      return;
-    }
+    // Let the authenticated server decide if the payment reference was received.
+    // A browser-level offline hint is not reliable proof of disconnection.
     setSubmittingPayment(true);
     setPaymentError(null);
     try {
@@ -208,12 +206,12 @@ export default function RequestsPage() {
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-blue-600" : ""}`} />
           </button>
           {/* Connectivity only: online does not guarantee realtime subscription health. */}
-          <div role="status" className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${isOnline ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
+          <div role="status" className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${historyConnection === "synced" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
             <span className="relative flex h-2 w-2">
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? "bg-green-500" : "bg-amber-500"}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${historyConnection === "synced" ? "bg-green-500" : "bg-amber-500"}`}></span>
               
             </span>
-            {isOnline ? "Online" : "Offline"}
+            {historyConnection === "synced" ? "History synced" : historyConnection === "checking" ? "Checking server" : isOnline ? "Server unavailable" : "Connection unverified"}
           </div>
           <Link
             href="/chat"
