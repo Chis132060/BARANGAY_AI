@@ -6,6 +6,7 @@ from uuid import UUID
 from core.auth import require_chat_access, require_document_manager, require_user
 from services.orchestrator import rag_service
 from services.audit_service import audit_service
+from services.ai.usage_tracking import begin_usage_tracking, finish_usage_tracking
 from services.supabase_service import get_supabase_client
 
 router = APIRouter()
@@ -35,6 +36,7 @@ class ChatResponse(BaseModel):
     form_type: Optional[str] = None
     form_schema: Optional[dict] = None
     audit_recorded: bool = False
+    model_used: Optional[str] = None
 
 
 # â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -78,21 +80,32 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
             if not existing.data:
                 db.table("ai_sessions").insert({"id": session_id, "user_id": user_id, "title": "Resident chat"}).execute()
 
-        result = await rag_service.generate_response(
-            query=request.query,
-            session_id=session_id,
-            user_id=user_id,
-            language=request.language,
-        )
+        usage_token = begin_usage_tracking()
+        try:
+            result = await rag_service.generate_response(
+                query=request.query,
+                session_id=session_id,
+                user_id=user_id,
+                language=request.language,
+            )
+        finally:
+            usage = finish_usage_tracking(usage_token)
 
-        await audit_service.log(
+        # Include query classification, tool-planning, and generation calls,
+        # not just the final answer. Do not report zero if a provider omitted usage.
+        model_used = ", ".join(usage.models)[:200] if usage.models else (
+            "no-llm" if usage.attempted_calls == 0 else "unknown-provider-usage"
+        )
+        audit_recorded = await audit_service.log(
             query_text=request.query,
             response_text=result["answer"],
             retrieved_chunk_ids=result["chunk_ids"],
-            model_used="gemini-1.5-flash",
+            model_used=model_used,
             latency_ms=result["latency_ms"],
             user_id=user_id,
             session_id=session_id,
+            tokens_prompt=usage.prompt_tokens if usage.tokens_known else None,
+            tokens_completion=usage.completion_tokens if usage.tokens_known else None,
             flagged=result["flagged"],
             flag_reason=result.get("flag_reason"),
         )
@@ -105,7 +118,8 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
             latency_ms=result["latency_ms"],
             form_type=result.get("form_type"),
             form_schema=result.get("form_schema"),
-            audit_recorded=True,
+            audit_recorded=bool(audit_recorded),
+            model_used=model_used,
         )
     except Exception as e:
         if isinstance(e, HTTPException):
