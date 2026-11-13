@@ -8,6 +8,7 @@ from services.ai.interfaces import (
 )
 from services.ai.circuit_breaker import CircuitBreaker, InMemoryCircuitStateStore
 from services.ai.error_classifier import classify_error, should_failover
+from services.ai.usage_tracking import mark_provider_attempt, record_provider_success
 
 from services.ai.providers.gemini_provider import GeminiProvider
 from services.ai.providers.groq_provider import GroqProvider
@@ -85,8 +86,10 @@ class AIProviderManager:
             provider = self._all_providers[provider_name]
             
             try:
-                # Execute Request
+                # Record all attempts; failed attempts can have unknown provider charges.
+                mark_provider_attempt()
                 response = provider.generate(request, request_id)
+                record_provider_success(response.provider, response.model, response.usage)
                 
                 # Record Success
                 breaker.record_success()

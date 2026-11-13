@@ -1,7 +1,7 @@
 """
 audit_service.py
-Writes every LLM interaction to the ai_audit_logs Supabase table.
-Runs as a fire-and-forget background task — never blocks the response.
+Attempts a durable ai_audit_logs insert for model usage and response audits.
+Returns the actual persistence result; never invents audit success.
 """
 
 import time
@@ -51,10 +51,13 @@ class AuditService:
             if flag_reason:
                 record["flag_reason"] = flag_reason
 
-            self.supabase.table("ai_audit_logs").insert(record).execute()
+            result = self.supabase.table("ai_audit_logs").insert(record).execute()
+            return bool(getattr(result, "data", None))
         except Exception as e:
-            # Audit failures must never crash the main request
-            print(f"[AuditService] WARNING: Failed to write audit log: {e}")
+            # Logging failures must not crash chat, but the response must report
+            # audit_recorded=False so the missing record is discoverable.
+            print(f"[AuditService] WARNING: Failed to write audit log: {type(e).__name__}")
+            return False
 
 
 # Singleton

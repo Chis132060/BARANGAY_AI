@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runSoraAgent } from "@/lib/ai/sora-agent";
+import { matchServiceFaq, buildServiceFaqAnswer, buildServiceFaqUnavailable } from "@/lib/ai/verified-service-faq";
 
 export const runtime = "nodejs";
 
@@ -55,6 +56,9 @@ async function writeFallbackAudit(supabase: any, input: {
   answer: string;
   citations: string[];
   flagged?: boolean;
+  modelUsed?: string;
+  tokensPrompt?: number;
+  tokensCompletion?: number;
 }) {
   const { error } = await supabase.from("ai_audit_logs").insert({
     user_id: input.userId ?? null,
@@ -62,7 +66,9 @@ async function writeFallbackAudit(supabase: any, input: {
     query_text: input.query,
     response_text: input.answer,
     retrieved_chunk_ids: [],
-    model_used: "local-policy-fallback",
+    model_used: input.modelUsed ?? "local-policy-fallback",
+    ...(input.tokensPrompt !== undefined ? { tokens_prompt: input.tokensPrompt } : {}),
+    ...(input.tokensCompletion !== undefined ? { tokens_completion: input.tokensCompletion } : {}),
     latency_ms: 0,
     flagged: input.flagged ?? false,
   });
@@ -108,6 +114,54 @@ export async function POST(request: NextRequest) {
       { error: "Too many requests. Please wait a moment before trying again." },
       { status: 429 }
     );
+  }
+
+  // First check safe, common service-navigation questions against the existing
+  // RLS-protected application catalog. This branch must run BEFORE ANY AI agent,
+  // external API call, embedding generation, or LLM-based query normalization.
+  // Do not accept catalog entries as authority for fees, eligibility, or hours.
+  const faq = matchServiceFaq(message);
+  if (faq) {
+    let catalogVerified = false;
+    try {
+      const { data, error } = await supabase
+        .from("document_types")
+        .select("id,name")
+        .eq("name", faq.documentName)
+        .limit(2);
+      catalogVerified = !error && Array.isArray(data) && data.length === 1 &&
+        data[0].name === faq.documentName;
+    } catch {
+      // Fail closed without spending paid-model tokens when the catalog is offline.
+      catalogVerified = false;
+    }
+
+    const answer = catalogVerified
+      ? buildServiceFaqAnswer(faq, language)
+      : buildServiceFaqUnavailable(faq, language);
+    const citations = catalogVerified ? ["App service catalog: " + faq.documentName] : [];
+    const auditRecorded = await writeFallbackAudit(supabase, {
+      userId: user.id,
+      sessionId,
+      query: "SERVICE_FAQ:" + faq.id, // Do not store raw resident text for FAQ analytics.
+      answer,
+      citations,
+      flagged: !catalogVerified,
+      modelUsed: "service-catalog-faq/no-llm",
+      tokensPrompt: 0,
+      tokensCompletion: 0,
+    });
+    return NextResponse.json({
+      answer,
+      citations,
+      context_used: catalogVerified,
+      flagged: !catalogVerified,
+      auditRecorded,
+      answer_source: catalogVerified ? "app_service_catalog" : "service_catalog_unavailable",
+      model_used: "service-catalog-faq/no-llm",
+      tokens_prompt: 0,
+      tokens_completion: 0,
+    });
   }
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
