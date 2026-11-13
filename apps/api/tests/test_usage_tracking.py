@@ -60,6 +60,19 @@ class UsageTrackingTests(unittest.TestCase):
         self.assertEqual(inner_result.prompt_tokens, 3)
         self.assertEqual(outer_result.prompt_tokens, 9)
 
+    def test_model_label_fits_production_database_column(self):
+        from services.ai.usage_tracking import format_model_label
+        token = begin_usage_tracking()
+        mark_provider_attempt()
+        record_provider_success("a-model-provider", "m" * 80, {"inputTokens": 1, "outputTokens": 1})
+        mark_provider_attempt()
+        record_provider_success("backup", "another-model", {"inputTokens": 2, "outputTokens": 3})
+        usage = finish_usage_tracking(token)
+        label = format_model_label(usage)
+        self.assertLessEqual(len(label), 50)
+        self.assertIn("+1 more", label)
+        self.assertEqual(format_model_label(type(usage)()), "no-llm")
+
     def test_invalid_boolean_usage_is_not_accepted_as_token_count(self):
         token = begin_usage_tracking()
         mark_provider_attempt()
