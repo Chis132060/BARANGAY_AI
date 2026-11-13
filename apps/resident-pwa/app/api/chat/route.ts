@@ -158,6 +158,9 @@ export async function POST(request: NextRequest) {
       flagged: !catalogVerified,
       auditRecorded,
       answer_source: catalogVerified ? "app_service_catalog" : "service_catalog_unavailable",
+      model_used: "service-catalog-faq/no-llm",
+      tokens_prompt: 0,
+      tokens_completion: 0,
     });
   }
 
