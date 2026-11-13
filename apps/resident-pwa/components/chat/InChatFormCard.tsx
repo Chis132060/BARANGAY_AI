@@ -157,6 +157,28 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
     );
   }
 
+  // Keep the existing app's in-person-only Business Clearance workflow.
+  // Do not quietly turn it into an online application via AI chat.
+  if (formType === "business") {
+    return (
+      <section aria-label="Business Clearance appointment guidance"
+        className="w-full rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs space-y-3">
+        <h3 className="font-bold text-amber-950">Business Clearance — In-person process</h3>
+        <p className="text-amber-900">The current resident app requires an appointment and personal appearance for Business Clearance. An online application is not offered for this service.</p>
+        {catalog?.requirements_json && catalog.requirements_json.length > 0 && (
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-950">Catalog requirements:</p>
+            <ul className="list-disc pl-5">{catalog.requirements_json.map((req) => <li key={req}>{req}</li>)}</ul>
+          </div>
+        )}
+        <p className="text-amber-900">Confirm requirements, any fees, and your schedule with barangay staff.</p>
+        <Link href="/appointments/new" className="block rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white">
+          Book an Appointment
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section aria-label="Interactive Document Application Form"
       className="w-full rounded-2xl border border-blue-200 bg-blue-50 p-3.5 text-xs space-y-3">
