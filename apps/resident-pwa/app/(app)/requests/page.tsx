@@ -225,16 +225,6 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      <Link
-        href="/requests/new"
-        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-      >
-        <FileText className="h-4 w-4" aria-hidden="true" />
-        Request a Document Online
-        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-      </Link>
-      <p className="text-xs text-gray-500">Choose a document, review the official requirements shown in the form, and submit your request online. Ask Ate Sora if you need guidance.</p>
-
       {cachedAt && <p className="text-xs text-amber-800">Last request history refresh: {new Date(cachedAt).toLocaleString()}. Verify status online before pickup or payment.</p>}
       {requestError && <p role="alert" className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">{requestError}</p>}
 
@@ -271,10 +261,10 @@ export default function RequestsPage() {
           </div>
           {activeTab === "All" ? (
             <Link
-              href="/requests/new"
+              href="/chat"
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white"
             >
-              Request a Document <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              Ask Ate Sora to Request <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           ) : (
             <button
