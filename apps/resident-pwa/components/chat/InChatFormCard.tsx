@@ -36,9 +36,6 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [purpose, setPurpose] = useState("");
   const [files, setFiles] = useState<Record<string, File>>({});
-  const [businessName, setBusinessName] = useState("");
-  const [businessNature, setBusinessNature] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -100,11 +97,6 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
         return;
       }
     }
-    if (formType === "business" && (!businessName.trim() || !businessNature.trim() || !businessAddress.trim())) {
-      setSubmitError("Please enter your business name, nature, and address.");
-      return;
-    }
-
     submissionInFlight.current = true;
     setSubmitting(true);
     setSubmitError("");
@@ -115,13 +107,6 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       payload.set("purpose", normalizedPurpose);
       if (!operationId.current) operationId.current = crypto.randomUUID();
       payload.set("clientOperationId", operationId.current);
-      if (formType === "business") {
-        payload.set("businessDetails", JSON.stringify({
-          businessName: businessName.trim(),
-          businessNature: businessNature.trim(),
-          businessAddress: businessAddress.trim(),
-        }));
-      }
       for (const requirement of catalog.requirements_json) {
         payload.set("file_" + requirement, files[requirement]);
       }
@@ -209,22 +194,6 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
               className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900"
               placeholder="Why do you need this document?" />
           </label>
-          {formType === "business" && (
-            <div className="space-y-2">
-              <label className="block space-y-1">Business name *
-                <input required maxLength={120} value={businessName} onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm" />
-              </label>
-              <label className="block space-y-1">Business nature *
-                <input required maxLength={120} value={businessNature} onChange={(e) => setBusinessNature(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm" />
-              </label>
-              <label className="block space-y-1">Business address *
-                <input required maxLength={250} value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm" />
-              </label>
-            </div>
-          )}
           <div className="space-y-2">
             <p className="font-bold text-slate-800">Required attachments (current barangay catalog)</p>
             {catalog.requirements_json.length === 0 && <p>No attachments are listed in the current catalog.</p>}
