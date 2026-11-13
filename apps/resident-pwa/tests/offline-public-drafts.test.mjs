@@ -26,10 +26,11 @@ test("Ate Sora attempts the real API and never equates a browser hint with backe
  assert.doesNotMatch(chat,/if \(!navigator\.onLine\)/);
 });
 
-test("payment references cannot be reported as submitted while offline",()=>{
+test("payment references require an actual successful server response, not browser connectivity hints",()=>{
  const requests=read("../app/(app)/requests/page.tsx");
- assert.match(requests,/Payment references cannot be submitted offline/);
- assert.match(requests,/if \(!navigator\.onLine\)/);
+ assert.match(requests,/await submitPaymentReference\(payingRequest\.id, referenceInput\)/);
+ assert.match(requests,/setPaymentError\(err\.message\)/);
+ assert.doesNotMatch(requests,/if \(!navigator\.onLine\)/);
 });
 
 test("offline fallback provides public cached content without pretending to submit",()=>{
