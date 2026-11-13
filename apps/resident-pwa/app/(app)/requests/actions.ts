@@ -91,29 +91,10 @@ export async function submitDocumentRequest(formData: FormData) {
   }
 
 
-  // In-chat business requests must include their identifying details. Never trust
-  // arbitrary JSON fields from an AI model or expose them as database column names.
-  let businessDetails: { businessName: string; businessNature: string; businessAddress: string } | null = null;
+  // Match the official resident application workflow: Business Clearance is
+  // appointment/in-person only. Never let the AI form bypass that restriction.
   if (type.name === "Business Clearance") {
-    const raw = formData.get("businessDetails");
-    try {
-      const value: unknown = JSON.parse(typeof raw === "string" ? raw : "");
-      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid");
-      const details = value as Record<string, unknown>;
-      const names = ["businessName", "businessNature", "businessAddress"] as const;
-      if (!names.every((name) => typeof details[name] === "string" &&
-          (details[name] as string).trim().length > 0 &&
-          (details[name] as string).length <= (name === "businessAddress" ? 250 : 120))) {
-        throw new Error("invalid");
-      }
-      businessDetails = {
-        businessName: (details.businessName as string).trim(),
-        businessNature: (details.businessNature as string).trim(),
-        businessAddress: (details.businessAddress as string).trim(),
-      };
-    } catch {
-      throw new Error("Business Clearance requires business name, nature and address.");
-    }
+    throw new Error("Business Clearance requires an in-person appointment; online submission is not available.");
   }
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
@@ -193,7 +174,7 @@ export async function submitDocumentRequest(formData: FormData) {
       status: "Pending",
       remarks: purpose,
       requested_date: new Date().toISOString(),
-      form_data: { attachments, requestedVia: businessDetails ? "Ate Sora" : "Document Request", ...(businessDetails ? { businessDetails } : {}) },
+      form_data: { attachments },
       fee_amount: null,
       payment_status: "Pending", // official fee has not been configured; never infer FREE from a zero default
       requirements_status: "Complete",
