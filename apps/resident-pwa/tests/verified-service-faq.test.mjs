@@ -41,23 +41,24 @@ test("dynamic facts and unusual input do not get misleading FAQ answers", () => 
   assert.equal(matchServiceFaq("How do I request a clearance? " + "x".repeat(240)), null);
 });
 
-test("FAQ answers provide a usable path, not unverified amounts or office hours", () => {
+test("FAQ answers direct residents to the in-chat form, not Requests for new applications", () => {
   for (const language of ["tgl", "ceb", "en"]) {
     const answer = buildServiceFaqAnswer(
       matchServiceFaq("How do I request Barangay Clearance?"), language
     );
-    assert.match(answer, /Requests > Request Document/);
+    assert.match(answer, /form/i);
     assert.match(answer, /Barangay Clearance/);
+    assert.doesNotMatch(answer, /Requests > Request Document/);
     assert.doesNotMatch(answer, /₱\d|Frontline Window|8:00 AM|5:00 PM/);
     assert.ok(answer.length > 120);
     const business = buildServiceFaqAnswer(
       matchServiceFaq("How do I request Business Clearance?"), language
     );
-    assert.match(business, /Book an Appointment/);
+    assert.match(business, /form/i);
   }
   assert.match(buildServiceFaqUnavailable(
     matchServiceFaq("How do I request Barangay Clearance?"), "ceb"
-  ), /Dili pa nako makumpirma/);
+  ), /Dili nako ma-load/);
 });
 
 test("FAQ is strictly after auth and shared quota but before agents and backend", () => {
