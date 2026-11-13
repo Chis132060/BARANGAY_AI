@@ -50,6 +50,11 @@ export function matchServiceFaq(query: string): ServiceFaq | null {
 
 export function buildServiceFaqAnswer(service: ServiceFaq, lang: FaqLanguage): string {
   const name = service.documentName;
+  if (service.id === "business") {
+    if (lang === "ceb") return "Para sa " + name + ", in-person appointment ang kasamtangang proseso sa resident app. Pilia ang Book an Appointment. Kumpirmaha sa barangay ang mga rekisitos, bayad ug iskedyul.";
+    if (lang === "tgl") return "Para sa " + name + ", in-person appointment ang kasalukuyang proseso sa resident app. Piliin ang Book an Appointment. Kumpirmahin sa barangay ang requirements, bayad at schedule.";
+    return "For " + name + ", the current resident app requires an in-person appointment. Choose Book an Appointment and confirm requirements, fees and schedule with barangay staff.";
+  }
   // This response is navigation guidance only. The in-chat form independently
   // loads the current document catalog and refuses submission if it cannot.
   if (lang === "ceb") return [
