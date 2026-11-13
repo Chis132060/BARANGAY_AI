@@ -249,7 +249,7 @@ export default function NewRequestPage() {
         {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
           <button type="button" onClick={()=>{
             const type=documentTypes.find(t=>t.id===d.documentTypeId);
-            if(type){setSelectedType(type);setPurpose(d.purpose);setFiles({});setDraftMessage("Draft loaded. Reattach files before submission.");}
+            if(type){requestOperationId.current=null;setSelectedType(type);setPurpose(d.purpose);setFiles({});setDraftMessage("Draft loaded. Reattach files before submission.");}
             else setDraftMessage("This document type is not currently available. Reconnect and refresh.");
           }} className="text-left underline">{d.documentTypeName} — {new Date(d.updatedAt).toLocaleString()}</button>
           <button type="button" onClick={()=>void removeDocumentDraft(d.id).then(refreshDrafts)} className="text-red-700">Delete</button>
@@ -288,6 +288,7 @@ export default function NewRequestPage() {
                     key={docType.id}
                     aria-pressed={isSelected}
                     onClick={() => {
+                      requestOperationId.current = null;
                       setSelectedType(docType);
                       setFiles({});
                     }}
