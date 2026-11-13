@@ -288,7 +288,7 @@ export function ChatInterface() {
             message: aiText,
             form_type: finalFormType ?? null,
             citations: citations,
-            model_used: "gemini-1.5-flash",
+            model_used: typeof data.model_used === "string" ? data.model_used : "unreported",
             session_id: persistedSessionId,
           });
           await supabase.from("chat_sessions").update({
