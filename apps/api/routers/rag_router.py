@@ -93,7 +93,7 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
 
         # Include query classification, tool-planning, and generation calls,
         # not just the final answer. Do not report zero if a provider omitted usage.
-        model_used = ", ".join(usage.models)[:200] if usage.models else (
+        model_used = ", ".join(usage.models)[:50] if usage.models else (
             "no-llm" if usage.attempted_calls == 0 else "unknown-provider-usage"
         )
         audit_recorded = await audit_service.log(
