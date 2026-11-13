@@ -31,6 +31,7 @@ interface Message {
   formTitle?: string;
   formSchema?: any;
   guestActionTrigger?: boolean;
+  documentShortcut?: string;
   citations?: string[];
   contextUsed?: boolean;
   isError?: boolean;
@@ -276,6 +277,7 @@ export function ChatInterface() {
         formTitle: finalFormTitle,
         formSchema: finalFormSchema,
         guestActionTrigger: guestTrigger,
+        documentShortcut: requestedDocumentForm(userText) ?? undefined,
       };
       setMessages((prev) => [...prev, aiMsg]);
 
@@ -518,6 +520,19 @@ export function ChatInterface() {
                         </span>
                       )}
                     </div>
+                  )}
+
+                  {/* Actionable service guidance: never invent requirements or fees. The
+                      existing request page loads the current catalog and its official requirements. */}
+                  {!isUser && !m.isError && m.documentShortcut && (
+                    <Link
+                      href={`/requests/new?document=${encodeURIComponent(m.documentShortcut)}`}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
+                      <FileText className="h-4 w-4" aria-hidden="true" />
+                      Open {DOCUMENT_FORMS[m.documentShortcut as keyof typeof DOCUMENT_FORMS].title} Request Form
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
                   )}
 
                   {/* Dynamic In-Chat Form */}
