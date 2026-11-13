@@ -19,10 +19,11 @@ test("document drafts are owner-scoped and cannot masquerade as submitted",()=>{
  assert.match(screen,/Attachments are not stored/);
 });
 
-test("offline AI does not fabricate current official responses",()=>{
+test("Ate Sora attempts the real API and never equates a browser hint with backend availability",()=>{
  const chat=read("../components/chat/ChatInterface.tsx");
- assert.match(chat,/if \(!navigator\.onLine\)/);
- assert.match(chat,/the online Barangay AI and current official records are unavailable/);
+ assert.match(chat,/fetch\("\/api\/chat"/);
+ assert.match(chat,/const networkFailed = err instanceof TypeError/);
+ assert.doesNotMatch(chat,/if \(!navigator\.onLine\)/);
 });
 
 test("payment references cannot be reported as submitted while offline",()=>{
