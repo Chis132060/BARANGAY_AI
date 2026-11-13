@@ -37,9 +37,13 @@ export function matchServiceFaq(query: string): ServiceFaq | null {
   if (text.length < 9 || text.length > 220 || text.includes("@") || /\b\d{7,}\b/.test(text)) return null;
   if (!HOW_TO_INTENT.test(text) || REQUIRES_CURRENT_OFFICIAL_FACT.test(text)) return null;
 
+  // "Business Clearance" contains "Clearance". Do not mistake a compound
+  // question about *both* Barangay and Business Clearance for one service.
+  const businessMentioned = SERVICE_MATCHERS.business.test(text);
+  if (businessMentioned && /\b(?:barangay|brgy)\s+clearance\b/i.test(text)) return null;
   const matches = SERVICES.filter((service) =>
     SERVICE_MATCHERS[service.id].test(text) &&
-    (service.id !== "clearance" || !SERVICE_MATCHERS.business.test(text))
+    (service.id !== "clearance" || !businessMentioned)
   );
   return matches.length === 1 ? matches[0] : null;
 }
