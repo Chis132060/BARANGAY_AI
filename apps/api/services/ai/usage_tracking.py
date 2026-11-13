@@ -57,3 +57,12 @@ def finish_usage_tracking(token: Token) -> RequestAIUsage:
     usage = _active_usage.get()
     _active_usage.reset(token)
     return usage if usage is not None else RequestAIUsage()
+
+def format_model_label(usage: RequestAIUsage, max_length: int = 50) -> str:
+    """Fit provider attribution into existing varchar(50) audit/history fields."""
+    if not usage.models:
+        return "no-llm" if usage.attempted_calls == 0 else "unknown-provider-usage"
+    if len(usage.models) == 1:
+        return usage.models[0][:max_length]
+    suffix = " +" + str(len(usage.models) - 1) + " more"
+    return usage.models[0][:max_length - len(suffix)] + suffix
