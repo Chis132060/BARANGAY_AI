@@ -16,6 +16,7 @@ import { useSoraVoiceConversation } from "@/hooks/useSoraVoiceConversation";
 import { SoraRealtimeControls } from "./SoraRealtimeControls";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
+import { matchServiceFaq } from "@/lib/ai/verified-service-faq";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
@@ -40,7 +41,7 @@ interface Message {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
-  const id = requestedDocumentForm(text);
+  const id = requestedDocumentForm(text) ?? matchServiceFaq(text)?.id ?? null;
   if (!id) return {};
   if (!isLoggedIn) return { guestActionTrigger: true };
   return { formType: id, formTitle: DOCUMENT_FORMS[id].title };
@@ -88,7 +89,7 @@ export function ChatInterface() {
       lastVoiceReplyRef.current = aiId; // voice endpoint already returns spoken audio
       setMessages((prev) => [...prev,
         { id: `user-voice-${now}`, sender: "user", text: reply.transcript, timestamp: now },
-        { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1 },
+        { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1, ...detectFormTrigger(reply.transcript, isLoggedIn) },
       ]);
     },
   });
