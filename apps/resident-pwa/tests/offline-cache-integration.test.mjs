@@ -51,9 +51,10 @@ test("offline fallback renders saved program and organization snapshots", () => 
   assert.match(fallback, /barangay-organizations/);
 });
 
-test("offline document requests bypass online attachment validation only for attachment-free types", () => {
+test("requests enforce attachments and only queue on an actual transport failure", () => {
   const source = read("../app/(app)/requests/new/page.tsx");
-  assert.match(source, /navigator\.onLine && missing && missing\.length > 0/);
-  assert.match(source, /!navigator\.onLine && \(selectedType\.requirements_json \|\| \[\]\)\.length > 0/);
+  assert.match(source, /if \(missing && missing.length > 0\)/);
+  assert.match(source, /transportFailure && \(selectedType\.requirements_json \|\| \[\]\)\.length === 0/);
   assert.match(source, /queueDocumentRequest\(/);
+  assert.match(source, /await submitDocumentRequest\(formData\)/);
 });

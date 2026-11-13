@@ -13,7 +13,7 @@ test("document outbox only queues attachment-free drafts and reuses UUID on retr
  assert.match(outbox,/form\.append\("clientOperationId",item\.id\)/);
 });
 test("server verifies current requirement catalog rather than trusting cached client",()=>{
- assert.match(actions,/\.select\("requirements_json"\)/);
+ assert.match(actions,/\.select\("name,requirements_json"\)/);
  assert.match(actions,/Document requirements changed/);
  assert.match(actions,/client_operation_id: clientOperationId \|\| null/);
 });
@@ -31,4 +31,11 @@ test("replayed document operation IDs cannot change their original payload",()=>
 
 test("confirmed replay receipt precedes revalidation of changed catalog",()=>{
  assert.ok(actions.indexOf('if (clientOperationId) {') < actions.indexOf('const { data: type, error: typeError }'));
+});
+
+test("online document submission is attempted despite a false offline browser hint",()=>{
+ assert.match(ui,/await submitDocumentRequest\(formData\)/);
+ assert.match(ui,/const transportFailure =/);
+ assert.match(ui,/clientOperationId/);
+ assert.doesNotMatch(ui,/if \(!navigator\.onLine\)/);
 });

@@ -16,6 +16,7 @@ import { useSoraVoiceConversation } from "@/hooks/useSoraVoiceConversation";
 import { SoraRealtimeControls } from "./SoraRealtimeControls";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
+import { matchServiceFaq } from "@/lib/ai/verified-service-faq";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
@@ -31,7 +32,6 @@ interface Message {
   formTitle?: string;
   formSchema?: any;
   guestActionTrigger?: boolean;
-  documentShortcut?: string;
   citations?: string[];
   contextUsed?: boolean;
   isError?: boolean;
@@ -41,7 +41,7 @@ interface Message {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function detectFormTrigger(text: string, isLoggedIn: boolean): { formType?: string; formTitle?: string; guestActionTrigger?: boolean } {
-  const id = requestedDocumentForm(text);
+  const id = requestedDocumentForm(text) ?? matchServiceFaq(text)?.id ?? null;
   if (!id) return {};
   if (!isLoggedIn) return { guestActionTrigger: true };
   return { formType: id, formTitle: DOCUMENT_FORMS[id].title };
@@ -89,7 +89,7 @@ export function ChatInterface() {
       lastVoiceReplyRef.current = aiId; // voice endpoint already returns spoken audio
       setMessages((prev) => [...prev,
         { id: `user-voice-${now}`, sender: "user", text: reply.transcript, timestamp: now },
-        { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1 },
+        { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1, ...detectFormTrigger(reply.transcript, isLoggedIn) },
       ]);
     },
   });
@@ -195,20 +195,12 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    if (!navigator.onLine) {
-      setMessages(prev => [...prev, {
-        id: `offline-answer-${Date.now()}`,
-        sender: "ai",
-        text: "Offline reference mode: the online Barangay AI and current official records are unavailable. You can review previously cached public announcements and document requirements. Reconnect before relying on fees, dates or submitting an official request.",
-        timestamp: Date.now(),
-      }]);
-      setLoading(false);
-      voiceRequestInFlightRef.current = false;
-      return;
-    }
+    // navigator.onLine is only a device hint, not proof that the AI API is unreachable.
+    // Attempt the real request and classify any failure from the response/error.
 
     let persistedSessionId: string | null = null;
     if (isLoggedIn) {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: persistedSession, error: sessionError } = await supabase.from("chat_sessions").upsert({
@@ -225,12 +217,18 @@ export function ChatInterface() {
           session_id: persistedSessionId,
         });
       }
+      } catch (saveError) {
+        // Session history is best-effort: network or storage errors must not
+        // prevent an actual AI answer or the resident's in-chat form.
+        console.warn("Unable to save chat history:", saveError);
+      }
     }
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({ message: userText, sessionId, language: ttsLang }),
       });
 
@@ -277,7 +275,6 @@ export function ChatInterface() {
         formTitle: finalFormTitle,
         formSchema: finalFormSchema,
         guestActionTrigger: guestTrigger,
-        documentShortcut: requestedDocumentForm(userText) ?? undefined,
       };
       setMessages((prev) => [...prev, aiMsg]);
 
@@ -299,12 +296,23 @@ export function ChatInterface() {
         }
       }
     } catch (err: any) {
+      const networkFailed = err instanceof TypeError;
+      const likelyOffline = networkFailed && !navigator.onLine;
       setMessages((prev) => [...prev, {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-        text: err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli.",
-        isError: true,
+        text: likelyOffline
+          ? "Walang connection sa server ngayon. Maaari mong subukang muli kapag may internet; hindi pa naisumite ang application."
+          : networkFailed
+            ? "Hindi maabot ang Ate Sora service sa ngayon kahit may internet connection ka. Subukang muli; maaari mo pa ring punan ang form sa chat kung available ang document catalog."
+            : err?.message || "Pansamantalang hindi available ang Ate Sora service. Subukang muli.",
+        isError: !userFormRequest.formType,
         timestamp: Date.now(),
+        // If the AI endpoint fails, an explicitly requested document can still
+        // display the inline form. The form independently verifies the catalog.
+        formType: userFormRequest.formType,
+        formTitle: userFormRequest.formTitle,
+        guestActionTrigger: userFormRequest.guestActionTrigger,
       }]);
     } finally {
       voiceRequestInFlightRef.current = false;
@@ -520,19 +528,6 @@ export function ChatInterface() {
                         </span>
                       )}
                     </div>
-                  )}
-
-                  {/* Actionable service guidance: never invent requirements or fees. The
-                      existing request page loads the current catalog and its official requirements. */}
-                  {!isUser && !m.isError && m.documentShortcut && (
-                    <Link
-                      href={`/requests/new?document=${encodeURIComponent(m.documentShortcut)}`}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    >
-                      <FileText className="h-4 w-4" aria-hidden="true" />
-                      Open {DOCUMENT_FORMS[m.documentShortcut as keyof typeof DOCUMENT_FORMS].title} Request Form
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
                   )}
 
                   {/* Dynamic In-Chat Form */}

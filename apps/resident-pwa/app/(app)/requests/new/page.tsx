@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, CheckCircle2, Loader2, FileText, Home, ClipboardList, Building2, Upload, Calendar, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -55,6 +55,7 @@ export default function NewRequestPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const requestOperationId = useRef<string | null>(null);
 
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine);
@@ -153,7 +154,7 @@ export default function NewRequestPage() {
 
     // Offline drafts do not persist attachments; allow queueing only attachment-free requests.
     const missing = selectedType.requirements_json?.filter(req => !files[req]);
-    if (navigator.onLine && missing && missing.length > 0) {
+    if (missing && missing.length > 0) {
       setErrorMsg(`Missing required attachments: ${missing.join(", ")}`);
       return;
     }
@@ -162,9 +163,6 @@ export default function NewRequestPage() {
     setErrorMsg(null);
 
     try {
-      if (!navigator.onLine && (selectedType.requirements_json || []).length > 0) {
-        throw new Error("Attachments require online submission. Save a draft and reconnect to attach files.");
-      }
       const formData = new FormData();
       formData.append("documentTypeId", selectedType.id);
       formData.append("purpose", purpose || `Requested ${selectedType.name}`);
@@ -174,19 +172,30 @@ export default function NewRequestPage() {
         formData.append(`file_${req}`, file);
       });
 
-      if (!navigator.onLine) {
-        const {data:{session}}=await supabase.auth.getSession();
-        if(!session?.user?.id)throw new Error("Sign in to save an offline request.");
-        await queueDocumentRequest({
-          id:crypto.randomUUID(),userId:session.user.id,documentTypeId:selectedType.id,
-          purpose:purpose || `Requested ${selectedType.name}`,
-          createdAt:Date.now(),attempts:0,state:"queued",
-        });
-        setDraftMessage("Queued on this device — NOT submitted yet. This request will sync after connection returns.");
-        return;
+      const operationId = requestOperationId.current ?? crypto.randomUUID();
+      requestOperationId.current = operationId;
+      formData.append("clientOperationId", operationId);
+      try {
+        // An actual server receipt, not navigator.onLine, confirms submission.
+        await submitDocumentRequest(formData);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        const transportFailure = error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message);
+        // Queue an attachment-free request only after a transport failure;
+        // the same idempotency UUID prevents duplicates if the server received it.
+        if (transportFailure && (selectedType.requirements_json || []).length === 0) {
+          const {data:{session}} = await supabase.auth.getSession();
+          if (!session?.user?.id) throw new Error("Sign in to save a queued request.");
+          await queueDocumentRequest({
+            id: operationId, userId: session.user.id, documentTypeId: selectedType.id,
+            purpose: purpose || `Requested ${selectedType.name}`,
+            createdAt: Date.now(), attempts: 0, state: "queued",
+          });
+          setDraftMessage("Queued on this device — NOT submitted yet. It will sync after a verified connection returns.");
+          return;
+        }
+        throw error;
       }
-      // Submit via Server Action (transaction audit is handled server-side)
-      await submitDocumentRequest(formData);
 
       setSubmitted(true);
     } catch (err: any) {
@@ -241,7 +250,7 @@ export default function NewRequestPage() {
         {savedDrafts.map(d=><div key={d.id} className="rounded-lg bg-white p-2 text-xs flex items-center justify-between gap-2">
           <button type="button" onClick={()=>{
             const type=documentTypes.find(t=>t.id===d.documentTypeId);
-            if(type){setSelectedType(type);setPurpose(d.purpose);setFiles({});setDraftMessage("Draft loaded. Reattach files before submission.");}
+            if(type){requestOperationId.current=null;setSelectedType(type);setPurpose(d.purpose);setFiles({});setDraftMessage("Draft loaded. Reattach files before submission.");}
             else setDraftMessage("This document type is not currently available. Reconnect and refresh.");
           }} className="text-left underline">{d.documentTypeName} — {new Date(d.updatedAt).toLocaleString()}</button>
           <button type="button" onClick={()=>void removeDocumentDraft(d.id).then(refreshDrafts)} className="text-red-700">Delete</button>
@@ -280,6 +289,7 @@ export default function NewRequestPage() {
                     key={docType.id}
                     aria-pressed={isSelected}
                     onClick={() => {
+                      requestOperationId.current = null;
                       setSelectedType(docType);
                       setFiles({});
                     }}
