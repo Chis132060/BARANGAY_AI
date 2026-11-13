@@ -194,12 +194,12 @@ export default function RequestsPage() {
   return (
     <div className="p-4 space-y-4 pb-24 relative">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-extrabold text-gray-900">My Document Requests</h1>
           <p className="text-sm text-gray-500">Follow your application and see what to do next</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={loadRequests}
             title="Refresh List"
@@ -210,8 +210,8 @@ export default function RequestsPage() {
           {/* Connectivity only: online does not guarantee realtime subscription health. */}
           <div role="status" className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${isOnline ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-800"}`}>
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? "bg-green-500" : "bg-amber-500"}`}></span>
+              
             </span>
             {isOnline ? "Online" : "Offline"}
           </div>
@@ -220,10 +220,20 @@ export default function RequestsPage() {
             className="flex items-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-sm"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            AI Request
+            Ask Ate Sora
           </Link>
         </div>
       </div>
+
+      <Link
+        href="/requests/new"
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+      >
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        Request a Document Online
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
+      <p className="text-xs text-gray-500">Choose a document, review the official requirements shown in the form, and submit your request online. Ask Ate Sora if you need guidance.</p>
 
       {cachedAt && <p className="text-xs text-amber-800">Last request history refresh: {new Date(cachedAt).toLocaleString()}. Verify status online before pickup or payment.</p>}
       {requestError && <p role="alert" className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">{requestError}</p>}
@@ -367,7 +377,7 @@ export default function RequestsPage() {
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-amber-100 text-amber-800"
                     }`}>
-                      {req.payment_status || (isFree ? "Free" : hasConfirmedFee ? "Unpaid" : "Not confirmed")}
+                      {isFree ? "Free — no payment required" : req.payment_status || (hasConfirmedFee ? "Unpaid" : "Not confirmed")}
                     </span>
                     {canPay && (
                       <button 
@@ -512,7 +522,7 @@ export default function RequestsPage() {
                     viewingRequest.payment_status === "Free" || viewingRequest.fee_amount === 0 ? "bg-emerald-50 text-emerald-700" :
                     "bg-amber-100 text-amber-800"
                   }`}>
-                    {viewingRequest.payment_status || (viewingRequest.fee_amount === 0 ? "Free" : typeof viewingRequest.fee_amount === "number" ? "Unpaid" : "Not confirmed")}
+                    {viewingRequest.fee_amount === 0 || viewingRequest.payment_status === "Free" ? "Free — no payment required" : viewingRequest.payment_status || (typeof viewingRequest.fee_amount === "number" ? "Unpaid" : "Not confirmed")}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
