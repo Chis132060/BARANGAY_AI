@@ -32,3 +32,10 @@ test("replayed document operation IDs cannot change their original payload",()=>
 test("confirmed replay receipt precedes revalidation of changed catalog",()=>{
  assert.ok(actions.indexOf('if (clientOperationId) {') < actions.indexOf('const { data: type, error: typeError }'));
 });
+
+test("online document submission is attempted despite a false offline browser hint",()=>{
+ assert.match(ui,/await submitDocumentRequest\(formData\)/);
+ assert.match(ui,/const transportFailure =/);
+ assert.match(ui,/clientOperationId/);
+ assert.doesNotMatch(ui,/if \(!navigator\.onLine\)/);
+});
