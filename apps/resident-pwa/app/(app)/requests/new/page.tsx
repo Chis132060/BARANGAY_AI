@@ -172,8 +172,9 @@ export default function NewRequestPage() {
         formData.append(`file_${req}`, file);
       });
 
-      if (!requestOperationId.current) requestOperationId.current = crypto.randomUUID();
-      formData.append("clientOperationId", requestOperationId.current);
+      const operationId = requestOperationId.current ?? crypto.randomUUID();
+      requestOperationId.current = operationId;
+      formData.append("clientOperationId", operationId);
       try {
         // An actual server receipt, not navigator.onLine, confirms submission.
         await submitDocumentRequest(formData);
@@ -186,7 +187,7 @@ export default function NewRequestPage() {
           const {data:{session}} = await supabase.auth.getSession();
           if (!session?.user?.id) throw new Error("Sign in to save a queued request.");
           await queueDocumentRequest({
-            id: requestOperationId.current, userId: session.user.id, documentTypeId: selectedType.id,
+            id: operationId, userId: session.user.id, documentTypeId: selectedType.id,
             purpose: purpose || `Requested ${selectedType.name}`,
             createdAt: Date.now(), attempts: 0, state: "queued",
           });
