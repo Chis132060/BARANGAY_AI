@@ -200,6 +200,7 @@ export function ChatInterface() {
 
     let persistedSessionId: string | null = null;
     if (isLoggedIn) {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: persistedSession, error: sessionError } = await supabase.from("chat_sessions").upsert({
@@ -215,6 +216,11 @@ export function ChatInterface() {
           message: userText,
           session_id: persistedSessionId,
         });
+      }
+      } catch (saveError) {
+        // Session history is best-effort: network or storage errors must not
+        // prevent an actual AI answer or the resident's in-chat form.
+        console.warn("Unable to save chat history:", saveError);
       }
     }
 
