@@ -32,6 +32,12 @@ At audit time the connected `ai_audit_logs` table had only **two rows**, with la
 
 **Mitigation:** aggregate per-request calls (including query normalization and any tool planning), recognize LangChain `usage_metadata` and vendor token metadata, leave counts unknown if provider accounting is missing or an attempted call fails, use actual model identities, and report actual audit-insert outcome. The FAQ path records exactly zero model tokens and stores a **redacted FAQ category**, not the resident's raw question. This accounting covers calls through the Python `AIProviderManager`; the separate embedding provider (which does not expose token usage here) and the optional OpenAI Agent (currently disabled in Resident production) are **not yet included**. Full real-world billing reconciliation still requires provider-side usage evidence.
 
+### P2 — Model selection heuristic is not connected to execution
+The Python orchestrator assigns `target_model_class = model_router.route_query(...)`, but the value is not passed to `AIProviderManager.generate`. The current FAST/STRONG route does **not** actually select a cheaper or stronger provider. The zero-LLM FAQ branch avoids that entire path for supported questions; wiring the general-purpose model router should be separately reviewed.
+
+### P2 — Database model labels are strictly length-limited
+The live `ai_audit_logs.model_used` and `chat_messages.model_used` columns are `varchar(50)`. New backend model attribution must fit the actual database constraint, otherwise a good AI answer could fail audit/chat-history persistence. This PR caps the persisted label at 50 characters; multi-provider detail beyond that requires a future schema review.
+
 ### P2 — Legacy hardcoded content can mislead
 `apps/resident-pwa/lib/ai/policy-knowledge.ts` retains static example fees, office hours and events, including stale time-relative events. The primary chat route no longer uses its `findMatchingKnowledge` answer function, but the UI imported suggested questions under a misleading “100% verified” promise. If reused as an answer source later, this data could reintroduce fabricated official details.
 
