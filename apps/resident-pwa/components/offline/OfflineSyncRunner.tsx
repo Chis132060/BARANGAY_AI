@@ -8,7 +8,9 @@ import { syncQueuedDocuments } from "@/lib/offline/document-outbox";
 
 let active = false;
 async function trySync() {
-  if (active || !navigator.onLine) return;
+  // Browser offline hints are unreliable. A verified auth round trip below
+  // determines whether syncing can proceed; failed writes stay queued.
+  if (active) return;
   active = true;
   window.dispatchEvent(new CustomEvent("barangay-sync-status", { detail: { state: "running", time: Date.now() } }));
   try {
