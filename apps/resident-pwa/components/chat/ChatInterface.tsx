@@ -55,9 +55,9 @@ function formatTime(ts?: number): string {
 
 export function ChatInterface() {
   const welcomeByLanguage: Record<TTSLanguage, string> = {
-    tgl: `${getAIGreeting('tagalog')}\n\nMaaari mong itanong ang:\n• Mga kailangan sa Barangay Clearance\n• Mga ordinansa at patakaran\n• Certificate of Indigency\n• Oras ng opisina\n• Mga aktibidad ng barangay\n\nGumagamit ako ng opisyal na dokumento ng Barangay para sa mas tumpak na sagot.`,
-    ceb: `${getAIGreeting('cebuano')}\n\nMahimo kang mangutana bahin sa:\n• Mga kinahanglanon sa Barangay Clearance\n• Mga ordinansa ug polisiya\n• Certificate of Indigency\n• Oras sa opisina\n• Mga kalihokan sa barangay\n\nGigamit nako ang opisyal nga mga dokumento sa Barangay alang sa tukmang tubag.`,
-    en: `${getAIGreeting('english')}\n\nYou can ask about:\n• Barangay Clearance requirements\n• Ordinances and policies\n• Certificate of Indigency\n• Office hours\n• Community events\n\nI use official Barangay documents to provide accurate answers.`,
+    tgl: `${getAIGreeting('tagalog')}\n\nMaaari mong itanong ang:\n• Mga kailangan sa Barangay Clearance\n• Mga ordinansa at patakaran\n• Certificate of Indigency\n• Oras ng opisina\n• Mga aktibidad ng barangay\n\nSinusuri ko ang available na rekord. Hindi ako magbibigay ng hindi kumpirmadong bayad o iskedyul.`,
+    ceb: `${getAIGreeting('cebuano')}\n\nMahimo kang mangutana bahin sa:\n• Mga kinahanglanon sa Barangay Clearance\n• Mga ordinansa ug polisiya\n• Certificate of Indigency\n• Oras sa opisina\n• Mga kalihokan sa barangay\n\nGisusi nako ang available nga mga rekord. Dili ko manghimo og wala makumpirmang bayad o iskedyul.`,
+    en: `${getAIGreeting('english')}\n\nYou can ask about:\n• Barangay Clearance requirements\n• Ordinances and policies\n• Certificate of Indigency\n• Office hours\n• Community events\n\nI check available records and will flag unverified fees or schedules.`,
   };
 
   const [messages, setMessages] = useState<Message[]>([
@@ -413,20 +413,20 @@ export function ChatInterface() {
             <div className="flex flex-col items-center text-center pt-6 pb-2">
               <div className="mb-4">
                 <h2 className="text-base font-bold text-gray-900">{AI_NAME}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Official Multilingual Assistant</p>
+                <p className="text-xs text-gray-400 mt-0.5">Barangay Service Assistant</p>
               </div>
               <p className="text-xs text-gray-400 max-w-[280px] leading-relaxed mb-6">
                 {ttsLang === "tgl"
-                  ? "Pumili sa mga opisyal na katanungan sa ibaba para sa agarang sagot at application form:"
+                  ? "Pumili ng tanong tungkol sa serbisyo. Ang opisyal na bayad at requirements ay kailangang makumpirma."
                   : ttsLang === "ceb"
-                  ? "Pilia ang opisyal nga mga pangutana sa ubos alang sa dali nga tubag ug application form:"
-                  : "Select an official question below for instant verified answers and application forms:"}
+                  ? "Pilia ang pangutana bahin sa serbisyo. Kinahanglan makumpirma ang opisyal nga bayad ug mga rekisitos."
+                  : "Choose a service question below. Official fees and requirements still need verification."}
               </p>
 
               {/* Topic list */}
               <div className="w-full max-w-sm space-y-1.5">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3 px-1">
-                  Official Topics
+                  Common service questions
                 </p>
                 {verifiedSuggestions.map((s) => (
                   <button
