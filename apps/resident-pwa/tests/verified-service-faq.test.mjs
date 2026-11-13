@@ -54,7 +54,7 @@ test("FAQ answers direct residents to the in-chat form, not Requests for new app
     const business = buildServiceFaqAnswer(
       matchServiceFaq("How do I request Business Clearance?"), language
     );
-    assert.match(business, /form/i);
+    assert.match(business, /Book an Appointment/);
   }
   assert.match(buildServiceFaqUnavailable(
     matchServiceFaq("How do I request Barangay Clearance?"), "ceb"
