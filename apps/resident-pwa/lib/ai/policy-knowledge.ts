@@ -241,11 +241,12 @@ export const BARANGAY_KNOWLEDGE: PolicyTopic[] = [
 ];
 
 /**
- * Returns verified question suggestions for a specific language.
- * Guarantees that EVERY suggestion button shown has a 100% verified grounded answer.
+ * Legacy API name retained for compatibility. These are suggestion prompts,
+ * NOT verified answers. Only ask about document services with a current app form.
+ * Fees, schedules and events in this legacy data must never be served as answers.
  */
 export function getVerifiedQuestionSuggestions(lang: "tgl" | "ceb" | "en"): { label: string; query: string; topicId: string }[] {
-  return BARANGAY_KNOWLEDGE.map((t) => ({
+  return BARANGAY_KNOWLEDGE.filter((t) => t.category === "documents").map((t) => ({
     label: t.title,
     query: t.suggestedQuestions[lang] || t.suggestedQuestions.en,
     topicId: t.id,
