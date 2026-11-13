@@ -194,17 +194,8 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    if (!navigator.onLine) {
-      setMessages(prev => [...prev, {
-        id: `offline-answer-${Date.now()}`,
-        sender: "ai",
-        text: "Offline reference mode: the online Barangay AI and current official records are unavailable. You can review previously cached public announcements and document requirements. Reconnect before relying on fees, dates or submitting an official request.",
-        timestamp: Date.now(),
-      }]);
-      setLoading(false);
-      voiceRequestInFlightRef.current = false;
-      return;
-    }
+    // navigator.onLine is only a device hint, not proof that the AI API is unreachable.
+    // Attempt the real request and classify any failure from the response/error.
 
     let persistedSessionId: string | null = null;
     if (isLoggedIn) {
@@ -230,6 +221,7 @@ export function ChatInterface() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({ message: userText, sessionId, language: ttsLang }),
       });
 
@@ -297,12 +289,23 @@ export function ChatInterface() {
         }
       }
     } catch (err: any) {
+      const networkFailed = err instanceof TypeError;
+      const likelyOffline = networkFailed && !navigator.onLine;
       setMessages((prev) => [...prev, {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-        text: err?.message || "Hindi makakonekta sa Barangay AI ngayon. Pakisubukan muli.",
-        isError: true,
+        text: likelyOffline
+          ? "Walang connection sa server ngayon. Maaari mong subukang muli kapag may internet; hindi pa naisumite ang application."
+          : networkFailed
+            ? "Hindi maabot ang Ate Sora service sa ngayon kahit may internet connection ka. Subukang muli; maaari mo pa ring punan ang form sa chat kung available ang document catalog."
+            : err?.message || "Pansamantalang hindi available ang Ate Sora service. Subukang muli.",
+        isError: !userFormRequest.formType,
         timestamp: Date.now(),
+        // If the AI endpoint fails, an explicitly requested document can still
+        // display the inline form. The form independently verifies the catalog.
+        formType: userFormRequest.formType,
+        formTitle: userFormRequest.formTitle,
+        guestActionTrigger: userFormRequest.guestActionTrigger,
       }]);
     } finally {
       voiceRequestInFlightRef.current = false;
