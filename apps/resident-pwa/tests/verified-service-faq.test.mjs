@@ -71,7 +71,7 @@ test("FAQ is strictly after auth and shared quota but before agents and backend"
   assert.match(chatSource, /data\.length === 1/);
   assert.match(chatSource, /tokensPrompt: 0,\s*tokensCompletion: 0/);
   assert.match(chatSource, /query: "SERVICE_FAQ:" \+ faq\.id/);
-  assert.match(chatSource, /catalogVerified \? buildServiceFaqAnswer/);
+  assert.match(chatSource, /catalogVerified\s*\?\s*buildServiceFaqAnswer/);
 });
 
 test("UI does not promise that all suggestion answers are verified", () => {
