@@ -13,7 +13,7 @@ test("document outbox only queues attachment-free drafts and reuses UUID on retr
  assert.match(outbox,/form\.append\("clientOperationId",item\.id\)/);
 });
 test("server verifies current requirement catalog rather than trusting cached client",()=>{
- assert.match(actions,/\.select\("requirements_json"\)/);
+ assert.match(actions,/\.select\("name,requirements_json"\)/);
  assert.match(actions,/Document requirements changed/);
  assert.match(actions,/client_operation_id: clientOperationId \|\| null/);
 });
