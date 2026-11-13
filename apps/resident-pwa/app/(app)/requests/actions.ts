@@ -29,12 +29,16 @@ export async function submitDocumentRequest(formData: FormData) {
   // 2. Fetch the authenticated resident's UUID from residents table
   const { data: resident, error: resError } = await supabase
     .from("residents")
-    .select("id")
+    .select("id, verification_status")
     .eq("user_id", user.id)
     .single();
 
   if (resError || !resident) {
     throw new Error("Resident profile not found. Please complete your registration first.");
+  }
+
+  if (resident.verification_status !== "Verified") {
+    throw new Error("Your resident account must be verified before requesting documents.");
   }
 
   const documentTypeId = formData.get("documentTypeId") as string;
@@ -78,7 +82,7 @@ export async function submitDocumentRequest(formData: FormData) {
   // Never trust cached/client-supplied attachment requirements: the database
   // catalog is authoritative on replay after an offline period.
   const { data: type, error: typeError } = await supabase.from("document_types")
-    .select("requirements_json").eq("id", documentTypeId).single();
+    .select("name,requirements_json").eq("id", documentTypeId).single();
   if (typeError || !type) throw new Error("Document type not found. Refresh and try again.");
   const required = Array.isArray(type.requirements_json) ? type.requirements_json : [];
   if (required.length !== requirements.length ||
@@ -86,6 +90,31 @@ export async function submitDocumentRequest(formData: FormData) {
     throw new Error("Document requirements changed. Refresh and attach the current documents.");
   }
 
+
+  // In-chat business requests must include their identifying details. Never trust
+  // arbitrary JSON fields from an AI model or expose them as database column names.
+  let businessDetails: { businessName: string; businessNature: string; businessAddress: string } | null = null;
+  if (type.name === "Business Clearance") {
+    const raw = formData.get("businessDetails");
+    try {
+      const value: unknown = JSON.parse(typeof raw === "string" ? raw : "");
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid");
+      const details = value as Record<string, unknown>;
+      const names = ["businessName", "businessNature", "businessAddress"] as const;
+      if (!names.every((name) => typeof details[name] === "string" &&
+          (details[name] as string).trim().length > 0 &&
+          (details[name] as string).length <= (name === "businessAddress" ? 250 : 120))) {
+        throw new Error("invalid");
+      }
+      businessDetails = {
+        businessName: (details.businessName as string).trim(),
+        businessNature: (details.businessNature as string).trim(),
+        businessAddress: (details.businessAddress as string).trim(),
+      };
+    } catch {
+      throw new Error("Business Clearance requires business name, nature and address.");
+    }
+  }
 
   const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
 
@@ -164,7 +193,10 @@ export async function submitDocumentRequest(formData: FormData) {
       status: "Pending",
       remarks: purpose,
       requested_date: new Date().toISOString(),
-      form_data: { attachments },
+      form_data: { attachments, requestedVia: businessDetails ? "Ate Sora" : "Document Request", ...(businessDetails ? { businessDetails } : {}) },
+      fee_amount: null,
+      payment_status: "Pending", // official fee has not been configured; never infer FREE from a zero default
+      requirements_status: "Complete",
       client_operation_id: clientOperationId || null,
     });
 
