@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import QRScanner from "@/components/payments/QRScanner";
 import { submitPaymentReference } from "./payment-actions";
+import { formatRequestReference } from "@/lib/request-receipt";
 import { loadRequestSummaries, saveRequestSummaries } from "@/lib/offline/request-summaries";
 
 interface DocRequest {
@@ -305,6 +306,7 @@ export default function RequestsPage() {
                       <span className="font-extrabold text-xs text-gray-900 block">
                         {req.document_type?.name || "Barangay Document"}
                       </span>
+                      <p className="mt-1 break-all font-mono text-[10px] text-blue-700" aria-label="Request reference">Ref: {formatRequestReference(req.id)}</p>
                       {req.session_id && (
                         <span className="text-[10px] text-gray-400 font-mono">
                           Batch: {req.session_id.slice(0, 10)}
