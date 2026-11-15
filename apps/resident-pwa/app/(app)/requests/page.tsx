@@ -474,6 +474,12 @@ export default function RequestsPage() {
                 <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Document</p>
                 <p className="font-semibold text-gray-900">{viewingRequest.document_type?.name || "Barangay Document"}</p>
               </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <p className="text-[10px] uppercase font-bold text-blue-800">Automatic request reference</p>
+                <p className="mt-1 break-all font-mono text-xs text-blue-900">{formatRequestReference(viewingRequest.id)}</p>
+                <button type="button" className="mt-2 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-blue-800" onClick={() => navigator.clipboard?.writeText(formatRequestReference(viewingRequest.id))}>Copy reference</button>
+                <p className="mt-1 text-[10px] text-blue-800">This is not a payment reference or official receipt.</p>
+              </div>
               
               <div className="flex justify-between">
                 <div>
