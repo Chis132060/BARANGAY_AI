@@ -379,7 +379,7 @@ export function ChatInterface() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden bg-white">
+    <div className="relative mx-auto flex h-full min-h-0 max-w-lg w-full flex-col overflow-hidden bg-white">
 
       {/* Header */}
       <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
