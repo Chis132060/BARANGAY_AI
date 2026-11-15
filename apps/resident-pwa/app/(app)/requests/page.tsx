@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ClipboardList, Clock, RefreshCw, FileText, CheckCircle2,
-  AlertCircle, DollarSign, Sparkles, ArrowRight, QrCode, X, Loader2, Eye
+  AlertCircle, DollarSign, Bot, ArrowRight, QrCode, X, Loader2, Eye
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import QRScanner from "@/components/payments/QRScanner";
@@ -217,7 +217,7 @@ export default function RequestsPage() {
             href="/chat"
             className="flex items-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-sm"
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <Bot className="h-3.5 w-3.5" />
             Ask Ate Sora
           </Link>
         </div>
