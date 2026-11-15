@@ -8,11 +8,13 @@ export const metadata = {
 
 export default async function OrganizationsPage() {
   let organizations: BarangayOrganization[] = [];
+  let loadError: string | null = null;
   try {
     organizations = await fetchOrganizations();
   } catch (err) {
     console.error("Failed to fetch organizations:", err);
+    loadError = "Unable to load organizations. Check permissions or connection and retry.";
   }
 
-  return <OrganizationsClient initialOrganizations={organizations} />;
+  return <OrganizationsClient initialOrganizations={organizations} loadError={loadError} />;
 }
