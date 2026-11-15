@@ -81,3 +81,12 @@ test("new source archive enforces provenance and separate RLS", () => {
   assert.match(migration, /source_url/);
   assert.doesNotMatch(migration, /notify_residents_on_announcement/);
 });
+
+test("staff announcements use actual fields and only fire notifications for new publication", () => {
+  const sql = readFileSync(new URL("../../../supabase/migrations/20261115161313_repair_announcement_publish_notification_fields.sql", import.meta.url), "utf8");
+  assert.match(sql, /SECURITY INVOKER/);
+  assert.match(sql, /NEW\.description/);
+  assert.match(sql, /NEW\.status = 'Published'/);
+  assert.match(sql, /OLD\.status IS DISTINCT FROM 'Published'/);
+  assert.doesNotMatch(sql, /NEW\.body\b|NEW\.target_audience\b/);
+});
