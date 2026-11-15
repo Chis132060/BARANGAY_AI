@@ -8,6 +8,7 @@ import { submitDocumentRequest } from "@/app/(app)/requests/actions";
 import { DOCUMENT_FORMS, isDocumentFormId } from "@/lib/ai/document-forms";
 import { NAV_BADGES_CHANGED } from "@/lib/navigation/nav-badges";
 import { isValidIdRequirement } from "@/lib/request-receipt";
+import { hasRegistrationIdOnFile, isResidencyProofRequirement } from "@/lib/verified-resident-evidence";
 
 interface InChatFormCardProps {
   formType: string;
@@ -41,6 +42,8 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [files, setFiles] = useState<Record<string, File>>({});
   const [savedIdType, setSavedIdType] = useState<string | null>(null);
   const [useSavedId, setUseSavedId] = useState(true);
+  const [hasApprovedAddress, setHasApprovedAddress] = useState(false);
+  const [useApprovedAddress, setUseApprovedAddress] = useState(true);
   const [receiptReference, setReceiptReference] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -62,12 +65,13 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data, error } = await supabase.from("residents")
-        .select("id_type,id_photo_url,verification_status")
+        .select("id,id_type,id_photo_url,verification_status")
         .eq("user_id", user.id).maybeSingle();
-      if (mounted && !error && data?.verification_status === "Verified" && data.id_type &&
-          data.id_photo_url?.startsWith(`${user.id}/`) &&
-          /\.(?:png|jpe?g|pdf)$/i.test(data.id_photo_url)) {
-        setSavedIdType(data.id_type);
+      if (mounted && !error && hasRegistrationIdOnFile(data)) setSavedIdType(data!.id_type);
+      if (mounted && !error && data?.verification_status === "Verified") {
+        const { data: address, error: addressError } = await supabase.from("addresses")
+          .select("id").eq("resident_id", data.id).limit(1).maybeSingle();
+        if (mounted && !addressError && address) setHasApprovedAddress(true);
       }
     })();
     return () => { mounted = false; };
@@ -125,8 +129,11 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
     const reuseIdRequirements = catalog.requirements_json.filter(
       requirement => useSavedId && savedIdType && isValidIdRequirement(requirement)
     );
+    const reuseProfileRequirements = catalog.requirements_json.filter(
+      requirement => useApprovedAddress && hasApprovedAddress && isResidencyProofRequirement(requirement)
+    );
     for (const requirement of catalog.requirements_json) {
-      if (!files[requirement] && !reuseIdRequirements.includes(requirement)) {
+      if (!files[requirement] && !reuseIdRequirements.includes(requirement) && !reuseProfileRequirements.includes(requirement)) {
         setSubmitError("Please attach the current required file: " + requirement);
         return;
       }
@@ -139,11 +146,12 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       payload.set("documentTypeId", catalog.id);
       payload.set("requirements", JSON.stringify(catalog.requirements_json));
       payload.set("reuseVerifiedIdRequirements", JSON.stringify(reuseIdRequirements));
+      payload.set("reuseProfileProofRequirements", JSON.stringify(reuseProfileRequirements));
       payload.set("purpose", normalizedPurpose);
       if (!operationId.current) operationId.current = crypto.randomUUID();
       payload.set("clientOperationId", operationId.current);
       for (const requirement of catalog.requirements_json) {
-        if (!reuseIdRequirements.includes(requirement)) payload.set("file_" + requirement, files[requirement]);
+        if (!reuseIdRequirements.includes(requirement) && !reuseProfileRequirements.includes(requirement)) payload.set("file_" + requirement, files[requirement]);
       }
 
       // Do not trust navigator.onLine: only the actual server response can
@@ -258,7 +266,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
               </label>
               <textarea id={`chat-purpose-${catalog.id}`} required rows={3} maxLength={2000}
                 value={purpose} onChange={event => setPurpose(event.target.value)}
-                className="block min-h-24 w-full resize-y rounded-2xl border border-slate-300 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="block min-h-32 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-4 text-base leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 placeholder="Why do you need this document?" />
               <p className="mt-1.5 text-right text-xs text-slate-500">{purpose.length}/2000 characters</p>
             </div>
@@ -266,10 +274,10 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
             <fieldset>
               <legend className="mb-2 text-sm font-bold text-slate-900">
                 <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-800">2</span>
-                Attach requirements
+                Requirements and documents
               </legend>
               <p className="mb-3 text-xs leading-relaxed text-slate-600">
-                Listed by the current barangay service catalog. PDF, JPG, or PNG, maximum 5 MB each.
+                Reuse an ID or your verified resident profile already on file, if available. Staff will review evidence. Additional uploads: PDF/JPG/PNG, 5 MB max.
               </p>
               {catalog.requirements_json.length === 0 && (
                 <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">No attachments are listed for this document.</p>
@@ -279,9 +287,9 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                   const file = files[requirement];
                   const inputId = `chat-attachment-${catalog.id}-${index}`;
                   return (
-                    <div key={requirement} className={`rounded-2xl border p-3 ${file ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
+                    <div key={requirement} className={`rounded-2xl border p-4 ${file ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
                       <div className="mb-2 flex items-start justify-between gap-2">
-                        <label htmlFor={inputId} className="text-sm font-semibold text-slate-900">
+                        <label htmlFor={inputId} className="text-base font-bold text-slate-900">
                           {requirement} <span className="text-red-600" aria-label="required">*</span>
                         </label>
                         {file && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
@@ -292,16 +300,31 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                         <div className="mb-3 space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
                           <label className="flex items-center gap-2 font-semibold">
                             <input type="radio" name={`id-choice-${inputId}`} checked={useSavedId} onChange={() => setUseSavedId(true)} />
-                            Use my ID on file ({savedIdType})
+                            Use my registered ID ({savedIdType}) — no new upload
                           </label>
                           <label className="flex items-center gap-2">
                             <input type="radio" name={`id-choice-${inputId}`} checked={!useSavedId} onChange={() => setUseSavedId(false)} />
                             Upload a different/current ID
                           </label>
-                          <p>If your registration ID is expired, choose an updated ID. Saved ID remains private and is copied securely for this request only.</p>
+                          <p>Staff will check your original registration ID without copying or exposing its photo. If it expired, upload an updated ID.</p>
                         </div>
                       )}
-                      {!(savedIdType && useSavedId && isValidIdRequirement(requirement)) && <label htmlFor={inputId}
+                      {hasApprovedAddress && isResidencyProofRequirement(requirement) && (
+                        <fieldset className="mb-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                          <legend className="text-sm font-bold text-emerald-900">Verified resident profile found</legend>
+                          <label className="flex min-h-12 items-center gap-3 text-base font-semibold text-emerald-950">
+                            <input type="radio" name={`proof-choice-${inputId}`} checked={useApprovedAddress} onChange={() => setUseApprovedAddress(true)} />
+                            Use my registered barangay address
+                          </label>
+                          <label className="flex min-h-12 items-center gap-3 text-base text-slate-900">
+                            <input type="radio" name={`proof-choice-${inputId}`} checked={!useApprovedAddress} onChange={() => setUseApprovedAddress(false)} />
+                            Upload additional proof of residency
+                          </label>
+                          <p className="text-sm text-emerald-900">This is not an issued certificate. Staff will check your address and can request more evidence.</p>
+                        </fieldset>
+                      )}
+                      {!(savedIdType && useSavedId && isValidIdRequirement(requirement)) &&
+                       !(hasApprovedAddress && useApprovedAddress && isResidencyProofRequirement(requirement)) && <label htmlFor={inputId}
                         className="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
                           <UploadCloud className="h-5 w-5" aria-hidden="true" />
@@ -353,7 +376,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{submitError}
             </p>}
             <button type="submit" disabled={submitting}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-4 text-base font-bold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
               {submitting ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Send className="h-5 w-5" aria-hidden="true" />}
               {submitting ? "Submitting request..." : "Submit Document Request"}
             </button>
