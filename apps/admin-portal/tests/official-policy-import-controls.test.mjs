@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const read = p => readFileSync(new URL(p, import.meta.url), "utf8");
-const sql = read("../../../supabase/migrations/20261115192000_policy_source_scope_and_activation_guard.sql");
+const sql = read("../../../supabase/migrations/20261115111526_policy_source_scope_and_activation_guard.sql");
 const page = read("../app/(dashboard)/documents/policies/page.tsx");
 const knowledge = read("../app/(dashboard)/knowledge/page.tsx");
 const adminQueue = read("../app/(dashboard)/documents/requests/components/RequestsTable.tsx");
