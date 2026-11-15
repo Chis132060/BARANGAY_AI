@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FileText, Printer, CheckCircle, Clock, MapPin, DollarSign, Eye } from "lucide-react";
 import type { DocumentRequestItem } from "../../actions";
 import { formatRequestReference } from "@/lib/request-receipt";
+import { fetchVerifiedResidentPhoto } from "@/app/(dashboard)/residents/actions";
 import { CertificateTemplateModal } from "./CertificateTemplateModal";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -45,6 +46,21 @@ interface RequestsTableProps {
 export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPayment }: RequestsTableProps) {
   const [selectedForCert, setSelectedForCert] = useState<DocumentRequestItem | null>(null);
   const [referenceSearch, setReferenceSearch] = useState("");
+  const [registeredIdPreview, setRegisteredIdPreview] = useState<string | null>(null);
+  const [registeredIdError, setRegisteredIdError] = useState("");
+  const [registeredIdLoading, setRegisteredIdLoading] = useState<string | null>(null);
+  async function openVerifiedRegisteredId(residentId: string) {
+    setRegisteredIdError("");
+    setRegisteredIdLoading(residentId);
+    try {
+      const shortLivedUrl = await fetchVerifiedResidentPhoto(residentId);
+      if (!shortLivedUrl) throw new Error("Saved ID unavailable. Ask resident for an updated photo.");
+      setRegisteredIdPreview(shortLivedUrl);
+    } catch (error) {
+      setRegisteredIdError(error instanceof Error ? error.message : "Unable to open registered ID.");
+    } finally { setRegisteredIdLoading(null); }
+  }
+
   const visibleRequests = requests.filter(req => !referenceSearch.trim() ||
     formatRequestReference(req.id).toLowerCase().includes(referenceSearch.replace(/\s/g, "").toLowerCase()) ||
     req.id.toLowerCase().includes(referenceSearch.trim().toLowerCase()));
@@ -165,6 +181,12 @@ export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPay
           placeholder="TS12-… or request UUID" autoComplete="off"
           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-blue-400" />
       </label>
+      {registeredIdError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{registeredIdError}</p>}
+      {registeredIdPreview && <div role="dialog" aria-modal="true" aria-label="Verified resident ID photo" className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-black/85 p-5">
+        <button type="button" onClick={()=>setRegisteredIdPreview(null)} className="mb-4 min-h-11 rounded-xl bg-white px-5 py-2 font-semibold text-slate-900">Close private ID preview</button>
+        <img src={registeredIdPreview} alt="Verified resident's registration ID" className="max-h-[75vh] max-w-full rounded-xl object-contain"/>
+        <p className="mt-3 text-sm text-white">Temporary signed preview — do not share or download.</p>
+      </div>}
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <AdminTable className="w-full text-left border-collapse">
@@ -287,6 +309,25 @@ export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPay
                               </span>
                               {req.status === "Rejected" && req.remarks && req.remarks !== purpose && (
                                 <span className="text-[10px] font-semibold text-red-600 line-clamp-2">Reason: {req.remarks}</span>
+                              )}
+                              {Array.isArray(req.form_data?.attachments) && req.form_data.attachments.some(
+                                (item: {source?: string}) => item.source === "verified_registration_id_on_file"
+                              ) && (
+                                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-950">
+                                  Registered ID reused (already linked to this verified resident).
+                                  <button type="button" onClick={() => void openVerifiedRegisteredId(req.resident_id)}
+                                    disabled={registeredIdLoading===req.resident_id}
+                                    className="mt-2 block min-h-9 rounded-lg bg-emerald-800 px-3 py-1.5 font-semibold text-white">
+                                    {registeredIdLoading===req.resident_id?"Opening…":"View registered ID (authorized reviewer)"}
+                                  </button>
+                                </div>
+                              )}
+                              {Array.isArray(req.form_data?.attachments) && req.form_data.attachments.some(
+                                (item: {source?: string}) => item.source === "resident_profile_address_for_staff_review"
+                              ) && (
+                                <span className="text-xs font-semibold text-amber-800">
+                                  Residency profile submitted as evidence — staff must verify the address; not an official certificate.
+                                </span>
                               )}
                               {extras.map(([k, v]) => (
                                 <span key={k} className="text-[10px] text-gray-400">
