@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "../actions";
 import { isValidIdRequirement } from "@/lib/request-receipt";
+import { hasRegistrationIdOnFile, isResidencyProofRequirement } from "@/lib/verified-resident-evidence";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { saveDocumentDraft, loadDocumentDrafts, removeDocumentDraft, type DocumentDraft } from "@/lib/offline/document-drafts";
 import { queueDocumentRequest } from "@/lib/offline/document-outbox";
@@ -52,6 +53,8 @@ export default function NewRequestPage() {
   const [files, setFiles] = useState<Record<string, File>>({});
   const [savedIdType, setSavedIdType] = useState<string | null>(null);
   const [useSavedId, setUseSavedId] = useState(true);
+  const [hasApprovedAddress, setHasApprovedAddress] = useState(false);
+  const [useApprovedAddress, setUseApprovedAddress] = useState(true);
   const [receiptReference, setReceiptReference] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(false);
@@ -116,11 +119,12 @@ export default function NewRequestPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data, error } = await supabase.from("residents")
-        .select("id_type,id_photo_url,verification_status").eq("user_id", user.id).maybeSingle();
-      if (mounted && !error && data?.verification_status === "Verified" && data.id_type &&
-          data.id_photo_url?.startsWith(`${user.id}/`) &&
-          /\.(?:png|jpe?g|pdf)$/i.test(data.id_photo_url)) {
-        setSavedIdType(data.id_type);
+        .select("id,id_type,id_photo_url,verification_status").eq("user_id", user.id).maybeSingle();
+      if (mounted && !error && hasRegistrationIdOnFile(data)) setSavedIdType(data!.id_type);
+      if (mounted && !error && data?.verification_status === "Verified") {
+        const { data: address, error: addressError } = await supabase.from("addresses")
+          .select("id").eq("resident_id", data.id).limit(1).maybeSingle();
+        if (mounted && !addressError && address) setHasApprovedAddress(true);
       }
     })();
     return () => { mounted = false; };
@@ -180,8 +184,11 @@ export default function NewRequestPage() {
     const reuseIdRequirements = selectedType.requirements_json?.filter(
       req => useSavedId && savedIdType && isValidIdRequirement(req)
     ) || [];
+    const reuseProfileRequirements = selectedType.requirements_json?.filter(
+      req => useApprovedAddress && hasApprovedAddress && isResidencyProofRequirement(req)
+    ) || [];
     const missing = selectedType.requirements_json?.filter(
-      req => !files[req] && !reuseIdRequirements.includes(req)
+      req => !files[req] && !reuseIdRequirements.includes(req) && !reuseProfileRequirements.includes(req)
     );
     if (missing && missing.length > 0) {
       setErrorMsg(`Missing required attachments: ${missing.join(", ")}`);
@@ -197,9 +204,10 @@ export default function NewRequestPage() {
       formData.append("purpose", purpose || `Requested ${selectedType.name}`);
       formData.append("requirements", JSON.stringify(selectedType.requirements_json || []));
       formData.append("reuseVerifiedIdRequirements", JSON.stringify(reuseIdRequirements));
+      formData.append("reuseProfileProofRequirements", JSON.stringify(reuseProfileRequirements));
       
       Object.entries(files).forEach(([req, file]) => {
-        if (!reuseIdRequirements.includes(req)) formData.append(`file_${req}`, file);
+        if (!reuseIdRequirements.includes(req) && !reuseProfileRequirements.includes(req)) formData.append(`file_${req}`, file);
       });
 
       const operationId = requestOperationId.current ?? crypto.randomUUID();
@@ -397,7 +405,7 @@ export default function NewRequestPage() {
                       placeholder={`State the purpose for this ${selectedType.name}...`}
                       value={purpose}
                       onChange={(e) => setPurpose(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full min-h-32 border border-gray-300 rounded-xl p-4 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       required
                     />
                   </div>
@@ -405,14 +413,14 @@ export default function NewRequestPage() {
                   {selectedType.requirements_json && selectedType.requirements_json.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Step 3: Attach requirements
+                        Step 3: Documents and requirements
                       </p>
-                      <p className="text-[10px] text-gray-500 mb-2">Maximum 5MB per file. Accepted formats: PDF, JPG, PNG.</p>
+                      <p className="text-[10px] text-gray-500 mb-2">Your verified registration ID and resident profile may be used for staff review. Upload a new file only when needed. PDF, JPG, PNG · 5 MB maximum.</p>
                       
                       {selectedType.requirements_json.map((req) => (
-                        <div key={req} className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                        <div key={req} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-gray-800">{req}</span>
+                            <span className="text-base font-bold text-gray-900">{req}</span>
                             <span className="text-[10px] font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Required</span>
                           </div>
                           
@@ -420,16 +428,31 @@ export default function NewRequestPage() {
                             <div className="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs">
                               <label className="flex items-center gap-2 font-semibold text-blue-900">
                                 <input type="radio" name={`id-choice-${req}`} checked={useSavedId} onChange={() => setUseSavedId(true)} />
-                                Use my ID on file ({savedIdType})
+                                Use my registered ID ({savedIdType}) — no new photo
                               </label>
                               <label className="flex items-center gap-2 text-blue-900">
                                 <input type="radio" name={`id-choice-${req}`} checked={!useSavedId} onChange={() => setUseSavedId(false)} />
                                 Upload a different/current ID
                               </label>
-                              <p className="text-[11px] text-blue-800">The original private ID from registration will be reused only for this requirement. If it has expired, upload a current ID.</p>
+                              <p className="text-[11px] text-blue-800">Staff will review the ID already on your verified profile. If it expired, upload a new ID.</p>
                             </div>
                           )}
-                          {!(savedIdType && useSavedId && isValidIdRequirement(req)) && <div className="relative">
+                          {hasApprovedAddress && isResidencyProofRequirement(req) && (
+                            <fieldset className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                              <legend className="text-sm font-bold text-emerald-900">Approved resident profile found</legend>
+                              <label className="flex min-h-12 items-center gap-3 text-base font-semibold text-emerald-950">
+                                <input type="radio" checked={useApprovedAddress} onChange={() => setUseApprovedAddress(true)} name={`profile-choice-${req}`} />
+                                Use my barangay resident profile
+                              </label>
+                              <label className="flex min-h-12 items-center gap-3 text-base text-slate-800">
+                                <input type="radio" checked={!useApprovedAddress} onChange={() => setUseApprovedAddress(false)} name={`profile-choice-${req}`} />
+                                Upload additional proof of residency
+                              </label>
+                              <p className="text-sm text-emerald-900">Staff will review your recorded address and may request updated proof. This is not an issued residency certificate.</p>
+                            </fieldset>
+                          )}
+                          {!(savedIdType && useSavedId && isValidIdRequirement(req)) &&
+                            !(hasApprovedAddress && useApprovedAddress && isResidencyProofRequirement(req)) && <div className="relative">
                             <input
                               type="file"
                               accept=".pdf,image/jpeg,image/png"
@@ -452,7 +475,7 @@ export default function NewRequestPage() {
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
                     <p className="text-sm font-bold text-gray-800">Review before submitting</p>
                     <p className="text-xs text-gray-700">Document: {selectedType.name}</p>
-                    <p className="text-xs text-gray-700">New uploaded files: {Object.keys(files).length}; existing ID reused: {useSavedId && savedIdType && selectedType.requirements_json.some(isValidIdRequirement) ? "Yes" : "No"}</p>
+                    <p className="text-sm text-gray-700">New files selected: {Object.keys(files).length}. Registered ID: {useSavedId && savedIdType && selectedType.requirements_json.some(isValidIdRequirement) ? "On file" : "Upload"}. Profile residency proof: {hasApprovedAddress && useApprovedAddress && selectedType.requirements_json.some(isResidencyProofRequirement) ? "For staff review" : "Upload"}.</p>
                     <p className="text-xs text-gray-600">
                       {isOnline
                         ? "Submitting sends your request to the barangay for review."
