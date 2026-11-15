@@ -75,7 +75,7 @@ test("bottom navigation badges use authenticated owner-scoped queries", () => {
 test("updates are marked seen when viewing the actual Announcements tab", () => {
   assert.match(updates, /activeTab !== "announcements"/);
   assert.match(updates, /markAnnouncementsSeen\(session\.user\.id, announcements\.map\(item => item\.id\)\)/);
-  assert.match(updates, /setActiveTab\("announcements"\)/); // link to the announcements tab
+  assert.match(updates, /useState<"programs" \| "organizations" \| "announcements">\("announcements"\)/); // Updates opens on announcements
 });
 
 test("all services directory includes live catalog, search, and existing routed services", () => {
