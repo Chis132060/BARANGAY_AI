@@ -116,7 +116,7 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
             </div>
             <div>
               <h2 className="font-bold text-base">{org.name}</h2>
-              <p className="text-xs text-muted-foreground">{org.org_type} · {members.length} member{members.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-muted-foreground">{org.org_type} · {loading ? "Loading members…" : membersError ? "Members unavailable" : `${members.length} member${members.length !== 1 ? "s" : ""}`}</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted transition-colors"><X className="h-5 w-5" /></button>
