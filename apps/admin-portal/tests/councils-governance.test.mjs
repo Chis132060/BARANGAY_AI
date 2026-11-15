@@ -31,8 +31,8 @@ test("no council members or local leaders are seeded or inferred from enrollee d
   assert.match(migration, /create table if not exists public\.barangay_council_members/);
   assert.match(migration, /create table if not exists public\.barangay_council_programs/);
   assert.doesNotMatch(migration, /insert into public\./i);
-  assert.match(client, /reference examples only|reference examples/i);
-  assert.match(client, /not evidence of a formally constituted local council/);
+  assert.doesNotMatch(client, /const EXAMPLES|EXAMPLES\.map/);
+  assert.match(client, /Only actual records returned by the database appear in this registry/);
   assert.match(client, /status === "Draft"/);
   assert.doesNotMatch(actions, /program_enrollees/);
 });
@@ -89,4 +89,10 @@ test("council roster and program badges reconcile with the actual fetched rows",
   assert.doesNotMatch(client, /program_count: \(current\.program_count \?\? 0\) \+ 1/);
   assert.ok((client.match(/setReloadKey\(value => value \+ 1\)/g) || []).length >= 4,
     "appointment and program mutations must trigger a count refresh");
+});
+
+test("council registry has no hardcoded sample council entities", () => {
+  assert.doesNotMatch(client, /const EXAMPLES|EXAMPLES\.map/);
+  assert.doesNotMatch(client, /Prepare unverified draft/);
+  assert.match(client, /Only actual records returned by the database appear in this registry/);
 });
