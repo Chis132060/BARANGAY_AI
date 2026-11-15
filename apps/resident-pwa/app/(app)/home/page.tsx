@@ -3,7 +3,7 @@ import { NotificationOnboarding } from "@/components/onboarding/NotificationOnbo
 
 
 import { useEffect, useState } from "react";
-import { ClipboardList, Megaphone, ChevronRight, Sparkles, FileText, Bot } from "lucide-react";
+import { ClipboardList, Megaphone, ChevronRight, FileText, Bot } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
@@ -92,7 +92,7 @@ export default function HomePage() {
       {/* Greeting Banner */}
       <section className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 text-white shadow-md">
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-200 flex items-center gap-1">
-          <Sparkles className="h-3 w-3 text-amber-300" /> Smart Barangay Resident Portal
+          <Bot className="h-3 w-3 text-amber-300" /> Smart Barangay Resident Portal
         </span>
         <h1 className="text-xl font-extrabold mt-1">Kumusta, {residentName}!</h1>
         <p className="text-sm text-blue-100 mt-1">What would you like to do today?</p>
