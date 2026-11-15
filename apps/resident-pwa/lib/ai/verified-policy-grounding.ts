@@ -53,7 +53,8 @@ export async function getVerifiedPolicyAnswer(supabase: any, message: string, la
     return { answer, citations: [] as string[], context_used: false, flagged: true };
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Barangay Tandang Sora / Butuan uses Philippine Standard Time (UTC+08:00), without DST.
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const { data, error } = await supabase.from("policies")
     .select("policy_number,title,full_text,description,enacted_by,jurisdiction_scope,source_reference")
     .eq("status", "Active")
