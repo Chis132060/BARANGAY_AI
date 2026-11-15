@@ -121,7 +121,7 @@ export default function KnowledgePage() {
           title: title.trim(),
           source_type: sourceType,
           audience,
-          status: "active",
+          status: "draft",
         })
         .select()
         .single();
@@ -149,7 +149,7 @@ export default function KnowledgePage() {
       }
 
       const result = await res.json();
-      setUploadSuccess(`Document ingested — ${result.chunks_created} chunks embedded.`);
+      setUploadSuccess(`Document ingested as Draft — ${result.chunks_created} chunks embedded. Verify the source, issuing authority and locality before activating for Ate Sora.`);
       setTitle("");
       setTextContent("");
       if (fileRef.current) fileRef.current.value = "";
@@ -164,7 +164,11 @@ export default function KnowledgePage() {
   // ── Status update ─────────────────────────────────────────────────────────
 
   const updateStatus = async (docId: string, status: "active" | "archived") => {
-    await supabase.from("knowledge_docs").update({ status }).eq("id", docId);
+    if (status === "active" && !window.confirm(
+      "Have you verified the original source and jurisdiction? This is Barangay Tandang Sora (Poblacion), Butuan City — NOT Quezon City. Do not activate an unverified policy or general web article. For uploaded PDF ordinances, use Documents > Policies and select the exact official source scope."
+    )) return;
+    const { error } = await supabase.from("knowledge_docs").update({ status }).eq("id", docId);
+    if (error) { setUploadError(error.message); return; }
     loadDocs();
   };
 
@@ -290,6 +294,9 @@ export default function KnowledgePage() {
                   </div>
                 </div>
 
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                  Knowledge documents start as Draft, not automatically public. For signed PDF ordinances use Documents → Policies, attach the primary source and verify whether it is a Tandang Sora barangay ordinance or a Butuan City-wide rule.
+                </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-600 mb-1 block">Upload File (.txt / .md)</label>
                   <input
