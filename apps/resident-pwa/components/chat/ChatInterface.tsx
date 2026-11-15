@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InChatFormCard } from "./InChatFormCard";
+import { ServiceDirectory } from "./ServiceDirectory";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
@@ -73,6 +74,7 @@ export function ChatInterface() {
   const [sessionId] = useState<string>(() => uuidv4());
   const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [serviceDirectoryOpen, setServiceDirectoryOpen] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const voiceTranscriptRef = useRef<string | null>(null);
@@ -327,7 +329,7 @@ export function ChatInterface() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative flex flex-col h-screen max-w-lg mx-auto bg-white overflow-hidden">
+    <div className="relative mx-auto flex h-full min-h-0 max-w-lg flex-col overflow-hidden bg-white">
 
       {/* Header */}
       <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
@@ -443,15 +445,19 @@ export function ChatInterface() {
                     key={s.topicId}
                     type="button"
                     onClick={() => handleSuggestion(s.query)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-left transition-all group shadow-2xs"
+                    className="flex min-h-16 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
                   >
-                    <div>
-                      <span className="block font-semibold text-[11px] text-gray-800 group-hover:text-gray-900">{s.label}</span>
-                      <span className="block text-[10px] text-gray-400 mt-0.5">{s.query}</span>
-                    </div>
-                    <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0 ml-2" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-slate-900">{s.label}</span>
+                      <span className="mt-1 block text-xs text-slate-600">{s.query}</span>
+                    </span>
+                    <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                   </button>
                 ))}
+                <button type="button" onClick={() => setServiceDirectoryOpen(true)}
+                  className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-800 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+                  View all barangay services <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
               </div>
             </div>
           )}
@@ -473,7 +479,7 @@ export function ChatInterface() {
                   )
                 )}
 
-                <div className={`max-w-[85%] space-y-1.5 flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                <div className={`${m.formType ? "w-full min-w-0 max-w-[calc(100%-2.5rem)]" : "max-w-[85%]"} flex flex-col space-y-1.5 ${isUser ? "items-end" : "items-start"}`}>
                   {/* Bubble */}
                   <div className={`px-4 py-3 text-xs leading-relaxed ${
                     isUser
@@ -601,11 +607,15 @@ export function ChatInterface() {
                 key={s.topicId}
                 type="button"
                 onClick={() => handleSuggestion(s.query)}
-                className="shrink-0 px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 text-[10px] font-medium transition-all shadow-2xs"
+                className="min-h-9 shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
               >
                 {s.label}
               </button>
             ))}
+            <button type="button" onClick={() => setServiceDirectoryOpen(true)}
+              className="min-h-9 shrink-0 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
+              All services
+            </button>
           </div>
           {/* Fade-out gradient on the right */}
           <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none" />
@@ -702,6 +712,7 @@ export function ChatInterface() {
         )}
       </form>
 
+      <ServiceDirectory open={serviceDirectoryOpen} onClose={() => setServiceDirectoryOpen(false)} onAsk={handleSuggestion} />
       <GuestAuthModal isOpen={showGuestModal} onClose={() => setShowGuestModal(false)} />
 
       {/* Language picker modal */}
