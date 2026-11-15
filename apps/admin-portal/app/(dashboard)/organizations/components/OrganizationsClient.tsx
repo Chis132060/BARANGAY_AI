@@ -1,6 +1,7 @@
 "use client";
 
 import { RecordIllustration } from "@/components/ui/RecordIllustration";
+import Link from "next/link";
 
 import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState, useTransition } from "react";
@@ -398,10 +399,16 @@ export function OrganizationsClient({ initialOrganizations, loadError }: Props) 
             Community and sectoral organizations within the barangay.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/organizations/join-requests"
+            className="inline-flex min-h-11 items-center rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800">
+            Review Join Requests
+          </Link>
         <button onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors">
           <Plus className="h-4 w-4" /> New Organization
         </button>
+        </div>
       </div>
 
       {/* Stats — comprehensive summary */}

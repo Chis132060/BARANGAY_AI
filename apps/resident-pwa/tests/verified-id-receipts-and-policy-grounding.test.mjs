@@ -28,13 +28,13 @@ test("request action reuses only authenticated verified resident ID and server c
   assert.match(server, /resident\.verification_status !== "Verified"/);
   assert.match(server, /select\("id, verification_status, id_type, id_photo_url"\)/);
   assert.match(server, /requirements\.includes\(value\) && isValidIdRequirement\(value\)/);
-  assert.match(server, /resident\.id_photo_url\.startsWith\(\x60\$\{user\.id\}\//);
-  assert.match(server, /\.from\("resident-ids"\)[\s\S]*?\.download\(resident\.id_photo_url/);
+  assert.match(server, /hasRegistrationIdOnFile\(resident\)/);
+  assert.match(server, /verified_registration_id_on_file/);
+  assert.doesNotMatch(server, /\.download\(resident\.id_photo_url/);
   assert.match(server, /\.from\("document-requirements"\)/);
-  assert.match(server, /source: "verified_registration_id_copy"/);
-  assert.match(form, /Use my ID on file/);
+  assert.match(form, /Use my registered ID/);
   assert.match(form, /Upload a different\/current ID/);
-  assert.match(chatForm, /Use my ID on file/);
+  assert.match(chatForm, /Use my registered ID/);
   assert.match(chatForm, /reuseVerifiedIdRequirements/);
   assert.doesNotMatch(server, /formData\.get\("id_photo_url"\)/);
 });

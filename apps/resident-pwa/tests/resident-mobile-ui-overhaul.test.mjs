@@ -98,7 +98,9 @@ test("in-chat application has accessible upload cards and real submission confir
   assert.match(chatForm, /No payment is collected in this form/);
   assert.match(chatForm, /setSubmitted\(true\)/);
   assert.match(chatForm, /window\.dispatchEvent\(new Event\(NAV_BADGES_CHANGED\)\)/);
-  assert.match(chatForm, /\/requests\/new\?documentId=/);
+  assert.match(chatForm, /Make form bigger/);
+  assert.match(chatForm, /setExpanded\(value => !value\)/);
+  assert.doesNotMatch(chatForm, /Open full-page form/);
   assert.doesNotMatch(chatForm, /href="\/appointments\/new"/);
 });
 

@@ -89,6 +89,8 @@ export default function AnnouncementsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [applications, setApplications] = useState<Record<string, string>>({});
+  const [organizationApplications, setOrganizationApplications] = useState<Record<string,string>>({});
+  const [joiningOrganization, setJoiningOrganization] = useState<string | null>(null);
   const [offlineProgramIds, setOfflineProgramIds] = useState<string[]>([]);
   const [applicationDetails, setApplicationDetails] = useState<Array<{program_id:string;status:string;rejection_reason:string|null;created_at:string}>>([]);
   const [showMyApplications, setShowMyApplications] = useState(false);
@@ -102,6 +104,40 @@ export default function AnnouncementsPage() {
   const lastLoadAt = useRef(0);
   const announcementsRef = useRef<Announcement[]>([]);
   const programsRef = useRef<Program[]>([]);
+
+  async function joinOrganization(organizationId: string) {
+    if (joiningOrganization || organizationApplications[organizationId]) return;
+    if (residentEligibility.state !== "verified") {
+      setApplyError("A verified barangay resident account is required before joining an organization.");
+      return;
+    }
+    const organization = organizations.find(org => org.id === organizationId);
+    if (!organization) return; // Unverified historical entries are not joinable
+    setJoiningOrganization(organizationId);
+    setApplyError("");
+    setApplyMessage("");
+    try {
+      if (!navigator.onLine) throw new Error("Connect to the internet before requesting membership.");
+      const supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!user || authError) throw new Error("Please sign in before applying.");
+      const { data: resident, error: residentError } = await supabase.from("residents")
+        .select("id,verification_status").eq("user_id", user.id).single();
+      if (residentError || resident?.verification_status !== "Verified") {
+        throw new Error("Your resident account needs staff verification first.");
+      }
+      const { error } = await supabase.from("organization_join_requests").insert({
+        organization_id: organizationId, resident_id: resident.id, status: "Pending",
+      });
+      if (error) throw error;
+      setOrganizationApplications(previous => ({ ...previous, [organizationId]: "Pending" }));
+      setApplyMessage("Membership request submitted. Wait for authorized barangay staff to verify before you become a member.");
+    } catch (error) {
+      setApplyError(error instanceof Error ? error.message : "Unable to request membership.");
+    } finally {
+      setJoiningOrganization(null);
+    }
+  }
 
   async function joinProgram(programId: string) {
     if (applying || applications[programId]) return;
@@ -325,6 +361,14 @@ export default function AnnouncementsPage() {
           setApplications(Object.fromEntries(existing.map((item: { program_id: string; status: string }) => [item.program_id, item.status])));
           setApplicationDetails(existing as Array<{ program_id: string; status: string; rejection_reason: string | null; created_at: string }>);
         }
+        const { data: orgRequests, error: orgRequestsError } = await supabase
+          .from("organization_join_requests").select("organization_id,status")
+          .eq("resident_id", resident.id);
+        if (active && !orgRequestsError && orgRequests) {
+          setOrganizationApplications(Object.fromEntries(orgRequests.map((entry: {
+            organization_id: string; status: string
+          }) => [entry.organization_id, entry.status])));
+        }
         lastLoadAt.current = Date.now();
       } catch (error) {
         if (active) setErrorMessage(requestController.signal.aborted
@@ -418,7 +462,7 @@ export default function AnnouncementsPage() {
               <p>Area: {p.purok || "All Puroks"}</p>
               <p className={p.registration_open ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{p.registration_open ? "Registration Open" : "Registration Closed"}</p>
             </div>
-          <button type="button" onClick={() => { setApplyError(""); setSelectedProgram(p); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white">Learn about this program <ArrowRight className="h-4 w-4" /></button>
+          <button type="button" onClick={() => { setApplyError(""); setSelectedProgram(p); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white">{applications[p.id] ? `Application: ${applications[p.id]}` : p.registration_open ? "Apply / View Program" : "View Program Details"} <ArrowRight className="h-4 w-4" /></button>
           </article>
         ))}
       </section>
@@ -456,7 +500,26 @@ export default function AnnouncementsPage() {
       </div>}
       {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
         <h2 className="text-base font-bold">Community Organizations</h2>
-        {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No currently verified active organizations. See historical documents below.</p> : organizations.map((org) => <article key={org.id} className="rounded-2xl border bg-white p-4 space-y-2"><span className="text-xs font-bold text-blue-700">{org.org_type}</span><h3 className="font-bold">{org.name}</h3>{org.description && <p className="text-sm text-gray-600 whitespace-pre-line">{org.description}</p>}{org.president && <p className="text-xs text-gray-500">President: {org.president}</p>}{org.contact && <p className="text-xs text-gray-500">Contact: {org.contact}</p>}</article>)}
+        {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No verified organizations are currently accepting members. Documented historical groups cannot accept applications until staff confirms they are active.</p> : organizations.map(org => (
+          <article key={org.id} className="space-y-3 rounded-2xl border bg-white p-4">
+            <span className="text-xs font-bold text-blue-700">{org.org_type}</span>
+            <h3 className="text-lg font-bold text-gray-900">{org.name}</h3>
+            {org.description && <p className="text-sm leading-relaxed text-gray-700">{org.description}</p>}
+            {org.president && <p className="text-sm text-gray-600">Leader: {org.president}</p>}
+            {organizationApplications[org.id] && <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">
+              Your membership status: {organizationApplications[org.id]}
+            </p>}
+            <button type="button"
+              disabled={residentEligibility.state !== "verified" || !!organizationApplications[org.id] || joiningOrganization !== null}
+              onClick={() => void joinOrganization(org.id)}
+              className="min-h-12 w-full rounded-xl bg-blue-700 px-4 py-3 text-base font-bold text-white disabled:bg-slate-100 disabled:text-slate-600">
+              {organizationApplications[org.id] ? `Status: ${organizationApplications[org.id]}` :
+               joiningOrganization === org.id ? "Submitting…" :
+               residentEligibility.state !== "verified" ? "Verified resident required" : "Request to Join"}
+            </button>
+            <p className="text-sm text-slate-600">A request is pending until barangay staff verifies and approves your membership.</p>
+          </article>
+        ))}
         <div className="mt-4 space-y-3 border-t pt-4">
           <div className="flex items-center justify-between"><h3 className="text-base font-bold text-slate-900">Documented Organizations</h3><span className="text-xs text-slate-500">{documentedOrganizations.length} records</span></div>
           <p className="text-xs text-slate-600">Historical government accreditation or address records. Current leadership, membership and active operations have not been independently verified.</p>
