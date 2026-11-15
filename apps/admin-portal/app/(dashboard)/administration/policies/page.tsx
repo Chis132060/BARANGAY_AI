@@ -4,6 +4,7 @@ import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState } from "react";
 import { Plus, Edit2, Trash2, CheckCircle, BookOpen, AlertCircle, FileText } from "lucide-react";
 import { fetchPolicies, savePolicy, BarangayPolicy } from "./actions";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function PoliciesPage() {
@@ -53,7 +54,7 @@ export default function PoliciesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Barangay Policies</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage local ordinances, guidelines, and rules. Drafts are hidden from the resident AI.
+            Manage internal guidance and drafts. Only source-verified Active ordinances in Documents → Policies are authoritative for Ate Sora.
           </p>
         </div>
         <button
@@ -64,6 +65,11 @@ export default function PoliciesPage() {
         </button>
       </div>
 
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+        This is the legacy internal policy notes registry. Publishing here does not verify a signed Tandang Sora ordinance or make it an official Ate Sora source.
+        For signed PDF/Word ordinances with jurisdiction, effective dates and official source, use{" "}
+        <Link href="/documents/policies" className="font-semibold underline">Documents → Policies</Link>.
+      </div>
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-muted-foreground">Loading policies...</div>
@@ -147,12 +153,12 @@ export default function PoliciesPage() {
                   className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="Draft">Draft (Internal Only - Not in AI RAG)</option>
-                  <option value="Published">Published (Live & Indexed by AI)</option>
+                  <option value="Published">Published (Legacy notes, not official ordinance verification)</option>
                   <option value="Archived">Archived</option>
                 </select>
                 {currentPolicy.status === "Published" && (
                   <p className="text-[10px] text-emerald-600 font-bold mt-1.5 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" /> Publishing makes this policy queryable by residents via Ate Sora.
+                    <CheckCircle className="h-3 w-3" /> Published notes are not accepted as verified local ordinances. Import and verify signed sources in Documents → Policies.
                   </p>
                 )}
                 {currentPolicy.status === "Draft" && (
