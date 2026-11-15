@@ -72,10 +72,6 @@ test("old unverified announcement and test organization offline caches cannot re
   assert.doesNotMatch(page, /loadPublicSnapshot<Announcement\[\]>\("announcements"\)/);
 });
 
-test("database archive is explicitly public-read and staff-write only, with provenance", () => {
-  const { readFileSync } = require("node:fs");
-});
-
 test("new source archive enforces provenance and separate RLS", () => {
   const migration = readFileSync(new URL("../../../supabase/migrations/20261115160426_source_verified_tandang_sora_archive.sql", import.meta.url), "utf8");
   assert.match(migration, /tandang_sora_source_archive/);
