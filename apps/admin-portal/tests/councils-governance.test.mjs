@@ -96,3 +96,18 @@ test("council registry has no hardcoded sample council entities", () => {
   assert.doesNotMatch(client, /Prepare unverified draft/);
   assert.match(client, /Only actual records returned by the database appear in this registry/);
 });
+
+test("program, organization and council cards display non-official illustrations without star icons", () => {
+  const illustration = read("../components/ui/RecordIllustration.tsx");
+  assert.match(programs, /<RecordIllustration kind="program" name=\{program\.name\} src=\{program\.image_url\}/);
+  assert.match(orgs, /<RecordIllustration kind="organization" name=\{org\.name\}/);
+  assert.match(client, /<RecordIllustration kind="council" name=\{council\.name\}/);
+  assert.match(illustration, /onError=/);
+  assert.match(illustration, /not an official logo/);
+  assert.doesNotMatch(programs + orgs, /\b(?:Star|Sparkle|Sparkles)\b/);
+  for (const name of ["programs", "organizations", "councils"]) {
+    const svg = read(`../public/illustrations/${name}.svg`);
+    assert.match(svg, /^<svg /);
+    assert.doesNotMatch(svg, /<text|[★☆✦✧✨]/);
+  }
+});
