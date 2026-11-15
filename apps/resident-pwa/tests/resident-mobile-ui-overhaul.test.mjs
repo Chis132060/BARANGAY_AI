@@ -109,7 +109,8 @@ test("all catalog services are selectable by validated ID, not only four shortcu
 });
 
 test("chat fits its app-shell viewport and input remains above bottom nav", () => {
-  assert.match(shell, /100dvh - 3\.5rem - var\(--bottom-nav-height\)/);
+  assert.match(shell, /isChat \? "h-\[100dvh\] overflow-hidden"/);
+  assert.match(shell, /paddingBottom: "var\(--bottom-nav-height\)"/);
   assert.match(chat, /flex h-full min-h-0 max-w-lg/);
   assert.match(read("../app/(app)/chat/page.tsx"), /h-full min-h-0 w-full/);
 });
