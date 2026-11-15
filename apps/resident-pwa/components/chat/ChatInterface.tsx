@@ -68,6 +68,8 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const startupRequestHandledRef = useRef(false);
   const [userInitials, setUserInitials] = useState<string>("");
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
@@ -115,6 +117,7 @@ export function ChatInterface() {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       setIsLoggedIn(!!user);
+      setAuthChecked(true);
       if (user) {
         const rawName =
           user.user_metadata?.full_name ||
@@ -140,6 +143,35 @@ export function ChatInterface() {
       )
     );
   }, [ttsLang]);
+
+  // Home shortcuts and My Requests open the document selector *inside* Ate Sora.
+  // Resolve sign-in before opening the form so logged-in residents are not
+  // accidentally given the guest-only prompt after client navigation.
+  useEffect(() => {
+    if (!authChecked || startupRequestHandledRef.current) return;
+    startupRequestHandledRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const document = params.get("document");
+    if (document && isDocumentFormId(document)) {
+      const formTitle = DOCUMENT_FORMS[document].title;
+      setMessages(prev => [...prev,
+        { id: `quick-request-${uuidv4()}`, sender: "user", text: `Apply for ${formTitle}`, timestamp: Date.now() },
+        isLoggedIn
+          ? {
+            id: `quick-form-${uuidv4()}`, sender: "ai",
+            text: `Narito ang ${formTitle} form. Piliin ang ID o proof na nasa verified profile mo kung available. Walang naipapasang request hangga't hindi mo pinipindot ang Submit.`,
+            formType: document, formTitle, timestamp: Date.now(),
+          }
+          : {
+            id: `quick-guest-${uuidv4()}`, sender: "ai",
+            text: "Sign in to your resident account before completing and submitting the application.",
+            guestActionTrigger: true, timestamp: Date.now(),
+          },
+      ]);
+    } else if (params.get("services") === "1") {
+      setServiceDirectoryOpen(true);
+    }
+  }, [authChecked, isLoggedIn]);
 
   useEffect(() => {
     if (!voiceMode || loading) return;
