@@ -20,7 +20,9 @@ test("home surfaces direct service, tracking, help, and news actions", () => {
 
 test("document shortcuts preselect actual available document records", () => {
   assert.match(form, /function findShortcutDocument\(types: DocumentType\[\], shortcut:/);
-  assert.match(form, /new URLSearchParams\(window\.location\.search\)\.get\("document"\)/);
+  assert.match(form, /new URLSearchParams\(window\.location\.search\)/);
+  assert.match(form, /params\.get\("document"\)/);
+  assert.match(form, /params\.get\("documentId"\)/);
   assert.match(form, /if \(matched\) setSelectedType\(matched\)/);
   assert.match(form, /name\.includes\("clearance"\) && !name\.includes\("business"\)/);
   assert.match(form, /aria-pressed=\{isSelected\}/);
