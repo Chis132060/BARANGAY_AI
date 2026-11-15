@@ -4,6 +4,7 @@ import { AdminTable } from "@/components/ui/AdminTable";
 import { useState } from "react";
 import { FileText, Printer, CheckCircle, Clock, MapPin, DollarSign, Eye } from "lucide-react";
 import type { DocumentRequestItem } from "../../actions";
+import { formatRequestReference } from "@/lib/request-receipt";
 import { CertificateTemplateModal } from "./CertificateTemplateModal";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -185,6 +186,7 @@ export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPay
                         <div className="font-semibold text-foreground">
                           {req.resident ? `${req.resident.last_name}, ${req.resident.first_name}` : "Walk-In / Online Applicant"}
                         </div>
+                        <p className="mt-1 break-all font-mono text-[10px] text-blue-700">Ref: {formatRequestReference(req.id)}</p>
                         <div className="text-xs text-muted-foreground">
                           {req.resident?.addresses?.[0]?.purok || "Barangay Resident"}
                           {req.session_id && (
