@@ -18,7 +18,8 @@ import { clearRequestSummaries } from "@/lib/offline/request-summaries";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const pathname = usePathname();
-  const hideMainScrollbar = pathname === "/announcements" || pathname === "/chat" || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
+  const isChat = pathname === "/chat";
+  const hideMainScrollbar = pathname === "/announcements" || isChat || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
 
   useEffect(() => {
     const applyTextPreference = () => {
@@ -82,8 +83,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ConnectionBanner />
       <OfflineSyncRunner />
       <main
-        className={`flex-1 overflow-y-auto${hideMainScrollbar ? " no-scrollbar" : ""}`}
-        style={{ paddingBottom: "var(--bottom-nav-height)" }}
+        className={`flex-1 min-h-0 ${isChat ? "overflow-hidden" : "overflow-y-auto"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
+        style={isChat
+          ? { height: "calc(100dvh - 3.5rem - var(--bottom-nav-height))", flex: "none" }
+          : { paddingBottom: "var(--bottom-nav-height)" }}
       >
         {children}
       </main>
