@@ -10,7 +10,8 @@ const adminQueue = read("../app/(dashboard)/documents/requests/components/Reques
 const receipt = read("../lib/request-receipt.ts");
 
 test("policy upload is draft until signed and locality verified", () => {
-  assert.match(page, /async function parseFile\(file: File\)/);\n  assert.match(page, /status:\\s*"Draft"/);
+  assert.match(page, /async function parseFile\(file: File\)/);
+  assert.match(page, /status:\s*"Draft"/);
 });
 test("active policies require source and Butuan-specific scope", () => {
   assert.match(sql, /policy_active_source_guard/);
