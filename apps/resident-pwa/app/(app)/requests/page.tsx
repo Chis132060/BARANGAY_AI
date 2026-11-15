@@ -260,7 +260,7 @@ export default function RequestsPage() {
           </div>
           {activeTab === "All" ? (
             <Link
-              href="/requests/new"
+              href="/chat?services=1"
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white"
             >
               Request a Document <ArrowRight className="h-4 w-4" aria-hidden="true" />
