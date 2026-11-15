@@ -111,13 +111,13 @@ export function ServiceDirectory({ open, onClose, onAsk }: {
           <section aria-labelledby="directory-documents-title">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 id="directory-documents-title" className="text-sm font-bold text-slate-900">Documents & certificates</h3>
-              <Link href="/requests/new" onClick={onClose} className="text-xs font-semibold text-blue-700">Open all <ArrowRight className="inline h-3 w-3" /></Link>
+              <p className="text-xs font-semibold text-blue-700">Choose a document below</p>
             </div>
             {loading ? <p role="status" className="text-sm text-slate-500">Loading available documents...</p> :
               visibleDocuments.length ? (
                 <div className="space-y-2">
                   {visibleDocuments.map(doc => (
-                    <Link key={doc.id} href={`/requests/new?documentId=${encodeURIComponent(doc.id)}`} onClick={onClose}
+                    <button key={doc.id} type="button" onClick={() => { onClose(); onAsk(`I want to request ${doc.name}`); }}
                       className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
                       <span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><FileText className="h-5 w-5" aria-hidden="true" /></span>
                       <span className="min-w-0 flex-1">
@@ -125,7 +125,7 @@ export function ServiceDirectory({ open, onClose, onAsk }: {
                         <span className="line-clamp-2 text-xs text-slate-600">{doc.description || "See the current requirements in the application form."}</span>
                       </span>
                       <ArrowRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
-                    </Link>
+                    </button>
                   ))}
                 </div>
               ) : <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">{needle ? "No matching documents." : "No document types are available to display."}</p>}

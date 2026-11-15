@@ -13,9 +13,9 @@ test("home surfaces direct service, tracking, help, and news actions", () => {
   assert.match(home, /label: "Track My Requests"/);
   assert.match(home, /label: "Ask Ate Sora"/);
   assert.match(home, /label: "Barangay Updates"/);
-  assert.match(home, /href: "\/requests\/new\?document=clearance"/);
-  assert.match(home, /href: "\/requests\/new\?document=indigency"/);
-  assert.match(home, /href: "\/requests\/new\?document=business"/);
+  assert.match(home, /href: "\/chat\?document=clearance"/);
+  assert.match(home, /href: "\/chat\?document=indigency"/);
+  assert.match(home, /href: "\/chat\?document=business"/);
 });
 
 test("document shortcuts preselect actual available document records", () => {
@@ -46,7 +46,7 @@ test("request tracking does not invent payment fees or pickup location and hours
 });
 
 test("empty request list directs resident to a new application", () => {
-  assert.match(requests, /href="\/requests\/new"/);
+  assert.match(requests, /href="\/chat\?services=1"/);
   assert.match(requests, /View all requests/);
 });
 

@@ -9,16 +9,16 @@ import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
 
 const quickActions = [
-  { href: "/requests/new", label: "Request a Document", description: "Apply for a certificate or clearance", icon: FileText },
+  { href: "/chat?services=1", label: "Request a Document", description: "Apply for a certificate or clearance", icon: FileText },
   { href: "/requests", label: "Track My Requests", description: "See progress and pickup details", icon: ClipboardList },
   { href: "/chat", label: "Ask Ate Sora", description: "Get help with barangay services", icon: Bot },
   { href: "/announcements", label: "Barangay Updates", description: "Read official announcements", icon: Megaphone },
 ];
 
 const popularDocuments = [
-  { href: "/requests/new?document=clearance", label: "Barangay Clearance" },
-  { href: "/requests/new?document=indigency", label: "Certificate of Indigency" },
-  { href: "/requests/new?document=business", label: "Business Clearance" },
+  { href: "/chat?document=clearance", label: "Barangay Clearance" },
+  { href: "/chat?document=indigency", label: "Certificate of Indigency" },
+  { href: "/chat?document=business", label: "Business Clearance" },
 ];
 
 export default function HomePage() {
@@ -216,7 +216,7 @@ export default function HomePage() {
             <ClipboardList className="h-7 w-7 text-gray-300 mx-auto" />
             <p className="text-sm font-semibold text-gray-600">No recent document requests</p>
             <Link
-              href="/requests/new"
+              href="/chat?services=1"
               className="inline-block text-xs font-bold text-blue-600 hover:underline"
             >
               Start a document request

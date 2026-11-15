@@ -81,7 +81,7 @@ test("updates are marked seen when viewing the actual Announcements tab", () => 
 test("all services directory includes live catalog, search, and existing routed services", () => {
   assert.match(directory, /from\("document_types"\)/);
   assert.match(directory, /type="search"/);
-  assert.match(directory, /\/requests\/new\?documentId=/);
+  assert.match(directory, /onAsk\(`I want to request \$\{doc.name\}`\)/);
   for (const href of ["/requests", "/support", "/announcements?tab=programs", "/announcements?tab=organizations"]) {
     assert.ok(directory.includes(href), href);
   }
