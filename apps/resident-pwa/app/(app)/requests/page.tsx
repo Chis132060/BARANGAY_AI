@@ -423,7 +423,7 @@ export default function RequestsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-700">Reference Number</label>
+                  <label className="text-xs font-bold text-gray-700">Payment reference / receipt number</label>
                   <input 
                     type="text"
                     value={referenceInput}
@@ -431,7 +431,7 @@ export default function RequestsPage() {
                     placeholder="e.g. 1234567890"
                     className="w-full p-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
                   />
-                  <p className="text-[10px] text-gray-500">Enter the reference number from your payment receipt.</p>
+                  <p className="text-[10px] text-gray-500">Enter the reference from your actual GCash/bank payment receipt, NOT the TS12- request tracking number.</p>
                 </div>
 
                 {paymentError && (
