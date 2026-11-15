@@ -1,5 +1,7 @@
 "use client";
 
+import { RecordIllustration } from "@/components/ui/RecordIllustration";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookOpen, ClipboardCheck, FileText, Landmark, Plus, RefreshCw,
@@ -291,6 +293,7 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
         {matches.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {matches.map(council => <button key={council.id} type="button" onClick={() => selectCouncil(council)}
             className="rounded-2xl border bg-white p-5 text-left shadow-sm hover:border-blue-300 hover:shadow-md">
+            <RecordIllustration kind="council" name={council.name} className="mb-3 h-28 w-full" />
             <div className="flex items-start justify-between gap-3">
               <Landmark className="h-5 w-5 text-blue-700" />
               <StatusLabel status={council.status} />
