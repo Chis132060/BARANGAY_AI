@@ -16,7 +16,7 @@ test("unique receipt is derived from complete database UUID and is not a payment
   assert.match(reference, /id\.replace\(\/-\/g, ""\)\.toUpperCase\(\)/);
   assert.match(reference, /TS12-/);
   assert.match(server, /\.insert\(\{[\s\S]*?\}\)\.select\("id"\)\.single\(\)/);
-  assert.match(server, /reference: formatRequestReference\(created\.id\)/);
+  assert.match(server, /reference: formatRequestReference\(createdId\)/);
   assert.match(server, /reference: formatRequestReference\(existing\.id\)/);
   assert.match(form, /setReceiptReference\(receipt\.reference\)/);
   assert.match(chatForm, /setReceiptReference\(result\.reference\)/);
