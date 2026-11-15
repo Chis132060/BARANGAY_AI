@@ -1,5 +1,7 @@
 "use client";
 
+import { RecordIllustration } from "@/components/ui/RecordIllustration";
+
 import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -14,7 +16,6 @@ import {
   UserPlus,
   Car,
   Heart,
-  Star,
   Globe,
   Minus,
 } from "lucide-react";
@@ -34,15 +35,15 @@ const ORG_TYPE_STYLES: Record<string, { color: string; icon: React.ElementType }
   Cooperative:{ color: "bg-amber-100 text-amber-700 border-amber-200", icon: Car },
   Community:  { color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: Users },
   Sectoral:   { color: "bg-purple-100 text-purple-700 border-purple-200", icon: Handshake },
-  Youth:      { color: "bg-cyan-100 text-cyan-700 border-cyan-200",    icon: Star },
+  Youth:      { color: "bg-cyan-100 text-cyan-700 border-cyan-200",    icon: Users },
   Women:      { color: "bg-pink-100 text-pink-700 border-pink-200",    icon: Heart },
   Senior:     { color: "bg-orange-100 text-orange-700 border-orange-200", icon: Users },
-  Religious:  { color: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: Star },
-  Other:      { color: "bg-gray-100 text-gray-600 border-gray-200",    icon: Star },
+  Religious:  { color: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: Users },
+  Other:      { color: "bg-gray-100 text-gray-600 border-gray-200",    icon: Users },
 };
 
 function getOrgStyle(orgType: string, isCustom: boolean) {
-  if (isCustom) return { color: "bg-violet-100 text-violet-700 border-violet-200", icon: Star };
+  if (isCustom) return { color: "bg-violet-100 text-violet-700 border-violet-200", icon: Users };
   return ORG_TYPE_STYLES[orgType] || ORG_TYPE_STYLES.Other;
 }
 
@@ -437,7 +438,7 @@ export function OrganizationsClient({ initialOrganizations, loadError }: Props) 
             label: "Custom",
             value: orgs.filter((o) => o.is_custom).length,
             delta: "Staff-created entries",
-            icon: Star,
+            icon: Users,
             accentColor: "text-violet-600",
             bgColor: "bg-violet-50 dark:bg-violet-950/30",
             sparkColor: "#7c3aed",
@@ -614,6 +615,7 @@ export function OrganizationsClient({ initialOrganizations, loadError }: Props) 
           return (
             <div key={org.id} onClick={() => setSelectedOrg(org)}
               className="group relative rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+              <RecordIllustration kind="organization" name={org.name} className="mb-4 h-28 w-full" />
               <div className="flex items-start justify-between">
                 <div className={`flex h-11 w-11 items-center justify-center rounded-xl border ${color}`}>
                   <Icon className="h-5 w-5" />
