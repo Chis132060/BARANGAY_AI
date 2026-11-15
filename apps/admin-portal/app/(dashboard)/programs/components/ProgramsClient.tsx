@@ -105,6 +105,8 @@ function EnrolleesPanel({
 }) {
   const [enrollees, setEnrollees] = useState<ProgramEnrollee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [reloadMembers, setReloadMembers] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
@@ -123,11 +125,15 @@ function EnrolleesPanel({
   const [showAudit, setShowAudit] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setMembersError(null);
     fetchEnrollees(program.id)
-      .then(setEnrollees)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [program.id]);
+      .then(rows => { if (mounted) setEnrollees(rows); })
+      .catch(error => { if (mounted) setMembersError(error instanceof Error ? error.message : "Could not load program participants."); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [program.id, reloadMembers]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -219,6 +225,20 @@ function EnrolleesPanel({
           </button>
         </div>
 
+        <div className="border-b bg-blue-50/60 px-6 py-4 text-sm">
+          <h3 className="mb-2 flex items-center gap-2 font-bold text-blue-900">
+            <BookOpen className="h-4 w-4" /> Program Overview
+          </h3>
+          <p className="text-slate-700">{program.description || "No program description recorded."}</p>
+          <div className="mt-3 grid gap-2 text-xs text-slate-700 sm:grid-cols-2">
+            <p><strong>Category:</strong> {program.category || "Unspecified"}</p>
+            <p><strong>Status:</strong> {program.status}</p>
+            <p><strong>Program lead:</strong> {program.chairperson || "Not recorded"}</p>
+            <p><strong>Schedule:</strong> {program.schedule_details || "Not recorded"}</p>
+          </div>
+          <p className="mt-2 text-xs text-blue-800">Program leaders are not automatically beneficiaries or council officers.</p>
+        </div>
+
         {/* Add Enrollee Form */}
         {showAdd && (
           <form onSubmit={handleAdd} className="border-b px-6 py-4 bg-muted/30 space-y-3">
@@ -280,14 +300,21 @@ function EnrolleesPanel({
           </div>
 
           {loading && <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">Loading…</div>}
-          {!loading && enrollees.length === 0 && (
+          {!loading && membersError && (
+            <div role="alert" className="mx-6 my-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              Cannot load participants: {membersError}
+              <button type="button" onClick={() => setReloadMembers(value => value + 1)}
+                className="ml-3 font-bold underline">Retry</button>
+            </div>
+          )}
+          {!loading && !membersError && enrollees.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Users className="h-10 w-10 mb-2 opacity-20" />
               <p className="text-sm">No members enrolled yet.</p>
               <button onClick={() => setShowAdd(true)} className="mt-3 text-xs text-primary underline">Add the first member</button>
             </div>
           )}
-          {!loading && enrollees.length > 0 && (
+          {!loading && !membersError && enrollees.length > 0 && (
             <AdminTable className="w-full text-sm text-left">
               <thead className="border-b bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <tr><th className="px-6 py-2.5">Name</th><th className="px-6 py-2.5">Role</th><th className="px-6 py-2.5">Purok</th><th className="px-6 py-2.5">Enrolled</th><th className="px-6 py-2.5 text-right">Actions</th></tr>
@@ -326,9 +353,10 @@ function EnrolleesPanel({
 interface Props {
   initialPrograms: BarangayProgram[];
   initialCategory?: string;
+  loadError?: string | null;
 }
 
-export function ProgramsClient({ initialPrograms, initialCategory }: Props) {
+export function ProgramsClient({ initialPrograms, initialCategory, loadError }: Props) {
   const [programs, setPrograms] = useState<BarangayProgram[]>(initialPrograms);
   const [search, setSearch] = useState("");
   const [selectedProgram, setSelectedProgram] = useState<BarangayProgram | null>(null);
@@ -361,6 +389,14 @@ export function ProgramsClient({ initialPrograms, initialCategory }: Props) {
     });
   }
 
+  if (loadError) {
+    return <div role="alert" className="m-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900">
+      <h1 className="text-lg font-bold">Programs could not be loaded</h1>
+      <p className="mt-2 text-sm">{loadError}</p>
+      <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold text-white">Retry</button>
+    </div>;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -370,10 +406,10 @@ export function ProgramsClient({ initialPrograms, initialCategory }: Props) {
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
               <BookOpen className="h-5 w-5" />
             </span>
-            Programs & Councils
+            Programs & Activities
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage barangay programs, councils, and their enrolled members.
+            Manage barangay programs, applications, attendance, and beneficiaries.
           </p>
         </div>
         <button
@@ -390,7 +426,7 @@ export function ProgramsClient({ initialPrograms, initialCategory }: Props) {
           {
             label: "Total Programs",
             value: programs.length,
-            delta: "Programs & councils",
+            delta: "Programs only",
             icon: BookOpen,
             accentColor: "text-blue-600",
             bgColor: "bg-blue-50 dark:bg-blue-950/30",
