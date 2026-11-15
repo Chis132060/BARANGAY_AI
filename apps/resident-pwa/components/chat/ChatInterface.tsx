@@ -96,6 +96,7 @@ export function ChatInterface() {
     },
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const soraIsSpeaking = Boolean(speakingId || loadingId);
   const voiceModeRef = useRef(false);
@@ -167,7 +168,23 @@ export function ChatInterface() {
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const viewport = messagesScrollRef.current;
+    if (!viewport) return;
+    const last = messages[messages.length - 1];
+    if (last?.formType) {
+      // A full application form can be much taller than the chat viewport.
+      // Show its HEADER first, not the submit button or an apparently blank screen.
+      const cards = viewport.querySelectorAll<HTMLElement>("[data-ate-sora-form-message]");
+      const card = cards[cards.length - 1];
+      if (card) {
+        const top = card.getBoundingClientRect().top -
+          viewport.getBoundingClientRect().top + viewport.scrollTop;
+        viewport.scrollTo({ top: Math.max(0, top - 8), behavior: "smooth" });
+        return;
+      }
+    }
+    // Scroll only the message viewport, never the outer PWA page and bottom nav.
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
   function resetChat() {
@@ -195,6 +212,39 @@ export function ChatInterface() {
       timestamp: Date.now(),
     };
     setMessages((prev) => [...prev, userMsg]);
+
+    // A resident explicitly requesting a known form should not need an AI call,
+    // a chat quota, or a functioning LLM backend before the actual form appears.
+    // InChatFormCard fetches the authoritative document catalog and performs
+    // server-side authenticated submission; no AI-provided requirements are trusted.
+    if (userFormRequest.formType && isDocumentFormId(userFormRequest.formType)) {
+      const formTitle = DOCUMENT_FORMS[userFormRequest.formType].title;
+      setMessages((prev) => [...prev, {
+        id: `ai-form-${uuidv4()}`,
+        sender: "ai",
+        text: ttsLang === "ceb"
+          ? `Ani ang aplikasyon para sa ${formTitle}. Ang mga rekisitos kuhaon gikan sa tinuod nga barangay service catalog. Wala pay napasa nga request.`
+          : ttsLang === "en"
+            ? `Here is your ${formTitle} application. Requirements are loaded from the barangay service catalog. Nothing is submitted until you confirm the form.`
+            : `Narito ang ${formTitle} application. Mula sa barangay service catalog ang requirements. Wala pang request na nasusumite hangga't hindi mo kinukumpirma ang form.`,
+        formType: userFormRequest.formType,
+        formTitle,
+        timestamp: Date.now(),
+      }]);
+      voiceRequestInFlightRef.current = false;
+      return;
+    }
+    if (userFormRequest.guestActionTrigger) {
+      setMessages((prev) => [...prev, {
+        id: `ai-guest-${uuidv4()}`,
+        sender: "ai",
+        text: "Please sign in with your resident account to access the current application form and submit a document request.",
+        guestActionTrigger: true,
+        timestamp: Date.now(),
+      }]);
+      voiceRequestInFlightRef.current = false;
+      return;
+    }
     setLoading(true);
 
     // navigator.onLine is only a device hint, not proof that the AI API is unreachable.
@@ -329,7 +379,7 @@ export function ChatInterface() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative mx-auto flex h-full min-h-0 max-w-lg flex-col overflow-hidden bg-white">
+    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden bg-white">
 
       {/* Header */}
       <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between shrink-0">
@@ -417,7 +467,7 @@ export function ChatInterface() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-white no-scrollbar">
+      <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white no-scrollbar">
         <div className="p-4 space-y-4">
 
           {/* Welcome hero — shown only before first user message */}
@@ -467,7 +517,7 @@ export function ChatInterface() {
             const isUser = m.sender === "user";
             if (m.id === "welcome" && isWelcomeOnly) return null;
             return (
-              <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
+              <div key={m.id} data-ate-sora-form-message={m.formType ? "true" : undefined} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
                 {/* AI avatar */}
                 {!isUser && (
                   m.isError ? (
