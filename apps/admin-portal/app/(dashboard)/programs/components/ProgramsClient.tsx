@@ -217,7 +217,7 @@ function EnrolleesPanel({
             </div>
             <div>
               <h2 className="font-bold text-base">{program.name}</h2>
-              <p className="text-xs text-muted-foreground">{enrollees.length} enrolled member{enrollees.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-muted-foreground">{loading ? "Loading participants…" : membersError ? "Participants unavailable" : `${enrollees.length} program participant${enrollees.length !== 1 ? "s" : ""}`}</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted transition-colors">
@@ -287,7 +287,7 @@ function EnrolleesPanel({
 
         {!showAdd && formError && <p role="alert" className="px-6 py-2 text-xs text-red-700">{formError}</p>}
         {showAudit && <div className="max-h-36 overflow-y-auto border-b p-3 text-xs">{audit.length === 0 ? "No audit events yet" : audit.map((a,i) => <p key={i}>{new Date(a.created_at).toLocaleString()} — {a.action} {a.details || ""}</p>)}</div>}
-        <div className="px-6 py-2 text-xs text-muted-foreground">Applications: {enrollees.filter(e => e.status === "Pending").length} pending · {enrollees.filter(e => e.status === "Approved").length} approved · {enrollees.filter(e => e.status === "Rejected").length} rejected · {enrollees.filter(e => e.attended).length} attended</div>
+        <div className="px-6 py-2 text-xs text-muted-foreground">{loading ? "Loading applications…" : membersError ? "Application counts unavailable until the member list loads." : <>Applications: {enrollees.filter(e => e.status === "Pending").length} pending · {enrollees.filter(e => e.status === "Approved").length} approved · {enrollees.filter(e => e.status === "Rejected").length} rejected · {enrollees.filter(e => e.attended).length} attended</>}</div>
         {/* Enrollee List */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-3 border-b">
