@@ -39,8 +39,10 @@ test("in-chat form is scrolled to its header and never scrolls the entire page",
 test("form errors present recovery paths instead of leaving an empty chat view", () => {
   assert.match(inlineForm, /role="alert"/);
   assert.match(inlineForm, /Retry catalog/);
-  assert.match(inlineForm, /href="\/requests\/new"/);
-  assert.match(inlineForm, /Open standard request form/);
+  assert.match(inlineForm, /Make form bigger/);
+  assert.match(inlineForm, /Back to Ate Sora chat/);
+  assert.match(inlineForm, /setExpanded\(value => !value\)/);
+  assert.doesNotMatch(inlineForm, /Open full-page form/);
   assert.match(errorBoundary, /export default function ChatError/);
   assert.match(errorBoundary, /onClick=\{reset\}/);
   assert.match(errorBoundary, /href="\/requests\/new"/);
