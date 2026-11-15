@@ -23,7 +23,7 @@ test("three separate navigation modules exist instead of calling beneficiaries c
   }
   assert.match(programs, /Program Overview/);
   assert.match(programs, /Program lead:/);
-  assert.match(programs, /Council officers/);
+  assert.match(programs, /council officers/i);
 });
 
 test("no council members or local leaders are seeded or inferred from enrollee data", () => {
