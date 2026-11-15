@@ -83,7 +83,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ConnectionBanner />
       <OfflineSyncRunner />
       <main
-        className={`flex-1 min-h-0 ${isChat ? "overflow-hidden" : "overflow-y-auto"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
+        className={`flex-1 min-h-0 ${isChat ? "flex flex-col overflow-hidden" : "overflow-y-auto"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
         style={{ paddingBottom: "var(--bottom-nav-height)" }}
       >
         {children}

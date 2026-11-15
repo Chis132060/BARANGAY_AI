@@ -237,8 +237,14 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
         {catalogError && (
           <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm leading-relaxed text-amber-950">{catalogError} Please try again or use the full-page form.</p>
-            <button type="button" onClick={() => void refreshCatalog()}
-              className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white">Retry catalog</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => void refreshCatalog()}
+                className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white">Retry catalog</button>
+              <Link href="/requests/new"
+                className="inline-flex min-h-11 items-center rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-800">
+                Open standard request form
+              </Link>
+            </div>
           </div>
         )}
 
