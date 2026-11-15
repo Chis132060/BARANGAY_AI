@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookOpen, ClipboardCheck, FileText, Landmark, Plus, RefreshCw,
   ShieldCheck, Users, X, Link2, Trash2, AlertCircle
@@ -79,8 +79,10 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
   const [addingMember, setAddingMember] = useState(false);
   const [chosenProgram, setChosenProgram] = useState("");
   const [search, setSearch] = useState("");
+  const requestSerial = useRef(0);
 
   const loadDetails = useCallback(async (councilId: string) => {
+    const serial = ++requestSerial.current;
     setDetailsLoading(true);
     setDetailsError(null);
     try {
@@ -89,19 +91,21 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
         fetchCouncilPrograms(councilId),
         fetchCouncilProgramOptions(),
       ]);
+      if (serial !== requestSerial.current) return;
       setMembers(memberRows);
       setPrograms(linkedPrograms);
       setProgramOptions(availablePrograms);
     } catch (error) {
-      setDetailsError(error instanceof Error ? error.message : "Unable to load the council roster.");
+      if (serial === requestSerial.current) setDetailsError(error instanceof Error ? error.message : "Unable to load the council roster.");
     } finally {
-      setDetailsLoading(false);
+      if (serial === requestSerial.current) setDetailsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!selected) return;
     void loadDetails(selected.id);
+    return () => { requestSerial.current++; };
   }, [selected?.id, reloadKey, loadDetails]);
 
   function selectCouncil(council: BarangayCouncil) {
