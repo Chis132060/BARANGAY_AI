@@ -1,295 +1,75 @@
-// Barangay Policy, Document Requirements, & Event Knowledge Base
-
+/**
+ * Suggestions ONLY. The old static knowledge array contained unverified
+ * fees, office hours and future event dates. None of those can be official
+ * Tandang Sora, Butuan City facts without current signed sources.
+ *
+ * Real service requirements come from RLS-filtered document_types;
+ * ordinance answers come from source-verified Active policy records.
+ */
 export interface PolicyTopic {
   id: string;
-  keywords: string[];
   title: string;
   category: "documents" | "policy" | "events" | "hours" | "general";
+  keywords: string[];
   formType?: string;
   formTitle?: string;
-  estimatedFee?: number;
-  // Multilingual responses
-  response: {
-    en: string;
-    tgl: string;
-    ceb: string;
-  };
-  guestResponse?: {
-    en: string;
-    tgl: string;
-    ceb: string;
-  };
-  // Suggested clickable questions for this topic
-  suggestedQuestions: {
-    en: string;
-    tgl: string;
-    ceb: string;
-  };
+  suggestedQuestions: Record<"en" | "tgl" | "ceb", string>;
 }
 
 export const BARANGAY_KNOWLEDGE: PolicyTopic[] = [
   {
-    id: "clearance",
-    keywords: ["clearance", "barangay clearance", "clearance requirement", "paano kumuha ng clearance", "unsaon pagkuha og clearance"],
-    title: "Barangay Clearance",
-    category: "documents",
-    formType: "clearance",
-    formTitle: "Barangay Clearance",
-    estimatedFee: 50.0,
+    id: "clearance", title: "Barangay Clearance", category: "documents",
+    keywords: ["barangay clearance"], formType: "clearance", formTitle: "Barangay Clearance",
     suggestedQuestions: {
-      en: "How do I get a Barangay Clearance?",
-      tgl: "Paano makakuha ng Barangay Clearance?",
-      ceb: "Unsaon pagkuha og Barangay Clearance?",
-    },
-    response: {
-      en: "Barangay Clearance is issued for employment, government ID applications, or travel. Requirements: 1 Valid Government ID & Proof of Residency. Fee: ₱50.00. Processing time: 15–30 minutes. You can fill out the application form below.",
-      tgl: "Ang Barangay Clearance ay ibinibigay para sa trabaho, aplikasyon sa ID, o pagbiyahe. Mga kailangan: 1 Valid Government ID at Proof of Residency. Bayad: ₱50.00. Maaari mong punan ang application form sa ibaba.",
-      ceb: "Ang Barangay Clearance kay gikinahanglan para sa trabaho, pagkuha og ID, o pagbiyahe. Mga rekisitos: 1 Valid Government ID ug Proof of Residency. Bayad: ₱50.00. Mahimo nimong pun-an ang application form sa ubos.",
-    },
-    guestResponse: {
-      en: "Barangay Clearance requires 1 Valid ID and Proof of Residency (₱50.00 fee). Sign in to submit an online request through this AI Assistant.",
-      tgl: "Ang Barangay Clearance ay nangangailangan ng 1 Valid ID at Proof of Residency (Bayad: ₱50.00). Mag-sign in para makapag-apply online.",
-      ceb: "Ang Barangay Clearance nagkinahanglan og 1 Valid ID ug Proof of Residency (Bayad: ₱50.00). Palihug og sign in aron makasumite og online request.",
+      en: "How do I request a Barangay Clearance?",
+      tgl: "Paano mag-request ng Barangay Clearance?",
+      ceb: "Unsaon pagpangayo og Barangay Clearance?",
     },
   },
   {
-    id: "indigency",
-    keywords: ["indigency", "certificate of indigency", "medical aid", "financial assistance", "tulong pinansyal", "ayuda"],
-    title: "Certificate of Indigency",
-    category: "documents",
-    formType: "indigency",
-    formTitle: "Certificate of Indigency",
-    estimatedFee: 0.0,
+    id: "indigency", title: "Certificate of Indigency", category: "documents",
+    keywords: ["certificate of indigency"], formType: "indigency", formTitle: "Certificate of Indigency",
     suggestedQuestions: {
-      en: "What are the requirements for a Certificate of Indigency?",
-      tgl: "Ano ang requirements para sa Certificate of Indigency?",
-      ceb: "Unsa ang mga kinahanglanon sa Certificate of Indigency?",
-    },
-    response: {
-      en: "Certificate of Indigency is completely Free of Charge (₱0.00) for low-income residents seeking medical, hospitalization, educational (scholarship), burial, or legal assistance. Please fill out the form below stating your specific purpose and dependents.",
-      tgl: "Ang Certificate of Indigency ay Libre (₱0.00) para sa mga residenteng nangangailangan ng tulong medikal, ospital, edukasyon/iskolarship, o legal. Punan ang form sa ibaba at tukuyin ang layunin.",
-      ceb: "Ang Certificate of Indigency kay Libre (₱0.00) para sa mga residente nga nanginahanglan og tabang medikal, eskwela, o legal. Palihug pun-i ang form sa ubos.",
-    },
-    guestResponse: {
-      en: "Certificate of Indigency is free for low-income residents for medical or educational aid. Please log in to fill out and submit the online application.",
-      tgl: "Ang Certificate of Indigency ay libre para sa tulong medikal o pampaaral. Mag-login para makapagpasa ng online application.",
-      ceb: "Ang Certificate of Indigency kay libre alang sa mga nanginahanglan og ayuda. Mag-login aron makasumite online.",
+      en: "How do I request a Certificate of Indigency?",
+      tgl: "Paano mag-request ng Certificate of Indigency?",
+      ceb: "Unsaon pagpangayo og Certificate of Indigency?",
     },
   },
   {
-    id: "residency",
-    keywords: ["residency", "certificate of residency", "proof of residency", "patunay ng paninirahan", "lumulupyo"],
-    title: "Certificate of Residency",
-    category: "documents",
-    formType: "residency",
-    formTitle: "Certificate of Residency",
-    estimatedFee: 30.0,
+    id: "residency", title: "Certificate of Residency", category: "documents",
+    keywords: ["certificate of residency"], formType: "residency", formTitle: "Certificate of Residency",
     suggestedQuestions: {
-      en: "How do I apply for a Certificate of Residency?",
-      tgl: "Paano kumuha ng Certificate of Residency?",
-      ceb: "Unsaon pagkuha og Certificate of Residency?",
-    },
-    response: {
-      en: "Certificate of Residency confirms you are a bonafide resident of our Barangay. Requirements: Proof of address (utility bill or landlord certification) and at least 6 months residency. Fee: ₱30.00. Submit your request using the form below.",
-      tgl: "Ang Certificate of Residency ay patunay na ikaw ay lehitimong residente ng Barangay. Kailangan: Proof of address at hindi bababa sa 6 na buwang paninirahan. Bayad: ₱30.00. Gamitin ang form sa ibaba.",
-      ceb: "Ang Certificate of Residency nagpamatuod nga ikaw lumulupyo dinhi sa barangay. Rekisitos: Proof of address ug 6 ka buwan nga pagpuyo. Bayad: ₱30.00. Pun-i ang porma sa ubos.",
-    },
-    guestResponse: {
-      en: "Certificate of Residency requires proof of local address (₱30.00). Sign in to submit your residency request.",
-      tgl: "Ang Certificate of Residency ay may bayad na ₱30.00. Mag-sign in upang makapagsumite ng application.",
-      ceb: "Ang Certificate of Residency nagkinahanglan og proof of address (₱30.00). Sign in aron makasumite.",
+      en: "How do I request a Certificate of Residency?",
+      tgl: "Paano mag-request ng Certificate of Residency?",
+      ceb: "Unsaon pagpangayo og Certificate of Residency?",
     },
   },
   {
-    id: "business",
-    keywords: ["business clearance", "business permit", "commercial clearance", "negosyo", "permit sa negosyo"],
-    title: "Business Clearance",
-    category: "documents",
-    formType: "business",
-    formTitle: "Business Clearance",
-    estimatedFee: 500.0,
+    id: "business", title: "Business Clearance", category: "documents",
+    keywords: ["business clearance"], formType: "business", formTitle: "Business Clearance",
     suggestedQuestions: {
-      en: "How do I apply for a Business Clearance?",
-      tgl: "Paano mag-apply ng Business Clearance?",
-      ceb: "Unsaon pag-apply og Business Clearance?",
-    },
-    response: {
-      en: "Business permitting normally uses a unified city/municipal application. A barangay clearance or business-related barangay permit is part of the local permitting process, subject to the LGU's current rules. Common records include DTI/SEC/CDA registration, owner TIN and valid ID, proof of address or lease/land title, location information, and applicable fire, sanitary, zoning, or environmental clearances. The Barangay AI must confirm the current fee and processing time from an approved local record before you pay.",
-      tgl: "Karaniwang gumagamit ng unified application ang city o municipality para sa business permit. Kasama sa proseso ang barangay clearance o business-related barangay permit, ayon sa kasalukuyang patakaran ng LGU. Karaniwang hinihingi ang DTI/SEC/CDA registration, TIN at valid ID ng may-ari, patunay ng address o lease/land title, lokasyon, at naaangkop na fire, sanitary, zoning, o environmental clearances. Dapat kumpirmahin muna ng Barangay AI ang kasalukuyang bayad at processing time mula sa aprubadong lokal na tala bago magbayad.",
-      ceb: "Kasagaran gigamit sa city o municipality ang unified application para sa business permit. Apil sa proseso ang barangay clearance o business-related barangay permit, depende sa kasamtangang lagda sa LGU. Kasagarang rekord ang DTI/SEC/CDA registration, TIN ug valid ID sa tag-iya, proof of address o lease/land title, lokasyon, ug angay nga fire, sanitary, zoning, o environmental clearances. Kinahanglan kumpirmahon una sa Barangay AI ang kasamtangang bayad ug processing time gikan sa aprubadong lokal nga rekord.",
-    },
-    guestResponse: {
-      en: "Business permitting commonly requires DTI/SEC/CDA registration, proof of address, and other LGU clearances. Sign in to submit details online; confirm the current fee and issuing office with the Barangay or BPLO.",
-      tgl: "Karaniwang kailangan sa business permitting ang DTI/SEC/CDA registration, patunay ng address, at iba pang LGU clearances. Mag-sign in para magsumite online; kumpirmahin ang kasalukuyang bayad at tanggapan sa Barangay o BPLO.",
-      ceb: "Kasagarang gikinahanglan sa business permitting ang DTI/SEC/CDA registration, proof of address, ug uban pang LGU clearances. Sign in aron makasumite online; kumpirmaha ang kasamtangang bayad ug opisina sa Barangay o BPLO.",
-    },
-  },
-  {
-    id: "hours",
-    keywords: ["hours", "office hours", "schedule", "open", "time", "oras ng opisina", "oras sa opisina", "bukas"],
-    title: "Barangay Operating Hours",
-    category: "hours",
-    suggestedQuestions: {
-      en: "What are the barangay office hours?",
-      tgl: "Ano ang oras ng opisina ng barangay?",
-      ceb: "Unsa ang oras sa opisina sa barangay?",
-    },
-    response: {
-      en: "The Barangay Hall is open Monday to Friday from 8:00 AM to 5:00 PM (No Noon Break for frontline document releases). Emergency tanod desk and hotline operate 24/7.",
-      tgl: "Ang Barangay Hall ay bukas Lunes hanggang Biyernes, 8:00 AM hanggang 5:00 PM (Walang Noon Break para sa frontline services). Ang Emergency Tanod Desk ay 24/7.",
-      ceb: "Ang Barangay Hall abli Lunes hangtod Biyernes gikan 8:00 AM hangtod 5:00 PM (Walay Noon Break). Ang Tanod Emergency Desk naglihok 24/7.",
-    },
-  },
-  {
-    id: "barangay-laws",
-    keywords: [
-      "ra 7160",
-      "local government code",
-      "katarungang pambarangay",
-      "barangay assembly",
-      "sangguniang kabataan",
-      "sk reform",
-      "vawc",
-      "safe spaces act",
-      "juvenile justice",
-      "disaster risk",
-      "solid waste law",
-      "data privacy",
-      "senior citizen law",
-      "pwd law",
-      "solo parent law",
-      "kasambahay law",
-      "batas kasambahay",
-      "barangay laws",
-      "barangay law",
-      "barangay policies",
-      "barangay rules",
-      "laws sa barangay",
-      "laws ng barangay",
-      "mga laws",
-      "ano ang mga batas",
-      "batas sa barangay",
-      "batas ng barangay",
-      "policies sa barangay",
-      "mga batas sa barangay",
-      "mga batas ng barangay",
-    ],
-    title: "Barangay Laws & Policies",
-    category: "policy",
-    suggestedQuestions: {
-      en: "What laws and policies apply to the barangay?",
-      tgl: "Ano ang mga batas at polisiya na may kinalaman sa barangay?",
-      ceb: "Unsa ang mga balaod ug polisiya nga may kalabotan sa barangay?",
-    },
-    response: {
-      en: "The main legal references for barangays are: RA 7160 (Local Government Code, including barangay powers, assembly, officials, and Katarungang Pambarangay); RA 10742 as amended by RA 11768 (Sangguniang Kabataan); RA 9003 (solid waste); RA 10121 (disaster risk reduction); RA 9262 and RA 11313 (violence and safe spaces protection); RA 9344 as amended by RA 10630 (juvenile justice); RA 10173 (data privacy); RA 11032 (Citizen's Charter and efficient services); RA 9994 (senior citizens); RA 7277 (PWD rights); RA 11861 (solo parents); and RA 10361 (Batas Kasambahay). Butuan City codes may also apply, including the General Ordinances, Sanitation, Traffic, Solid Waste, Zoning, GAD, Children and Youth Welfare, and other codes listed at https://sp.butuan.gov.ph/codes/. These are general/national or citywide references—not automatically a Tandang Sora Barangay ordinance. For an exact curfew, fine, fee, schedule, or local rule, I need the latest signed Barangay record.",
-      tgl: "Ang pangunahing legal references para sa barangay ay: RA 7160 o Local Government Code (kapangyarihan ng barangay, Barangay Assembly, mga opisyal, at Katarungang Pambarangay); RA 10742 na binago ng RA 11768 (Sangguniang Kabataan); RA 9003 (solid waste); RA 10121 (disaster risk reduction); RA 9262 at RA 11313 (proteksiyon laban sa karahasan at safe spaces); RA 9344 na binago ng RA 10630 (juvenile justice); RA 10173 (data privacy); RA 11032 (Citizen's Charter at maayos na serbisyo); RA 9994 (senior citizens); RA 7277 (PWD rights); RA 11861 (solo parents); at RA 10361 (Batas Kasambahay). Maaari ring umiral ang Butuan City codes gaya ng General Ordinances, Sanitation, Traffic, Solid Waste, Zoning, GAD, Children and Youth Welfare, at iba pang nasa https://sp.butuan.gov.ph/codes/. Pambansa o citywide ang mga ito—hindi awtomatikong ordinansa ng Barangay Tandang Sora. Para sa eksaktong curfew, multa, bayad, schedule, o lokal na rule, kailangan ang pinakabagong signed record ng Barangay.",
-      ceb: "Ang mga nag-unang legal references para sa barangay mao ang: RA 7160 o Local Government Code (gahum sa barangay, Barangay Assembly, mga opisyal, ug Katarungang Pambarangay); RA 10742 nga gi-amendar sa RA 11768 (Sangguniang Kabataan); RA 9003 (solid waste); RA 10121 (disaster risk reduction); RA 9262 ug RA 11313 (proteksyon batok sa kapintasan ug safe spaces); RA 9344 nga gi-amendar sa RA 10630 (juvenile justice); RA 10173 (data privacy); RA 11032 (Citizen's Charter ug episyenteng serbisyo); RA 9994 (senior citizens); RA 7277 (PWD rights); RA 11861 (solo parents); ug RA 10361 (Batas Kasambahay). Mahimo usab nga magamit ang Butuan City codes sama sa General Ordinances, Sanitation, Traffic, Solid Waste, Zoning, GAD, Children and Youth Welfare, ug uban pa sa https://sp.butuan.gov.ph/codes/. Pambansa o citywide kini nga references—dili awtomatikong ordinansa sa Barangay Tandang Sora. Para sa eksaktong curfew, multa, bayad, schedule, o lokal nga lagda, kinahanglan ang pinakabag-ong signed record sa Barangay.",
-    },
-  },
-  {
-    id: "policies",
-    keywords: [
-      "curfew",
-      "ordinance",
-      "ordinances",
-      "noise",
-      "karaoke",
-      "patakaran",
-      "ordinansa",
-      "batas",
-      "law",
-      "laws",
-      "balaod",
-      "mga balaod",
-      "lagda",
-      "rules",
-      "regulation",
-      "regulations",
-      "basura",
-      "garbage",
-    ],
-    title: "Barangay Ordinances & Curfew",
-    category: "policy",
-    suggestedQuestions: {
-      en: "What are the barangay curfew and noise rules?",
-      tgl: "Ano ang mga ordinansa sa curfew at ingay?",
-      ceb: "Unsa ang mga ordinansa sa curfew ug kasaba?",
-    },
-    response: {
-      en: "For Tandang Sora Poblacion (formerly Barangay 12), the publicly catalogued official sources currently available are Butuan City-wide codes: SP Ordinance 6796-2022 (General Ordinances), 7192-2024 (Ecological Solid Waste), 7095-2024 (Sanitation), 7026-2023 (Traffic), 7096-2024 (Children and Youth Welfare), 6704-2022 (Zoning), 6955-2023 (Gender and Development), and other codes listed at https://sp.butuan.gov.ph/codes/. These are citywide references, not automatically Barangay-specific rules. For a Tandang Sora curfew, noise, waste schedule, fine, or penalty, I must confirm a signed current Barangay record first.",
-      tgl: "Para sa Tandang Sora Poblacion (dating Barangay 12), ang kasalukuyang publicly catalogued na opisyal na sources ay mga citywide code ng Butuan: SP Ordinance 6796-2022 (General Ordinances), 7192-2024 (Ecological Solid Waste), 7095-2024 (Sanitation), 7026-2023 (Traffic), 7096-2024 (Children and Youth Welfare), 6704-2022 (Zoning), 6955-2023 (Gender and Development), at iba pang code sa https://sp.butuan.gov.ph/codes/. Citywide references ang mga ito at hindi awtomatikong sariling ordinansa ng Barangay. Para sa curfew, ingay, schedule ng basura, multa, o penalty ng Tandang Sora, kailangan ko munang kumpirmahin ang signed at kasalukuyang record ng Barangay.",
-      ceb: "Para sa Tandang Sora Poblacion (kaniadto Barangay 12), ang kasamtangang publicly catalogued nga opisyal nga sources mao ang citywide codes sa Butuan: SP Ordinance 6796-2022 (General Ordinances), 7192-2024 (Ecological Solid Waste), 7095-2024 (Sanitation), 7026-2023 (Traffic), 7096-2024 (Children and Youth Welfare), 6704-2022 (Zoning), 6955-2023 (Gender and Development), ug uban pang code sa https://sp.butuan.gov.ph/codes/. Citywide references kini ug dili awtomatikong ordinansa mismo sa Barangay. Para sa curfew, kasaba, schedule sa basura, multa, o penalty sa Tandang Sora, kinahanglan una nakong kumpirmahon ang signed ug kasamtangang record sa Barangay.",
-    },
-  },
-  {
-    id: "events",
-    keywords: ["event", "sports", "vaccine", "caravan", "assembly", "aktibidad", "kalihokan", "liga"],
-    title: "Upcoming Community Events",
-    category: "events",
-    suggestedQuestions: {
-      en: "What are the upcoming barangay events?",
-      tgl: "Ano ang mga darating na aktibidad ng barangay?",
-      ceb: "Unsa ang umaabot nga mga kalihokan sa barangay?",
-    },
-    response: {
-      en: "Upcoming Community Events:\n• Health & Medical Caravan: Free medical checkups, dental checkups, and senior maintenance medicine distribution — This Saturday 8:00 AM at Barangay Multi-Purpose Gym.\n• Youth Sports League & Free Skills Workshop — Registration is now ongoing at the SK Office.",
-      tgl: "Mga Darating na Aktibidad:\n• Health & Medical Caravan: Libreng checkup, dental, at maintenance medicine para sa seniors — Ngayong Sabado 8:00 AM sa Barangay Gym.\n• Inter-Purok Youth Basketball & Volleyball League — Bukas na ang rehistrasyon sa SK Office.",
-      ceb: "Umaabot nga mga Kalihokan:\n• Health & Medical Caravan: Libreng konsulta, dental, ug tambal alang sa mga senior citizen — Karong Sabado 8:00 AM sa Barangay Gym.\n• SK Youth Sports League — Abli na ang rehistrasyon sa SK Office.",
+      en: "Where can I ask about Business Clearance?",
+      tgl: "Saan magtatanong tungkol sa Business Clearance?",
+      ceb: "Asa mangutana bahin sa Business Clearance?",
     },
   },
 ];
 
-/**
- * Legacy API name retained for compatibility. These are suggestion prompts,
- * NOT verified answers. Only ask about document services with a current app form.
- * Fees, schedules and events in this legacy data must never be served as answers.
- */
-export function getVerifiedQuestionSuggestions(lang: "tgl" | "ceb" | "en"): { label: string; query: string; topicId: string }[] {
-  return BARANGAY_KNOWLEDGE.filter((t) => t.category === "documents").map((t) => ({
-    label: t.title,
-    query: t.suggestedQuestions[lang] || t.suggestedQuestions.en,
-    topicId: t.id,
+export function getVerifiedQuestionSuggestions(lang: "tgl" | "ceb" | "en"):
+  { label: string; query: string; topicId: string }[] {
+  return BARANGAY_KNOWLEDGE.map(topic => ({
+    label: topic.title,
+    query: topic.suggestedQuestions[lang],
+    topicId: topic.id,
   }));
 }
 
+/**
+ * Retained for older call sites; deliberately refuses to answer from local
+ * constants. The authenticated chat route is the only official answer path.
+ */
 export function findMatchingKnowledge(
-  userQuery: string,
-  isLoggedIn: boolean,
-  lang: "tgl" | "ceb" | "en" = "tgl"
-): {
-  topic: PolicyTopic;
-  reply: string;
-  formType?: string;
-  formTitle?: string;
-  estimatedFee?: number;
-  guestActionTrigger?: boolean;
-} | null {
-  const query = userQuery.toLowerCase().trim();
-  for (const topic of BARANGAY_KNOWLEDGE) {
-    const isMatch = topic.keywords.some((kw) => query.includes(kw));
-    if (isMatch) {
-      const reply = (!isLoggedIn && topic.guestResponse)
-        ? (topic.guestResponse[lang] || topic.guestResponse.en)
-        : (topic.response[lang] || topic.response.en);
-
-      if (!isLoggedIn && topic.formType) {
-        return {
-          topic,
-          reply,
-          guestActionTrigger: true,
-          estimatedFee: topic.estimatedFee,
-        };
-      }
-
-      return {
-        topic,
-        reply,
-        formType: topic.formType,
-        formTitle: topic.formTitle,
-        estimatedFee: topic.estimatedFee,
-      };
-    }
-  }
+  _userQuery: string, _isLoggedIn: boolean, _lang: "tgl" | "ceb" | "en" = "tgl"
+): null {
   return null;
 }

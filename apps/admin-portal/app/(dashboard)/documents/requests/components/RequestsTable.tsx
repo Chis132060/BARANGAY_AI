@@ -4,6 +4,7 @@ import { AdminTable } from "@/components/ui/AdminTable";
 import { useState } from "react";
 import { FileText, Printer, CheckCircle, Clock, MapPin, DollarSign, Eye } from "lucide-react";
 import type { DocumentRequestItem } from "../../actions";
+import { formatRequestReference } from "@/lib/request-receipt";
 import { CertificateTemplateModal } from "./CertificateTemplateModal";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -43,6 +44,10 @@ interface RequestsTableProps {
 
 export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPayment }: RequestsTableProps) {
   const [selectedForCert, setSelectedForCert] = useState<DocumentRequestItem | null>(null);
+  const [referenceSearch, setReferenceSearch] = useState("");
+  const visibleRequests = requests.filter(req => !referenceSearch.trim() ||
+    formatRequestReference(req.id).toLowerCase().includes(referenceSearch.replace(/\s/g, "").toLowerCase()) ||
+    req.id.toLowerCase().includes(referenceSearch.trim().toLowerCase()));
   const [pickupModalReq, setPickupModalReq] = useState<DocumentRequestItem | null>(null);
 
   // Pickup Form State
@@ -154,6 +159,12 @@ export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPay
 
   return (
     <>
+      <label className="block max-w-lg text-xs font-semibold text-slate-700">
+        Find a document request by reference number
+        <input type="search" value={referenceSearch} onChange={e => setReferenceSearch(e.target.value)}
+          placeholder="TS12-… or request UUID" autoComplete="off"
+          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-blue-400" />
+      </label>
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <AdminTable className="w-full text-left border-collapse">
@@ -168,14 +179,14 @@ export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPay
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-sm">
-              {requests.length === 0 ? (
+              {visibleRequests.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground font-medium">
                     No document requests found in this queue.
                   </td>
                 </tr>
               ) : (
-                requests.map((req) => {
+                visibleRequests.map((req) => {
                   const isFree = req.fee_amount === 0 || req.payment_status === "Free";
                   const busy = busyId === req.id;
                   return (
@@ -185,6 +196,7 @@ export function RequestsTable({ requests, onAction, onVerifyPayment, onRecordPay
                         <div className="font-semibold text-foreground">
                           {req.resident ? `${req.resident.last_name}, ${req.resident.first_name}` : "Walk-In / Online Applicant"}
                         </div>
+                        <p className="mt-1 break-all font-mono text-[10px] text-blue-700">Ref: {formatRequestReference(req.id)}</p>
                         <div className="text-xs text-muted-foreground">
                           {req.resident?.addresses?.[0]?.purok || "Barangay Resident"}
                           {req.session_id && (

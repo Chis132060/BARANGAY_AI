@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
 const voiceRoute = readFileSync(new URL("../app/api/realtime/session/route.ts", import.meta.url), "utf8");
+const verifiedPolicy = readFileSync(new URL("../lib/ai/verified-policy-grounding.ts", import.meta.url), "utf8");
 const pwaConfig = readFileSync(new URL("../next.config.js", import.meta.url), "utf8");
 
 test("unaudited local knowledge is not used as official chat fallback", () => {
@@ -13,9 +14,12 @@ test("unaudited local knowledge is not used as official chat fallback", () => {
 });
 
 test("active policy fallback enforces effective and expiry dates", () => {
-  assert.match(chatRoute, /\.eq\('status', 'Active'\)/);
-  assert.match(chatRoute, /effective_date\.lte/);
-  assert.match(chatRoute, /expiry_date\.gte/);
+  assert.match(chatRoute, /getVerifiedPolicyAnswer\(supabase, message, language\)/);
+  assert.match(verifiedPolicy, /\.eq\("status", "Active"\)/);
+  assert.match(verifiedPolicy, /effective_date\.lte/);
+  assert.match(verifiedPolicy, /expiry_date\.gte/);
+  assert.match(verifiedPolicy, /source_reference/);
+  assert.match(verifiedPolicy, /"tandang_sora_butuan", "butuan_city"/);
 });
 
 test("realtime provider sessions remain disabled without server approval", () => {

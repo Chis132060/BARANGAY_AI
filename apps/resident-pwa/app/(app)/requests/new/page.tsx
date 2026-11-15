@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "../actions";
+import { isValidIdRequirement } from "@/lib/request-receipt";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { saveDocumentDraft, loadDocumentDrafts, removeDocumentDraft, type DocumentDraft } from "@/lib/offline/document-drafts";
 import { queueDocumentRequest } from "@/lib/offline/document-outbox";
@@ -49,6 +50,9 @@ export default function NewRequestPage() {
   
   const [purpose, setPurpose] = useState("");
   const [files, setFiles] = useState<Record<string, File>>({});
+  const [savedIdType, setSavedIdType] = useState<string | null>(null);
+  const [useSavedId, setUseSavedId] = useState(true);
+  const [receiptReference, setReceiptReference] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -106,6 +110,22 @@ export default function NewRequestPage() {
     fetchDocTypes();
   }, [supabase]);
 
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase.from("residents")
+        .select("id_type,id_photo_url,verification_status").eq("user_id", user.id).maybeSingle();
+      if (mounted && !error && data?.verification_status === "Verified" && data.id_type &&
+          data.id_photo_url?.startsWith(`${user.id}/`) &&
+          /\.(?:png|jpe?g|pdf)$/i.test(data.id_photo_url)) {
+        setSavedIdType(data.id_type);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [supabase]);
+
   async function refreshDrafts() {
     try {
       const {data:{session}} = await supabase.auth.getSession();
@@ -157,7 +177,12 @@ export default function NewRequestPage() {
     if (!selectedType) return;
 
     // Offline drafts do not persist attachments; allow queueing only attachment-free requests.
-    const missing = selectedType.requirements_json?.filter(req => !files[req]);
+    const reuseIdRequirements = selectedType.requirements_json?.filter(
+      req => useSavedId && savedIdType && isValidIdRequirement(req)
+    ) || [];
+    const missing = selectedType.requirements_json?.filter(
+      req => !files[req] && !reuseIdRequirements.includes(req)
+    );
     if (missing && missing.length > 0) {
       setErrorMsg(`Missing required attachments: ${missing.join(", ")}`);
       return;
@@ -171,9 +196,10 @@ export default function NewRequestPage() {
       formData.append("documentTypeId", selectedType.id);
       formData.append("purpose", purpose || `Requested ${selectedType.name}`);
       formData.append("requirements", JSON.stringify(selectedType.requirements_json || []));
+      formData.append("reuseVerifiedIdRequirements", JSON.stringify(reuseIdRequirements));
       
       Object.entries(files).forEach(([req, file]) => {
-        formData.append(`file_${req}`, file);
+        if (!reuseIdRequirements.includes(req)) formData.append(`file_${req}`, file);
       });
 
       const operationId = requestOperationId.current ?? crypto.randomUUID();
@@ -181,7 +207,9 @@ export default function NewRequestPage() {
       formData.append("clientOperationId", operationId);
       try {
         // An actual server receipt, not navigator.onLine, confirms submission.
-        await submitDocumentRequest(formData);
+        const receipt = await submitDocumentRequest(formData);
+        if (!receipt?.success || !receipt.reference) throw new Error("Request receipt not confirmed. Please retry.");
+        setReceiptReference(receipt.reference);
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
         const transportFailure = error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message);
@@ -216,6 +244,13 @@ export default function NewRequestPage() {
           <CheckCircle2 className="h-10 w-10" />
         </div>
         <h1 className="text-xl font-extrabold text-gray-900">Request Submitted!</h1>
+        {receiptReference && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+          <p className="text-xs font-semibold text-blue-900">Your automatically generated tracking number</p>
+          <p className="mt-1 break-all font-mono text-sm font-bold text-blue-800">{receiptReference}</p>
+          <button type="button" className="mt-2 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800"
+            onClick={() => navigator.clipboard?.writeText(receiptReference)}>Copy reference</button>
+          <p className="mt-1 text-[11px] text-blue-800">This is a request reference, NOT a payment receipt.</p>
+        </div>}
         <p className="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
           Your request for <strong className="text-gray-800">{selectedType?.name}</strong> has been sent to the Barangay Hall. Admin officials will review and process it.
         </p>
@@ -381,7 +416,20 @@ export default function NewRequestPage() {
                             <span className="text-[10px] font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Required</span>
                           </div>
                           
-                          <div className="relative">
+                          {savedIdType && isValidIdRequirement(req) && (
+                            <div className="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs">
+                              <label className="flex items-center gap-2 font-semibold text-blue-900">
+                                <input type="radio" name={`id-choice-${req}`} checked={useSavedId} onChange={() => setUseSavedId(true)} />
+                                Use my ID on file ({savedIdType})
+                              </label>
+                              <label className="flex items-center gap-2 text-blue-900">
+                                <input type="radio" name={`id-choice-${req}`} checked={!useSavedId} onChange={() => setUseSavedId(false)} />
+                                Upload a different/current ID
+                              </label>
+                              <p className="text-[11px] text-blue-800">The original private ID from registration will be reused only for this requirement. If it has expired, upload a current ID.</p>
+                            </div>
+                          )}
+                          {!(savedIdType && useSavedId && isValidIdRequirement(req)) && <div className="relative">
                             <input
                               type="file"
                               accept=".pdf,image/jpeg,image/png"
@@ -395,7 +443,7 @@ export default function NewRequestPage() {
                                 {files[req] ? files[req].name : "Tap to upload file..."}
                               </span>
                             </div>
-                          </div>
+                          </div>}
                         </div>
                       ))}
                     </div>
@@ -404,7 +452,7 @@ export default function NewRequestPage() {
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
                     <p className="text-sm font-bold text-gray-800">Review before submitting</p>
                     <p className="text-xs text-gray-700">Document: {selectedType.name}</p>
-                    <p className="text-xs text-gray-700">Attached files: {Object.keys(files).length}</p>
+                    <p className="text-xs text-gray-700">New uploaded files: {Object.keys(files).length}; existing ID reused: {useSavedId && savedIdType && selectedType.requirements_json.some(isValidIdRequirement) ? "Yes" : "No"}</p>
                     <p className="text-xs text-gray-600">
                       {isOnline
                         ? "Submitting sends your request to the barangay for review."

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "@/app/(app)/requests/actions";
 import { DOCUMENT_FORMS, isDocumentFormId } from "@/lib/ai/document-forms";
 import { NAV_BADGES_CHANGED } from "@/lib/navigation/nav-badges";
+import { isValidIdRequirement } from "@/lib/request-receipt";
 
 interface InChatFormCardProps {
   formType: string;
@@ -38,6 +39,9 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [isOnline, setIsOnline] = useState(true);
   const [purpose, setPurpose] = useState("");
   const [files, setFiles] = useState<Record<string, File>>({});
+  const [savedIdType, setSavedIdType] = useState<string | null>(null);
+  const [useSavedId, setUseSavedId] = useState(true);
+  const [receiptReference, setReceiptReference] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -51,6 +55,23 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase.from("residents")
+        .select("id_type,id_photo_url,verification_status")
+        .eq("user_id", user.id).maybeSingle();
+      if (mounted && !error && data?.verification_status === "Verified" && data.id_type &&
+          data.id_photo_url?.startsWith(`${user.id}/`) &&
+          /\.(?:png|jpe?g|pdf)$/i.test(data.id_photo_url)) {
+        setSavedIdType(data.id_type);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [supabase]);
 
   async function refreshCatalog() {
     if (!service) {
@@ -101,8 +122,11 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       setSubmitError("Please provide your purpose for requesting this document.");
       return;
     }
+    const reuseIdRequirements = catalog.requirements_json.filter(
+      requirement => useSavedId && savedIdType && isValidIdRequirement(requirement)
+    );
     for (const requirement of catalog.requirements_json) {
-      if (!files[requirement]) {
+      if (!files[requirement] && !reuseIdRequirements.includes(requirement)) {
         setSubmitError("Please attach the current required file: " + requirement);
         return;
       }
@@ -114,17 +138,19 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       const payload = new FormData();
       payload.set("documentTypeId", catalog.id);
       payload.set("requirements", JSON.stringify(catalog.requirements_json));
+      payload.set("reuseVerifiedIdRequirements", JSON.stringify(reuseIdRequirements));
       payload.set("purpose", normalizedPurpose);
       if (!operationId.current) operationId.current = crypto.randomUUID();
       payload.set("clientOperationId", operationId.current);
       for (const requirement of catalog.requirements_json) {
-        payload.set("file_" + requirement, files[requirement]);
+        if (!reuseIdRequirements.includes(requirement)) payload.set("file_" + requirement, files[requirement]);
       }
 
       // Do not trust navigator.onLine: only the actual server response can
       // confirm a successful application submission.
       const result = await submitDocumentRequest(payload);
-      if (!result?.success) throw new Error("Application was not confirmed by the server.");
+      if (!result?.success || !result.reference) throw new Error("Application receipt was not confirmed by the server.");
+      setReceiptReference(result.reference);
       setSubmitted(true);
       window.dispatchEvent(new Event(NAV_BADGES_CHANGED));
     } catch (error) {
@@ -146,6 +172,11 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
           <CheckCircle2 className="h-4 w-4" /> Request submitted successfully
         </p>
         <p className="text-emerald-900">{catalog?.name} has been sent for review. No payment amount or pickup date is confirmed here.</p>
+        {receiptReference && <div className="rounded-xl bg-white p-3">
+          <p className="text-xs font-bold text-slate-700">Automatically generated request reference (not a payment receipt)</p>
+          <p className="mt-1 break-all font-mono font-bold text-blue-800">{receiptReference}</p>
+          <button type="button" className="mt-2 rounded-lg border px-3 py-2 text-xs text-blue-800" onClick={() => navigator.clipboard?.writeText(receiptReference)}>Copy reference</button>
+        </div>}
         <Link href="/requests" className="block rounded-xl bg-emerald-700 px-4 py-3 text-center font-semibold text-white">
           Track in My Requests
         </Link>
@@ -251,7 +282,20 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                           <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Added
                         </span>}
                       </div>
-                      <label htmlFor={inputId}
+                      {savedIdType && isValidIdRequirement(requirement) && (
+                        <div className="mb-3 space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                          <label className="flex items-center gap-2 font-semibold">
+                            <input type="radio" name={`id-choice-${inputId}`} checked={useSavedId} onChange={() => setUseSavedId(true)} />
+                            Use my ID on file ({savedIdType})
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input type="radio" name={`id-choice-${inputId}`} checked={!useSavedId} onChange={() => setUseSavedId(false)} />
+                            Upload a different/current ID
+                          </label>
+                          <p>If your registration ID is expired, choose an updated ID. Saved ID remains private and is copied securely for this request only.</p>
+                        </div>
+                      )}
+                      {!(savedIdType && useSavedId && isValidIdRequirement(requirement)) && <label htmlFor={inputId}
                         className="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
                           <UploadCloud className="h-5 w-5" aria-hidden="true" />
@@ -278,7 +322,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                               return next;
                             });
                           }} />
-                      </label>
+                      </label>}
                     </div>
                   );
                 })}

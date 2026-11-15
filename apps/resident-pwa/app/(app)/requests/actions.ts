@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { formatRequestReference, isValidIdRequirement } from "@/lib/request-receipt";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB per request
@@ -29,7 +30,7 @@ export async function submitDocumentRequest(formData: FormData) {
   // 2. Fetch the authenticated resident's UUID from residents table
   const { data: resident, error: resError } = await supabase
     .from("residents")
-    .select("id, verification_status")
+    .select("id, verification_status, id_type, id_photo_url")
     .eq("user_id", user.id)
     .single();
 
@@ -44,6 +45,7 @@ export async function submitDocumentRequest(formData: FormData) {
   const documentTypeId = formData.get("documentTypeId") as string;
   const purpose = formData.get("purpose") as string;
   const requirementsJson = formData.get("requirements") as string;
+  const reuseVerifiedIdJson = formData.get("reuseVerifiedIdRequirements");
   const clientOperationId = formData.get("clientOperationId");
   if (clientOperationId !== null &&
       (typeof clientOperationId !== "string" ||
@@ -67,6 +69,25 @@ export async function submitDocumentRequest(formData: FormData) {
     throw new Error("Invalid requirements data");
   }
 
+  let reuseVerifiedIdRequirements: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(typeof reuseVerifiedIdJson === "string" ? reuseVerifiedIdJson : "[]");
+    if (!Array.isArray(parsed) || parsed.length > 2 ||
+        !parsed.every((value) => typeof value === "string" && requirements.includes(value) && isValidIdRequirement(value)) ||
+        new Set(parsed).size !== parsed.length) {
+      throw new Error("Invalid stored ID reuse selection.");
+    }
+    reuseVerifiedIdRequirements = parsed;
+  } catch {
+    throw new Error("Invalid stored ID reuse selection.");
+  }
+  if (reuseVerifiedIdRequirements.length > 0 &&
+      (!resident.id_type || !resident.id_photo_url ||
+       !resident.id_photo_url.startsWith(`${user.id}/`) ||
+       !/^[0-9a-f-]{36}\/id_capture_[0-9a-f-]+\.(?:png|jpe?g|pdf)$/i.test(resident.id_photo_url))) {
+    throw new Error("Your registration ID is unavailable for reuse. Please attach a current valid ID.");
+  }
+
   if (clientOperationId) {
     const { data: existing, error: lookupError } = await supabase.from("document_requests")
       .select("id, document_type_id, remarks").eq("resident_id", resident.id).eq("client_operation_id", clientOperationId).maybeSingle();
@@ -75,7 +96,7 @@ export async function submitDocumentRequest(formData: FormData) {
       if (existing.document_type_id !== documentTypeId || existing.remarks !== purpose) {
         throw new Error("Operation identifier already belongs to a different request.");
       }
-      return { success: true };
+      return { success: true, id: existing.id, reference: formatRequestReference(existing.id) };
     }
   }
 
@@ -97,13 +118,24 @@ export async function submitDocumentRequest(formData: FormData) {
     throw new Error("Business Clearance requires an in-person appointment; online submission is not available.");
   }
 
-  const attachments: { requirement: string; storage_path: string; mime_type: string; size: number }[] = [];
+  const attachments: { requirement: string; storage_path: string; mime_type: string; size: number; source?: string }[] = [];
 
   // 3. Validate all files before any upload; roll back uploaded objects on later failure.
   const files: Array<{ requirement: string; file: File }> = [];
   let totalUploadSize = 0;
   for (const req of requirements) {
-    const file = formData.get(`file_${req}`) as File | null;
+    let file = formData.get(`file_${req}`) as File | null;
+    if (reuseVerifiedIdRequirements.includes(req)) {
+      if (file instanceof File && file.size > 0) throw new Error("Choose either your saved ID or a new upload, not both.");
+      // Download only this resident's already-registered private ID and copy it
+      // into the usual restricted document-requirements bucket for staff review.
+      const { data: savedId, error: savedIdError } = await supabase.storage
+        .from("resident-ids")
+        .download(resident.id_photo_url as string);
+      if (savedIdError || !savedId) throw new Error("Your saved registration ID could not be accessed. Upload a valid ID instead.");
+      const originalName = (resident.id_photo_url as string).split("/").pop()!;
+      file = new File([savedId], originalName, { type: savedId.type });
+    }
     if (!(file instanceof File)) {
       throw new Error(`Missing required attachment: ${req}`);
     }
@@ -139,6 +171,7 @@ export async function submitDocumentRequest(formData: FormData) {
   }
 
   const uploadedPaths: string[] = [];
+  let createdId: string | null = null;
   try {
     for (const { requirement: req, file } of files) {
     const timestamp = crypto.randomUUID();
@@ -162,11 +195,12 @@ export async function submitDocumentRequest(formData: FormData) {
       storage_path: `document-requirements/${filePath}`,
       mime_type: file.type,
       size: file.size,
+      ...(reuseVerifiedIdRequirements.includes(req) ? { source: "verified_registration_id_copy" } : {}),
       });
     }
 
   // 4. Insert document request using resident.id (residents table UUID, not auth UID)
-  const { error: reqError } = await supabase
+  const { data: created, error: reqError } = await supabase
     .from("document_requests")
     .insert({
       resident_id: resident.id,
@@ -179,7 +213,7 @@ export async function submitDocumentRequest(formData: FormData) {
       payment_status: "Pending", // official fee has not been configured; never infer FREE from a zero default
       requirements_status: "Complete",
       client_operation_id: clientOperationId || null,
-    });
+    }).select("id").single();
 
   if (reqError) {
     if (reqError.code === "23505" && clientOperationId) {
@@ -188,11 +222,12 @@ export async function submitDocumentRequest(formData: FormData) {
       if (!lookupError && existing && existing.document_type_id === documentTypeId && existing.remarks === purpose) {
         // Uploads from this retry are unnecessary; delete them on duplicate receipt.
         if (uploadedPaths.length) await supabase.storage.from("document-requirements").remove(uploadedPaths);
-        return { success: true };
+        return { success: true, id: existing.id, reference: formatRequestReference(existing.id) };
       }
     }
     throw new Error(`Database error: ${reqError.message}`);
   }
+  createdId = created?.id ?? null;
 
   } catch (error) {
     if (uploadedPaths.length) {
@@ -205,5 +240,6 @@ export async function submitDocumentRequest(formData: FormData) {
   }
 
   revalidatePath("/requests");
-  return { success: true };
+  if (!createdId) throw new Error("Request receipt was not confirmed by the database.");
+  return { success: true, id: createdId, reference: formatRequestReference(createdId) };
 }

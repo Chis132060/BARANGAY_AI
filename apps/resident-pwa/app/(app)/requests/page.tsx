@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import QRScanner from "@/components/payments/QRScanner";
 import { submitPaymentReference } from "./payment-actions";
+import { formatRequestReference } from "@/lib/request-receipt";
 import { loadRequestSummaries, saveRequestSummaries } from "@/lib/offline/request-summaries";
 
 interface DocRequest {
@@ -305,6 +306,7 @@ export default function RequestsPage() {
                       <span className="font-extrabold text-xs text-gray-900 block">
                         {req.document_type?.name || "Barangay Document"}
                       </span>
+                      <p className="mt-1 break-all font-mono text-[10px] text-blue-700" aria-label="Request reference">Ref: {formatRequestReference(req.id)}</p>
                       {req.session_id && (
                         <span className="text-[10px] text-gray-400 font-mono">
                           Batch: {req.session_id.slice(0, 10)}
@@ -421,7 +423,7 @@ export default function RequestsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-700">Reference Number</label>
+                  <label className="text-xs font-bold text-gray-700">Payment reference / receipt number</label>
                   <input 
                     type="text"
                     value={referenceInput}
@@ -429,7 +431,7 @@ export default function RequestsPage() {
                     placeholder="e.g. 1234567890"
                     className="w-full p-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
                   />
-                  <p className="text-[10px] text-gray-500">Enter the reference number from your payment receipt.</p>
+                  <p className="text-[10px] text-gray-500">Enter the reference from your actual GCash/bank payment receipt, NOT the TS12- request tracking number.</p>
                 </div>
 
                 {paymentError && (
@@ -471,6 +473,12 @@ export default function RequestsPage() {
               <div>
                 <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Document</p>
                 <p className="font-semibold text-gray-900">{viewingRequest.document_type?.name || "Barangay Document"}</p>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <p className="text-[10px] uppercase font-bold text-blue-800">Automatic request reference</p>
+                <p className="mt-1 break-all font-mono text-xs text-blue-900">{formatRequestReference(viewingRequest.id)}</p>
+                <button type="button" className="mt-2 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-blue-800" onClick={() => navigator.clipboard?.writeText(formatRequestReference(viewingRequest.id))}>Copy reference</button>
+                <p className="mt-1 text-[10px] text-blue-800">This is not a payment reference or official receipt.</p>
               </div>
               
               <div className="flex justify-between">
