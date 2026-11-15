@@ -64,7 +64,9 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       const { data, error } = await supabase.from("residents")
         .select("id_type,id_photo_url,verification_status")
         .eq("user_id", user.id).maybeSingle();
-      if (mounted && !error && data?.verification_status === "Verified" && data.id_type && data.id_photo_url) {
+      if (mounted && !error && data?.verification_status === "Verified" && data.id_type &&
+          data.id_photo_url?.startsWith(`${user.id}/`) &&
+          /\.(?:png|jpe?g|pdf)$/i.test(data.id_photo_url)) {
         setSavedIdType(data.id_type);
       }
     })();
