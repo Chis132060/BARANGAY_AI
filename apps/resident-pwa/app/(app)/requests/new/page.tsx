@@ -439,7 +439,7 @@ export default function NewRequestPage() {
                           )}
                           {hasApprovedAddress && isResidencyProofRequirement(req) && (
                             <fieldset className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                              <legend className="text-sm font-bold text-emerald-900">Approved resident profile found</legend>
+                              <legend className="text-sm font-bold text-emerald-900">Resident address on file — staff review required</legend>
                               <label className="flex min-h-12 items-center gap-3 text-base font-semibold text-emerald-950">
                                 <input type="radio" checked={useApprovedAddress} onChange={() => setUseApprovedAddress(true)} name={`profile-choice-${req}`} />
                                 Use my barangay resident profile
