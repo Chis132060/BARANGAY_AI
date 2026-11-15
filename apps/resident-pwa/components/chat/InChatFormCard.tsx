@@ -174,7 +174,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
           <p className="text-xs font-bold text-slate-700">Automatically generated request reference (not a payment receipt)</p>
           <p className="mt-1 break-all font-mono font-bold text-blue-800">{receiptReference}</p>
           <button type="button" className="mt-2 rounded-lg border px-3 py-2 text-xs text-blue-800" onClick={() => navigator.clipboard?.writeText(receiptReference)}>Copy reference</button>
-        </div>
+        </div>}
         <Link href="/requests" className="block rounded-xl bg-emerald-700 px-4 py-3 text-center font-semibold text-white">
           Track in My Requests
         </Link>
