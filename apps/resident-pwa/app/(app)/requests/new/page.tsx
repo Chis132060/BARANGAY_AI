@@ -79,8 +79,10 @@ export default function NewRequestPage() {
         if (error) throw error;
         const types = (data || []) as DocumentType[];
         setDocumentTypes(types);
-        const shortcut = new URLSearchParams(window.location.search).get("document");
-        const matched = findShortcutDocument(types, shortcut);
+        const params = new URLSearchParams(window.location.search);
+        const shortcut = params.get("document");
+        const documentId = params.get("documentId");
+        const matched = types.find(doc => doc.id === documentId) || findShortcutDocument(types, shortcut);
         if (matched) setSelectedType(matched);
         try { await savePublicSnapshot("document-types", types, 24 * 60 * 60 * 1000); } catch { /* browser storage disabled */ }
       } catch (err: any) {
@@ -89,8 +91,10 @@ export default function NewRequestPage() {
           const cached = await loadPublicSnapshot<DocumentType[]>("document-types");
           if (cached) {
             setDocumentTypes(cached.data);
-            const shortcut = new URLSearchParams(window.location.search).get("document");
-            const matched = findShortcutDocument(cached.data, shortcut);
+            const params = new URLSearchParams(window.location.search);
+            const shortcut = params.get("document");
+            const documentId = params.get("documentId");
+            const matched = cached.data.find(doc => doc.id === documentId) || findShortcutDocument(cached.data, shortcut);
             if (matched) setSelectedType(matched);
           }
           else setErrorMsg("Document types unavailable offline. Open this page online first.");
@@ -326,7 +330,7 @@ export default function NewRequestPage() {
                     <div>
                       <p className="text-xs font-bold text-amber-800">In-Person Process Only</p>
                       <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
-                        Business Clearance requires a <strong>personal appearance and interview</strong> at the Barangay Hall. Online submission is not available for this document.
+                        The current app directs Business Clearance applicants to an in-person process. Please confirm any interview, documents, and available times with barangay staff before visiting.
                       </p>
                     </div>
                   </div>
@@ -335,16 +339,16 @@ export default function NewRequestPage() {
                       <Calendar className="h-4 w-4" /> What to do:
                     </p>
                     <ol className="text-[11px] text-blue-700 space-y-1 list-decimal list-inside leading-relaxed">
-                      <li>Book an appointment at the Barangay Hall</li>
-                      <li>Bring your DTI/SEC Registration & valid ID</li>
-                      <li>Attend your scheduled interview in person</li>
+                      <li>Contact the barangay to confirm appointment availability</li>
+                      <li>Ask staff to confirm the latest document requirements</li>
+                      <li>Visit at the time arranged with the office</li>
                     </ol>
                   </div>
                   <Link
-                    href="/appointments/new"
+                    href="/support"
                     className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold shadow hover:bg-blue-700 transition-colors"
                   >
-                    <Calendar className="h-4 w-4" /> Book an Appointment
+                    <Calendar className="h-4 w-4" /> Contact barangay support
                   </Link>
                 </div>
               ) : (

@@ -18,7 +18,8 @@ import { clearRequestSummaries } from "@/lib/offline/request-summaries";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const pathname = usePathname();
-  const hideMainScrollbar = pathname === "/announcements" || pathname === "/chat" || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
+  const isChat = pathname === "/chat";
+  const hideMainScrollbar = pathname === "/announcements" || isChat || pathname === "/profile" || pathname === "/requests" || pathname.startsWith("/requests/");
 
   useEffect(() => {
     const applyTextPreference = () => {
@@ -77,12 +78,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative flex flex-col h-full max-w-md mx-auto bg-white shadow-xl min-h-screen">
+    <div className={`relative mx-auto flex max-w-md flex-col bg-white shadow-xl ${isChat ? "h-[100dvh] overflow-hidden" : "h-full min-h-screen"}`}>
       <TopBar />
       <ConnectionBanner />
       <OfflineSyncRunner />
       <main
-        className={`flex-1 overflow-y-auto${hideMainScrollbar ? " no-scrollbar" : ""}`}
+        className={`flex-1 min-h-0 ${isChat ? "overflow-hidden" : "overflow-y-auto"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
         style={{ paddingBottom: "var(--bottom-nav-height)" }}
       >
         {children}

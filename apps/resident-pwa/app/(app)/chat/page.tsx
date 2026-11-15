@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function ChatPage() {
   return (
-    <main className="h-screen w-full">
+    <main className="h-full min-h-0 w-full">
       <ChatInterface />
     </main>
   );

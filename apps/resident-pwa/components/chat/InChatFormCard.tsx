@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, FileText, Loader2, AlertCircle, Send } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ArrowUpRight, ShieldCheck, WifiOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "@/app/(app)/requests/actions";
 import { DOCUMENT_FORMS, isDocumentFormId } from "@/lib/ai/document-forms";
+import { NAV_BADGES_CHANGED } from "@/lib/navigation/nav-badges";
 
 interface InChatFormCardProps {
   formType: string;
@@ -34,6 +35,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [catalog, setCatalog] = useState<CatalogDocument | null>(null);
   const [catalogError, setCatalogError] = useState("");
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
   const [purpose, setPurpose] = useState("");
   const [files, setFiles] = useState<Record<string, File>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -41,6 +43,14 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [submitted, setSubmitted] = useState(false);
   const operationId = useRef<string | null>(null);
   const submissionInFlight = useRef(false);
+
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
 
   async function refreshCatalog() {
     if (!service) {
@@ -116,6 +126,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       const result = await submitDocumentRequest(payload);
       if (!result?.success) throw new Error("Application was not confirmed by the server.");
       setSubmitted(true);
+      window.dispatchEvent(new Event(NAV_BADGES_CHANGED));
     } catch (error) {
       setSubmitError(
         (error instanceof Error ? error.message : "") ||
@@ -149,7 +160,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       <section aria-label="Business Clearance appointment guidance"
         className="w-full rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs space-y-3">
         <h3 className="font-bold text-amber-950">Business Clearance — In-person process</h3>
-        <p className="text-amber-900">The current resident app requires an appointment and personal appearance for Business Clearance. An online application is not offered for this service.</p>
+        <p className="text-amber-900">The current resident app directs Business Clearance to an in-person process. Contact the barangay office to arrange a visit; this form cannot submit Business Clearance online.</p>
         {catalog?.requirements_json && catalog.requirements_json.length > 0 && (
           <div className="space-y-1">
             <p className="font-semibold text-amber-950">Catalog requirements:</p>
@@ -157,8 +168,8 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
           </div>
         )}
         <p className="text-amber-900">Confirm requirements, any fees, and your schedule with barangay staff.</p>
-        <Link href="/appointments/new" className="block rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white">
-          Book an Appointment
+        <Link href="/support" className="block rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white">
+          Contact barangay support
         </Link>
       </section>
     );
@@ -166,66 +177,140 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
 
   return (
     <section aria-label="Interactive Document Application Form"
-      className="w-full rounded-2xl border border-blue-200 bg-blue-50 p-3.5 text-xs space-y-3">
-      <div className="flex items-start gap-2">
-        <FileText className="h-5 w-5 text-blue-700 shrink-0" />
-        <div>
-          <h3 className="font-bold text-blue-950">Ate Sora — {service?.title || title} Application</h3>
-          <p className="text-blue-800">Fill out the form here in chat. Requests is only for tracking after submission.</p>
-        </div>
-      </div>
-      {catalogLoading && <p role="status" className="flex gap-2 text-blue-800">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading current barangay requirements…
-      </p>}
-      {catalogError && (
-        <div role="alert" className="rounded-xl bg-amber-50 border border-amber-300 p-3 space-y-2">
-          <p className="text-amber-950">{catalogError} This does not necessarily mean your device is offline.</p>
-          <button type="button" onClick={() => void refreshCatalog()}
-            className="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white">Retry service catalog</button>
-        </div>
-      )}
-      {catalog && (
-        <form onSubmit={submit} className="space-y-3">
-          {catalog.description && <p className="text-slate-700">{catalog.description}</p>}
-          <label className="block space-y-1">
-            <span className="font-bold text-slate-800">Purpose / Layunin *</span>
-            <textarea required rows={2} maxLength={2000} value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900"
-              placeholder="Why do you need this document?" />
-          </label>
-          <div className="space-y-2">
-            <p className="font-bold text-slate-800">Required attachments (current barangay catalog)</p>
-            {catalog.requirements_json.length === 0 && <p>No attachments are listed in the current catalog.</p>}
-            {catalog.requirements_json.map((requirement) => (
-              <label key={requirement} className="block rounded-lg border border-slate-200 bg-white p-2 space-y-1">
-                <span className="block font-semibold text-slate-800">{requirement} *</span>
-                <input type="file" required accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    setFiles((previous) => {
-                      const next = { ...previous };
-                      if (file) next[requirement] = file;
-                      else delete next[requirement];
-                      return next;
-                    });
-                  }} className="block w-full text-xs text-slate-700" />
-              </label>
-            ))}
+      className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm">
+      <div className="border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="rounded-2xl bg-blue-600 p-3 text-white shadow-sm">
+            <FileText className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Document application</p>
+            <h3 className="mt-1 break-words text-base font-extrabold leading-snug text-slate-950">
+              {service?.title || title}
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Complete the details below. The barangay will receive this request only after successful submission.
+            </p>
           </div>
-          <p className="rounded-lg bg-amber-50 p-2 text-amber-900 border border-amber-200">
-            Official fee and pickup date are not configured here. No payment is requested by this form;
-            confirm the amount with barangay staff before paying.
-          </p>
-          {submitError && <p role="alert" className="rounded-lg bg-red-50 p-2 text-red-800">
-            <AlertCircle className="inline h-3.5 w-3.5 mr-1" />{submitError}</p>}
-          <button type="submit" disabled={submitting}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 font-bold text-white disabled:opacity-50">
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {submitting ? "Submitting…" : "Submit Document Request"}
-          </button>
-        </form>
-      )}
+        </div>
+        {catalog && <Link href={`/requests/new?documentId=${encodeURIComponent(catalog.id)}`}
+          className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-800">
+          Open full-page form <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        </Link>}
+      </div>
+
+      <div className="space-y-4 p-4 sm:p-5">
+        {catalogLoading && <p role="status" className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading current service catalog...
+        </p>}
+        {catalogError && (
+          <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm leading-relaxed text-amber-950">{catalogError} Please try again or use the full-page form.</p>
+            <button type="button" onClick={() => void refreshCatalog()}
+              className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white">Retry catalog</button>
+          </div>
+        )}
+
+        {catalog && (
+          <form onSubmit={submit} className="space-y-5">
+            {catalog.description && <p className="rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{catalog.description}</p>}
+            <div>
+              <label htmlFor={`chat-purpose-${catalog.id}`} className="mb-2 block text-sm font-bold text-slate-900">
+                <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-800">1</span>
+                Purpose / Layunin <span className="text-red-600">*</span>
+              </label>
+              <textarea id={`chat-purpose-${catalog.id}`} required rows={3} maxLength={2000}
+                value={purpose} onChange={event => setPurpose(event.target.value)}
+                className="block min-h-24 w-full resize-y rounded-2xl border border-slate-300 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Why do you need this document?" />
+              <p className="mt-1.5 text-right text-xs text-slate-500">{purpose.length}/2000 characters</p>
+            </div>
+
+            <fieldset>
+              <legend className="mb-2 text-sm font-bold text-slate-900">
+                <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-800">2</span>
+                Attach requirements
+              </legend>
+              <p className="mb-3 text-xs leading-relaxed text-slate-600">
+                Listed by the current barangay service catalog. PDF, JPG, or PNG, maximum 5 MB each.
+              </p>
+              {catalog.requirements_json.length === 0 && (
+                <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">No attachments are listed for this document.</p>
+              )}
+              <div className="space-y-3">
+                {catalog.requirements_json.map((requirement, index) => {
+                  const file = files[requirement];
+                  const inputId = `chat-attachment-${catalog.id}-${index}`;
+                  return (
+                    <div key={requirement} className={`rounded-2xl border p-3 ${file ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <label htmlFor={inputId} className="text-sm font-semibold text-slate-900">
+                          {requirement} <span className="text-red-600" aria-label="required">*</span>
+                        </label>
+                        {file && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Added
+                        </span>}
+                      </div>
+                      <label htmlFor={inputId}
+                        className="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
+                          <UploadCloud className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-blue-800">{file ? "Change file" : "Tap to upload"}</span>
+                          <span className="block break-all text-xs text-slate-600">{file ? file.name : "PDF, JPG or PNG · 5 MB max"}</span>
+                        </span>
+                        <input id={inputId} type="file" required accept=".pdf,.jpg,.jpeg,.png"
+                          className="sr-only"
+                          onChange={event => {
+                            const selected = event.target.files?.[0];
+                            if (selected && (selected.size === 0 || selected.size > 5 * 1024 * 1024 ||
+                                !["application/pdf", "image/jpeg", "image/png"].includes(selected.type))) {
+                              setSubmitError("Choose a PDF, JPG or PNG file of up to 5 MB.");
+                              event.target.value = "";
+                              return;
+                            }
+                            setSubmitError("");
+                            setFiles(previous => {
+                              const next = { ...previous };
+                              if (selected) next[requirement] = selected;
+                              else delete next[requirement];
+                              return next;
+                            });
+                          }} />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" aria-hidden="true" />
+                <p className="text-xs leading-relaxed text-amber-950">
+                  <strong>Before you submit:</strong> Fees and pickup schedules are confirmed by barangay staff.
+                  No payment is collected in this form.
+                </p>
+              </div>
+            </div>
+            {!isOnline && <p role="status" className="flex items-start gap-2 rounded-xl bg-slate-100 p-3 text-xs text-slate-700">
+              <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Your device appears offline. This chat form cannot save attachments offline.
+              Use the full-page form to save a draft and submit when connected.
+            </p>}
+            {submitError && <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{submitError}
+            </p>}
+            <button type="submit" disabled={submitting}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+              {submitting ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Send className="h-5 w-5" aria-hidden="true" />}
+              {submitting ? "Submitting request..." : "Submit Document Request"}
+            </button>
+            <p className="text-center text-xs text-slate-500">A confirmation will appear only when the barangay server accepts your request.</p>
+          </form>
+        )}
+      </div>
     </section>
   );
 }

@@ -14,8 +14,13 @@ test("notification page queues before attempting to synchronize",()=>{
  assert.ok(ui.indexOf("await queueRead(user.id,ids)") < ui.indexOf("await syncReads(supabase,user.id)"));
 });
 
-test("top-bar read acknowledgements also enter offline queue",()=>{
+test("notification center owns read acknowledgements; header no longer duplicates it",()=>{
  const topBar=read("../components/layout/TopBar.tsx");
- assert.match(topBar,/queueRead\(session\.user\.id,\[id\]\)/);
- assert.match(topBar,/syncReads\(supabase,session\.user\.id\)/);
+ const nav=read("../components/layout/BottomNav.tsx");
+ const profile=read("../app/(app)/profile/page.tsx");
+ assert.doesNotMatch(topBar, /<Bell\b|href="\/notifications"|queueRead/);
+ assert.match(topBar, /navigator\.onLine/);
+ assert.match(nav, /countActiveRequests/);
+ assert.match(nav, /countUnseenAnnouncements/);
+ assert.match(profile, /Open Notification Center/);
 });
