@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { formatRequestReference, isValidIdRequirement } from "@/lib/request-receipt";
+import { hasRegistrationIdOnFile, isResidencyProofRequirement } from "@/lib/verified-resident-evidence";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB per request
@@ -46,6 +47,7 @@ export async function submitDocumentRequest(formData: FormData) {
   const purpose = formData.get("purpose") as string;
   const requirementsJson = formData.get("requirements") as string;
   const reuseVerifiedIdJson = formData.get("reuseVerifiedIdRequirements");
+  const reuseProfileProofJson = formData.get("reuseProfileProofRequirements");
   const clientOperationId = formData.get("clientOperationId");
   if (clientOperationId !== null &&
       (typeof clientOperationId !== "string" ||
@@ -81,11 +83,30 @@ export async function submitDocumentRequest(formData: FormData) {
   } catch {
     throw new Error("Invalid stored ID reuse selection.");
   }
-  if (reuseVerifiedIdRequirements.length > 0 &&
-      (!resident.id_type || !resident.id_photo_url ||
-       !resident.id_photo_url.startsWith(`${user.id}/`) ||
-       !/^[0-9a-f-]{36}\/id_capture_[0-9a-f-]+\.(?:png|jpe?g|pdf)$/i.test(resident.id_photo_url))) {
-    throw new Error("Your registration ID is unavailable for reuse. Please attach a current valid ID.");
+  if (reuseVerifiedIdRequirements.length > 0 && !hasRegistrationIdOnFile(resident)) {
+    throw new Error("No verified registration ID is available. Upload a valid ID instead.");
+  }
+
+  let reuseProfileProofRequirements: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(typeof reuseProfileProofJson === "string" ? reuseProfileProofJson : "[]");
+    if (!Array.isArray(parsed) || parsed.length > 2 || new Set(parsed).size !== parsed.length ||
+        !parsed.every((value) => typeof value === "string" &&
+          requirements.includes(value) && isResidencyProofRequirement(value))) {
+      throw new Error("Invalid verified-address choice.");
+    }
+    reuseProfileProofRequirements = parsed;
+  } catch {
+    throw new Error("Invalid verified-address choice.");
+  }
+  if (reuseProfileProofRequirements.length) {
+    // Only read the current authenticated resident's registry association.
+    // This is a staff-review reference, NOT an issued certificate of residency.
+    const { data: address, error: addressError } = await supabase.from("addresses")
+      .select("id").eq("resident_id", resident.id).limit(1).maybeSingle();
+    if (addressError || !address) {
+      throw new Error("No barangay address record found. Upload your proof of residency.");
+    }
   }
 
   if (clientOperationId) {
@@ -124,17 +145,21 @@ export async function submitDocumentRequest(formData: FormData) {
   const files: Array<{ requirement: string; file: File }> = [];
   let totalUploadSize = 0;
   for (const req of requirements) {
-    let file = formData.get(`file_${req}`) as File | null;
-    if (reuseVerifiedIdRequirements.includes(req)) {
-      if (file instanceof File && file.size > 0) throw new Error("Choose either your saved ID or a new upload, not both.");
-      // Download only this resident's already-registered private ID and copy it
-      // into the usual restricted document-requirements bucket for staff review.
-      const { data: savedId, error: savedIdError } = await supabase.storage
-        .from("resident-ids")
-        .download(resident.id_photo_url as string);
-      if (savedIdError || !savedId) throw new Error("Your saved registration ID could not be accessed. Upload a valid ID instead.");
-      const originalName = (resident.id_photo_url as string).split("/").pop()!;
-      file = new File([savedId], originalName, { type: savedId.type });
+    const file = formData.get(`file_${req}`) as File | null;
+    if (reuseVerifiedIdRequirements.includes(req) || reuseProfileProofRequirements.includes(req)) {
+      if (file instanceof File && file.size > 0) {
+        throw new Error("Choose the saved record OR a new upload for each requirement.");
+      }
+      // This records a link to the already-verified resident registry (same
+      // resident_id). Do NOT fetch, copy, or expose legacy public photo URLs.
+      // Staff re-checks the existing registration ID or residency profile.
+      attachments.push({
+        requirement: req, storage_path: "", mime_type: "", size: 0,
+        source: reuseVerifiedIdRequirements.includes(req)
+          ? "verified_registration_id_on_file"
+          : "resident_profile_address_for_staff_review",
+      });
+      continue;
     }
     if (!(file instanceof File)) {
       throw new Error(`Missing required attachment: ${req}`);
@@ -195,7 +220,7 @@ export async function submitDocumentRequest(formData: FormData) {
       storage_path: `document-requirements/${filePath}`,
       mime_type: file.type,
       size: file.size,
-      ...(reuseVerifiedIdRequirements.includes(req) ? { source: "verified_registration_id_copy" } : {}),
+
       });
     }
 
@@ -211,7 +236,7 @@ export async function submitDocumentRequest(formData: FormData) {
       form_data: { attachments },
       fee_amount: null,
       payment_status: "Pending", // official fee has not been configured; never infer FREE from a zero default
-      requirements_status: "Complete",
+      requirements_status: reuseVerifiedIdRequirements.length || reuseProfileProofRequirements.length ? "Pending" : "Complete",
       client_operation_id: clientOperationId || null,
     }).select("id").single();
 
