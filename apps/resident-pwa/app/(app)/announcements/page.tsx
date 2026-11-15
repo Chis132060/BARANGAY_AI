@@ -207,7 +207,7 @@ export default function AnnouncementsPage() {
         const cacheReads = Promise.all([
           loadPublicSnapshot<Announcement[]>("announcements-v2"),
           loadPublicSnapshot<Program[]>("barangay-programs"),
-          loadPublicSnapshot<PublicOrganization[]>("barangay-organizations"),
+          loadPublicSnapshot<PublicOrganization[]>("barangay-organizations-v2"),
           loadPublicSnapshot<SourceArchiveRecord[]>("tandang-sora-source-archive-v1"),
         ]);
         let cachedSnapshots: Awaited<typeof cacheReads> | null;
@@ -272,7 +272,7 @@ export default function AnnouncementsPage() {
         }
         if (!org.error) {
           setOrganizations((org.data || []) as PublicOrganization[]);
-          try { await savePublicSnapshot("barangay-organizations", org.data || [], 60 * 60 * 1000); } catch { /* optional cache */ }
+          try { await savePublicSnapshot("barangay-organizations-v2", org.data || [], 60 * 60 * 1000); } catch { /* optional cache */ }
         }
         if (!archive.error) {
           setSourcedArchive((archive.data || []) as SourceArchiveRecord[]);
@@ -289,7 +289,7 @@ export default function AnnouncementsPage() {
               if (cached) { const activePrograms = cached.data.filter(program => program.status === "Active"); programsRef.current = activePrograms; setPrograms(activePrograms); }
             }
             if (org.error) {
-              const cached = await loadPublicSnapshot<PublicOrganization[]>("barangay-organizations");
+              const cached = await loadPublicSnapshot<PublicOrganization[]>("barangay-organizations-v2");
               if (cached) setOrganizations(cached.data);
             }
             if (archive.error) {
@@ -406,9 +406,9 @@ export default function AnnouncementsPage() {
         {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
       </section>
       <section id="updates-programs-panel" role="tabpanel" aria-labelledby="updates-programs-tab" className="space-y-3">
-        <div className="flex items-center justify-between"><h2 className="text-base font-bold">Barangay Programs</h2><span className="text-xs text-gray-500">{programs.length} available</span></div>
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold">Barangay Programs</h2><span className="text-xs text-gray-500">{programs.length} open · {documentedPrograms.length} documented</span></div>
         {programs.length > 0 && <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Program categories">{["All", ...Array.from(new Set(programs.map((p) => p.category)))].map((category) => <button key={category} type="button" onClick={() => setCategoryFilter(category)} aria-pressed={categoryFilter === category} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${categoryFilter === category ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}>{category}</button>)}</div>}
-        {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No active barangay programs have been published by the barangay yet. Please check back for official registration updates.</p> : programs.filter((p) => categoryFilter === "All" || p.category === categoryFilter).map((p) => (
+        {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No current programs are open for registration. See documented past activities below for historical information.</p> : programs.filter((p) => categoryFilter === "All" || p.category === categoryFilter).map((p) => (
           <article key={p.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
             <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">{p.category}</span>
             <h3 className="text-sm font-bold text-gray-900">{p.name}</h3>
@@ -456,7 +456,7 @@ export default function AnnouncementsPage() {
       </div>}
       {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
         <h2 className="text-base font-bold">Community Organizations</h2>
-        {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published organizations available.</p> : organizations.map((org) => <article key={org.id} className="rounded-2xl border bg-white p-4 space-y-2"><span className="text-xs font-bold text-blue-700">{org.org_type}</span><h3 className="font-bold">{org.name}</h3>{org.description && <p className="text-sm text-gray-600 whitespace-pre-line">{org.description}</p>}{org.president && <p className="text-xs text-gray-500">President: {org.president}</p>}{org.contact && <p className="text-xs text-gray-500">Contact: {org.contact}</p>}</article>)}
+        {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No currently verified active organizations. See historical documents below.</p> : organizations.map((org) => <article key={org.id} className="rounded-2xl border bg-white p-4 space-y-2"><span className="text-xs font-bold text-blue-700">{org.org_type}</span><h3 className="font-bold">{org.name}</h3>{org.description && <p className="text-sm text-gray-600 whitespace-pre-line">{org.description}</p>}{org.president && <p className="text-xs text-gray-500">President: {org.president}</p>}{org.contact && <p className="text-xs text-gray-500">Contact: {org.contact}</p>}</article>)}
         <div className="mt-4 space-y-3 border-t pt-4">
           <div className="flex items-center justify-between"><h3 className="text-base font-bold text-slate-900">Documented Organizations</h3><span className="text-xs text-slate-500">{documentedOrganizations.length} records</span></div>
           <p className="text-xs text-slate-600">Historical government accreditation or address records. Current leadership, membership and active operations have not been independently verified.</p>
