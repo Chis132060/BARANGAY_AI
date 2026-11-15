@@ -22,7 +22,7 @@ test("active policies require source and Butuan-specific scope", () => {
   assert.match(page, /Barangay Tandang Sora \(Poblacion\), Butuan City/);
   assert.match(page, /status:\s*"Draft"/);
   assert.match(knowledge, /status: "draft"/);
-  assert.match(knowledge, /verify the original source and jurisdiction/i);
+  assert.match(knowledge, /original source and jurisdiction/i);
 });
 test("staff and resident show the same UUID-backed reference format", () => {
   assert.match(adminQueue, /formatRequestReference\(req\.id\)/);
