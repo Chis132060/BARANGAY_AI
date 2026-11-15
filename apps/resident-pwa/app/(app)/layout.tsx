@@ -78,15 +78,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative flex flex-col h-full max-w-md mx-auto bg-white shadow-xl min-h-screen">
+    <div className={`relative mx-auto flex max-w-md flex-col bg-white shadow-xl ${isChat ? "h-[100dvh] overflow-hidden" : "h-full min-h-screen"}`}>
       <TopBar />
       <ConnectionBanner />
       <OfflineSyncRunner />
       <main
         className={`flex-1 min-h-0 ${isChat ? "overflow-hidden" : "overflow-y-auto"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
-        style={isChat
-          ? { height: "calc(100dvh - 3.5rem - var(--bottom-nav-height))", flex: "none" }
-          : { paddingBottom: "var(--bottom-nav-height)" }}
+        style={{ paddingBottom: "var(--bottom-nav-height)" }}
       >
         {children}
       </main>
