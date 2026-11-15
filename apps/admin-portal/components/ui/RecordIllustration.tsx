@@ -34,6 +34,11 @@ export function RecordIllustration({
         onError={() => { if (hasCover) setFailedSource(coverSource); }}
         className={hasCover ? "h-full w-full object-cover" : "h-full w-full object-contain p-3"}
       />
+      {!hasCover && (
+        <span className="absolute bottom-2 right-2 rounded-md border border-blue-100 bg-white/95 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+          Illustration only
+        </span>
+      )}
     </div>
   );
 }
