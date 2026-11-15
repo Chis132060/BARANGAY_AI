@@ -23,6 +23,8 @@ interface Policy {
   enacted_by: string;
   full_text: string;
   source_file?: string | null;
+  jurisdiction_scope: "unverified" | "tandang_sora_butuan" | "butuan_city";
+  source_reference: string;
   created_at: string;
 }
 
@@ -159,6 +161,8 @@ function buildPolicyData(text: string, filename: string): Partial<Policy> {
     status:         "Draft",
     effective_date: "",
     source_file:    filename,
+    jurisdiction_scope: "unverified",
+    source_reference: "",
   };
 }
 
@@ -316,9 +320,10 @@ function PolicyFormModal({
   policy, onClose, onSave,
 }: { policy?: Partial<Policy> | null; onClose: () => void; onSave: (data: Partial<Policy>) => void }) {
   const [form, setForm] = useState<Partial<Policy>>(
-    policy ?? { policy_number: "", title: "", category: "Ordinance", description: "", effective_date: "", expiry_date: "", status: "Draft", enacted_by: "", full_text: "" }
+    policy ?? { policy_number: "", title: "", category: "Ordinance", description: "", effective_date: "", expiry_date: "", status: "Draft", enacted_by: "", full_text: "", jurisdiction_scope: "unverified", source_reference: "" }
   );
   const [tab, setTab] = useState<"manual" | "import">("manual");
+  const [reviewedOfficialSource, setReviewedOfficialSource] = useState(false);
   const isEdit = !!(policy as Policy)?.id;
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -410,6 +415,22 @@ function PolicyFormModal({
                 <label className={lbl}>Policy Title</label>
                 <input name="title" value={form.title || ""} onChange={set} placeholder="Enter policy title" className={inp} />
               </div>
+              <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+                <p className="text-sm font-bold text-blue-950">Official source and jurisdiction — required before activation</p>
+                <p className="text-xs text-blue-800">Importing a PDF extracts text, but does NOT verify that it belongs to Barangay Tandang Sora, Poblacion, Butuan City. National law and citywide codes are not automatically barangay ordinances. Cross-check the original signed document first.</p>
+                <label className={lbl}>Jurisdiction</label>
+                <select name="jurisdiction_scope" value={form.jurisdiction_scope || "unverified"} onChange={set} className={inp}>
+                  <option value="unverified">Not verified — keep as Draft / Under Review</option>
+                  <option value="tandang_sora_butuan">Barangay Tandang Sora (Poblacion), Butuan City</option>
+                  <option value="butuan_city">Butuan City-wide ordinance / policy (not a barangay-issued rule)</option>
+                </select>
+                <label className={lbl}>Official source URL or traceable signed ordinance / resolution reference</label>
+                <input name="source_reference" value={form.source_reference || ""} onChange={set} placeholder="Official URL or signed reference; not a guessed web result" className={inp} />
+                {form.status === "Active" && <label className="flex items-start gap-2 text-sm font-semibold text-blue-900">
+                  <input type="checkbox" checked={reviewedOfficialSource} onChange={e => setReviewedOfficialSource(e.target.checked)} className="mt-1" />
+                  I checked the original document and its issuing authority, effective dates, locality, and policy number. This is not a Quezon City Tandang Sora document.
+                </label>}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={lbl}>Category</label>
@@ -447,7 +468,14 @@ function PolicyFormModal({
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t shrink-0">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold border hover:bg-muted transition-colors">Cancel</button>
-          <button onClick={() => onSave(form)} className="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all">
+          <button onClick={() => {
+            if (form.status === "Active" && (!reviewedOfficialSource || form.jurisdiction_scope === "unverified" ||
+                !form.source_reference?.trim() || !form.policy_number?.trim() || !form.enacted_by?.trim())) {
+              alert("Verify and confirm the signed official source, exact jurisdiction, issuer, and policy number before activating this policy.");
+              return;
+            }
+            onSave(form);
+          }} className="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all">
             {isEdit ? "Save Changes" : "Add Policy"}
           </button>
         </div>
@@ -523,8 +551,15 @@ export default function PoliciesPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { alert("Please sign in again."); return; }
+    if (data.status === "Active" && (data.jurisdiction_scope === "unverified" ||
+        !data.source_reference?.trim() || !data.enacted_by?.trim() ||
+        !data.policy_number?.trim() || data.policy_number.toUpperCase().startsWith("DRAFT-") ||
+        !data.full_text || data.full_text.trim().length < 40)) {
+      alert("Active policy requires a human-verified local or citywide source, real policy number, issuer and readable text.");
+      return;
+    }
     const payload = {
-      policy_number: data.policy_number?.trim() || `POL-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`,
+      policy_number: data.policy_number?.trim() || `DRAFT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       title: data.title?.trim() || "Untitled policy",
       category: data.category || "Other",
       description: data.description?.trim() || "",
@@ -534,6 +569,8 @@ export default function PoliciesPage() {
       enacted_by: data.enacted_by?.trim() || "",
       full_text: data.full_text?.trim() || "",
       source_file: data.source_file || null,
+      jurisdiction_scope: data.jurisdiction_scope || "unverified",
+      source_reference: data.source_reference?.trim() || "",
       created_by: user.id,
       updated_at: new Date().toISOString(),
     };
@@ -579,7 +616,7 @@ export default function PoliciesPage() {
             <h1 className="text-3xl font-bold tracking-tight">Barangay Policies</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Official ordinances, resolutions, and executive orders of the barangay. Active policy text is available to Ate Sora for resident questions.
+            Import PDF/Word policies as Draft for verification. Only source-verified Active records scoped to Tandang Sora (Poblacion), Butuan City, or citywide Butuan are available to Ate Sora with explicit citations.
           </p>
         </div>
         <div className="flex items-center gap-2">
