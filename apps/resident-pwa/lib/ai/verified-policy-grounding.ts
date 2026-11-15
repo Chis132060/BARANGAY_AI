@@ -21,7 +21,7 @@ const STOPWORDS = new Set([
 ]);
 
 export function isPolicyQuestion(message: string): boolean {
-  return /(?:^|[^a-z])(?:policy|policies|ordinance|ordinances|ordinansa|patakaran|batas|balaod|lagda|curfew|multa|fine|penalty|penalties|noise|karaoke|ordinance number|ordinance no|regulation|zoning|sanitation|solid waste|basura|garbage|smoking|traffic rule|resolution)(?:$|[^a-z])/i.test(message);
+  return /(?:^|[^a-z])(?:policy|policies|polisiya|ordinance|ordinances|ordinansa|ordinansiya|patakaran|batas|balaod|lagda|curfew|multa|fine|penalty|penalties|noise|karaoke|ordinance number|ordinance no|regulation|zoning|sanitation|solid waste|basura|garbage|smoking|traffic rule|resolution)(?:$|[^a-z])/i.test(message);
 }
 
 export function isWrongBarangayQuestion(message: string): boolean {
