@@ -17,6 +17,41 @@ interface Program {
   requirements: string | null; registration_open: boolean;
   registration_deadline: string | null; registration_opens_at: string | null; event_start_at: string | null; min_age: number | null; max_age: number | null;
 }
+interface SourceArchiveRecord {
+  id: string;
+  section: "news" | "program" | "organization";
+  title: string;
+  summary: string;
+  publisher: string;
+  source_url: string;
+  source_date: string | null;
+  event_date: string | null;
+  scope: "Local historical event" | "Barangay participation" | "Citywide coverage" | "Citywide reference" | "Historical address";
+}
+
+function SourceArchiveCard({ record }: { record: SourceArchiveRecord }) {
+  const date = record.source_date ?? record.event_date;
+  const label = record.section === "program"
+    ? "Reference only — no open application"
+    : record.section === "organization"
+      ? "Historical listing — current officers and members not verified"
+      : "Past report — not a current barangay advisory";
+  return (
+    <article className="space-y-2 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-800">{record.scope}</span>
+        {date && <span className="text-[11px] text-slate-500">{record.source_date ? "Reported" : "Event"}: {new Date(date + "T12:00:00+08:00").toLocaleDateString("en-PH", {timeZone:"Asia/Manila",year:"numeric",month:"short",day:"numeric"})}</span>}
+      </div>
+      <h3 className="text-sm font-bold text-slate-900">{record.title}</h3>
+      <p className="text-xs leading-relaxed text-slate-700">{record.summary}</p>
+      <p className="text-[11px] font-semibold text-amber-800">{label}</p>
+      <a href={record.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center text-xs font-semibold text-blue-700 underline underline-offset-2">
+        View official source — {record.publisher}
+      </a>
+    </article>
+  );
+}
+
 type ResidentEligibility = { state: "loading" | "verified" | "unverified" | "missing" | "unavailable"; age: number | null };
 
 function getResidentAge(birthDate: string | null): number | null {
@@ -49,6 +84,7 @@ export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [organizations, setOrganizations] = useState<PublicOrganization[]>([]);
+  const [sourcedArchive, setSourcedArchive] = useState<SourceArchiveRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -169,9 +205,10 @@ export default function AnnouncementsPage() {
       try {
         let cacheTimer: number | undefined;
         const cacheReads = Promise.all([
-          loadPublicSnapshot<Announcement[]>("announcements"),
+          loadPublicSnapshot<Announcement[]>("announcements-v2"),
           loadPublicSnapshot<Program[]>("barangay-programs"),
           loadPublicSnapshot<PublicOrganization[]>("barangay-organizations"),
+          loadPublicSnapshot<SourceArchiveRecord[]>("tandang-sora-source-archive-v1"),
         ]);
         let cachedSnapshots: Awaited<typeof cacheReads> | null;
         try {
@@ -182,7 +219,7 @@ export default function AnnouncementsPage() {
         } finally {
           if (cacheTimer !== undefined) window.clearTimeout(cacheTimer);
         }
-        const [annCache, progCache, orgCache] = cachedSnapshots ?? [null, null, null];
+        const [annCache, progCache, orgCache, archiveCache] = cachedSnapshots ?? [null, null, null, null];
         if (!active) return;
         if (annCache && !announcementsRef.current.length) {
           announcementsRef.current = annCache.data;
@@ -193,6 +230,7 @@ export default function AnnouncementsPage() {
           setPrograms(progCache.data);
         }
         if (orgCache) setOrganizations(orgCache.data);
+        if (archiveCache) setSourcedArchive(archiveCache.data);
         if (!navigator.onLine) {
           setErrorMessage("Offline: displaying saved public information that may be outdated. Registrations are not confirmed until synchronized.");
           setLoading(false);
@@ -211,16 +249,21 @@ export default function AnnouncementsPage() {
       const requestController = new AbortController();
       const requestTimeout = window.setTimeout(() => requestController.abort(), 12_000);
       try {
-        const [ann, prog, org] = await Promise.all([
+        const [ann, prog, org, archive] = await Promise.all([
           supabase.from("announcements").select("id,title,description,category,created_at,event_start_at,event_end_at,venue").eq("status", "Published").order("created_at", { ascending: false }).abortSignal(requestController.signal),
           supabase.from("barangay_programs").select("id,name,description,category,status,image_url,purok,venue,schedule_details,requirements,registration_open,registration_deadline,registration_opens_at,event_start_at,min_age,max_age").eq("is_public", true).eq("status", "Active").order("created_at", { ascending: false }).abortSignal(requestController.signal),
           supabase.from("barangay_organizations").select("id,name,description,org_type,president,contact").eq("status", "Active").order("name").abortSignal(requestController.signal),
+          supabase.from("tandang_sora_source_archive")
+            .select("id,section,title,summary,publisher,source_url,source_date,event_date,scope")
+            .eq("is_public", true)
+            .order("source_date", { ascending: false, nullsFirst: false })
+            .abortSignal(requestController.signal),
         ]);
         if (!active) return;
         if (!ann.error) {
           announcementsRef.current = (ann.data || []) as Announcement[];
           setAnnouncements(announcementsRef.current);
-          try { await savePublicSnapshot("announcements", announcementsRef.current, 60 * 60 * 1000); } catch { /* optional cache */ }
+          try { await savePublicSnapshot("announcements-v2", announcementsRef.current, 60 * 60 * 1000); } catch { /* optional cache */ }
         }
         if (!prog.error) {
           programsRef.current = (prog.data || []) as Program[];
@@ -231,10 +274,14 @@ export default function AnnouncementsPage() {
           setOrganizations((org.data || []) as PublicOrganization[]);
           try { await savePublicSnapshot("barangay-organizations", org.data || [], 60 * 60 * 1000); } catch { /* optional cache */ }
         }
-        if (ann.error || prog.error || org.error) {
+        if (!archive.error) {
+          setSourcedArchive((archive.data || []) as SourceArchiveRecord[]);
+          try { await savePublicSnapshot("tandang-sora-source-archive-v1", archive.data || [], 60 * 60 * 1000); } catch { /* optional cache */ }
+        }
+        if (ann.error || prog.error || org.error || archive.error) {
           try {
             if (ann.error) {
-              const cached = await loadPublicSnapshot<Announcement[]>("announcements");
+              const cached = await loadPublicSnapshot<Announcement[]>("announcements-v2");
               if (cached) { announcementsRef.current = cached.data; setAnnouncements(cached.data); }
             }
             if (prog.error) {
@@ -245,9 +292,13 @@ export default function AnnouncementsPage() {
               const cached = await loadPublicSnapshot<PublicOrganization[]>("barangay-organizations");
               if (cached) setOrganizations(cached.data);
             }
+            if (archive.error) {
+              const cached = await loadPublicSnapshot<SourceArchiveRecord[]>("tandang-sora-source-archive-v1");
+              if (cached) setSourcedArchive(cached.data);
+            }
           } catch { /* storage unavailable */ }
         }
-        setErrorMessage([ann.error?.message, prog.error?.message, org.error?.message].filter(Boolean).length
+        setErrorMessage([ann.error?.message, prog.error?.message, org.error?.message, archive.error?.message].filter(Boolean).length
           ? "Offline or unable to refresh: displaying available public cached information (may be outdated)."
           : "");
         setLoading(false);
@@ -299,6 +350,7 @@ export default function AnnouncementsPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_programs" }, () => { void load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "barangay_organizations" }, () => { void load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "tandang_sora_source_archive" }, () => { void load(); })
       .subscribe();
     return () => {
       active = false;
@@ -329,12 +381,15 @@ export default function AnnouncementsPage() {
   }, []);
 
   const selectedEligibilityMessage = selectedProgram ? getProgramEligibilityMessage(selectedProgram, residentEligibility) : "";
+  const documentedPrograms = sourcedArchive.filter(item => item.section === "program");
+  const documentedOrganizations = sourcedArchive.filter(item => item.section === "organization");
+  const verifiedNews = sourcedArchive.filter(item => item.section === "news");
 
   return (
     <div className="p-4 space-y-5 pb-20">
       <div className="flex items-center justify-between">
         <div><h1 className="text-xl font-extrabold text-gray-900">Barangay Updates</h1>
-          <p className="text-xs text-gray-500">Programs, organizations, and official announcements from Barangay Hall</p></div>
+          <p className="text-xs text-gray-500">Active barangay updates and sourced historical Butuan/Tandang Sora reports</p></div>
         <button aria-label="Refresh updates" onClick={() => setRefresh((v) => v + 1)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>
       </div>
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
@@ -367,6 +422,11 @@ export default function AnnouncementsPage() {
           </article>
         ))}
       </section>
+      <section className="space-y-3" aria-label="Past documented programs">
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-slate-900">Past & Documented Programs</h2><span className="text-xs text-slate-500">{documentedPrograms.length} records</span></div>
+        <p className="text-xs leading-relaxed text-slate-600">These are government-sourced historical reports and citywide references. They are not open programs or a promise of registration.</p>
+        {documentedPrograms.map(item => <SourceArchiveCard key={item.id} record={item} />)}
+      </section>
       </>}
       {selectedProgram && <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedProgram(null)}>
         <section role="dialog" aria-modal="true" aria-labelledby="program-detail-title" onClick={(event) => event.stopPropagation()} className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
@@ -397,17 +457,27 @@ export default function AnnouncementsPage() {
       {activeTab === "organizations" && <section id="updates-organizations-panel" role="tabpanel" aria-labelledby="updates-organizations-tab" className="space-y-3">
         <h2 className="text-base font-bold">Community Organizations</h2>
         {loading ? <p className="text-sm text-gray-500">Loading organizations...</p> : organizations.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No published organizations available.</p> : organizations.map((org) => <article key={org.id} className="rounded-2xl border bg-white p-4 space-y-2"><span className="text-xs font-bold text-blue-700">{org.org_type}</span><h3 className="font-bold">{org.name}</h3>{org.description && <p className="text-sm text-gray-600 whitespace-pre-line">{org.description}</p>}{org.president && <p className="text-xs text-gray-500">President: {org.president}</p>}{org.contact && <p className="text-xs text-gray-500">Contact: {org.contact}</p>}</article>)}
+        <div className="mt-4 space-y-3 border-t pt-4">
+          <div className="flex items-center justify-between"><h3 className="text-base font-bold text-slate-900">Documented Organizations</h3><span className="text-xs text-slate-500">{documentedOrganizations.length} records</span></div>
+          <p className="text-xs text-slate-600">Historical government accreditation or address records. Current leadership, membership and active operations have not been independently verified.</p>
+          {documentedOrganizations.map(item => <SourceArchiveCard key={item.id} record={item} />)}
+        </div>
       </section>}
       {activeTab === "announcements" && <section id="updates-announcements-panel" role="tabpanel" aria-labelledby="updates-announcements-tab" className="space-y-3">
-        <h2 className="text-base font-bold">Barangay Announcements</h2>
+        <h2 className="text-base font-bold">Official Barangay Announcements</h2>
         {loading && <p className="text-sm text-gray-500">Loading announcements...</p>}
-        {!loading && announcements.length === 0 && <div className="rounded-xl border border-dashed p-8 text-center"><Megaphone className="mx-auto mb-2 h-6 w-6 text-gray-300" /><p className="text-sm text-gray-500">No announcements yet.</p></div>}
+        {!loading && announcements.length === 0 && <div className="rounded-xl border border-dashed p-8 text-center"><Megaphone className="mx-auto mb-2 h-6 w-6 text-gray-300" /><p className="text-sm text-gray-500">No verified current barangay notices have been published. See government-sourced historical reports below.</p></div>}
         {announcements.map((a) => (
           <article key={a.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase text-blue-700">{a.category}</span><span className="flex items-center gap-1 text-[10px] text-gray-400"><Calendar className="h-3 w-3" />{new Date(a.created_at).toLocaleDateString()}</span></div>
             <h3 className="text-sm font-bold">{a.title}</h3>{a.event_start_at && <p className="text-xs font-semibold text-blue-700">Event: {new Date(a.event_start_at).toLocaleString("en-PH",{timeZone:"Asia/Manila",dateStyle:"medium",timeStyle:"short"})} (PH time)</p>}{a.venue && <p className="text-xs text-gray-600">Venue: {a.venue}</p>}<p className="whitespace-pre-line text-xs text-gray-600">{a.description}</p>
           </article>
         ))}
+        <div className="mt-4 space-y-3 border-t pt-4">
+          <div className="flex items-center justify-between"><h3 className="text-base font-bold text-slate-900">Verified Community News Archive</h3><span className="text-xs text-slate-500">{verifiedNews.length} reports</span></div>
+          <p className="text-xs text-slate-600">Reports from government sources referring to Barangay Tandang Sora, Butuan City. Past reports are not current advisories or new barangay announcements.</p>
+          {verifiedNews.map(item => <SourceArchiveCard key={item.id} record={item} />)}
+        </div>
       </section>}
     </div>
   );
