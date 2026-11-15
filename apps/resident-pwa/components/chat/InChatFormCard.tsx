@@ -44,6 +44,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [useSavedId, setUseSavedId] = useState(true);
   const [hasApprovedAddress, setHasApprovedAddress] = useState(false);
   const [useApprovedAddress, setUseApprovedAddress] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [receiptReference, setReceiptReference] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -216,7 +217,9 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
 
   return (
     <section aria-label="Interactive Document Application Form"
-      className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm">
+      className={expanded
+        ? "fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] top-[4.5rem] z-[55] mx-auto w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl"
+        : "w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm"}>
       <div className="border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <span className="rounded-2xl bg-blue-600 p-3 text-white shadow-sm">
@@ -232,10 +235,12 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
             </p>
           </div>
         </div>
-        {catalog && <Link href={`/requests/new?documentId=${encodeURIComponent(catalog.id)}`}
-          className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-800">
-          Open full-page form <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-        </Link>}
+        {catalog && <button type="button" onClick={() => setExpanded(value => !value)}
+          aria-expanded={expanded}
+          className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-base font-bold text-blue-800">
+          {expanded ? "Back to Ate Sora chat" : "Make form bigger"}
+          <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
+        </button>}
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
@@ -244,14 +249,14 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
         </p>}
         {catalogError && (
           <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-sm leading-relaxed text-amber-950">{catalogError} Please try again or use the full-page form.</p>
+            <p className="text-base leading-relaxed text-amber-950">{catalogError} Please try again here. If the service catalog is unavailable, no request has been submitted.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => void refreshCatalog()}
                 className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white">Retry catalog</button>
-              <Link href="/requests/new"
-                className="inline-flex min-h-11 items-center rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-800">
-                Open standard request form
-              </Link>
+              <button type="button" onClick={() => void refreshCatalog()}
+                className="inline-flex min-h-12 items-center rounded-xl border border-blue-300 bg-white px-4 text-base font-semibold text-blue-800">
+                Try again here
+              </button>
             </div>
           </div>
         )}
