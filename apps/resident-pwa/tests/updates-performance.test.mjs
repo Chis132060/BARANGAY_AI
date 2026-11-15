@@ -43,3 +43,50 @@ test("program details stay phone-sized and show eligibility errors beside the ap
   assert.match(page, /resident\.age > program\.max_age/);
   assert.match(page, /typeof error\.message === "string"/);
 });
+
+test("PWA separates open registrable programs from verified historical programs and organizations", () => {
+  assert.match(page, /from\("barangay_programs"\)[^\n]*\.eq\("is_public", true\)\.eq\("status", "Active"\)/);
+  assert.match(page, /from\("tandang_sora_source_archive"\)/);
+  assert.match(page, /\.eq\("is_public", true\)/);
+  assert.match(page, /documentedPrograms = sourcedArchive\.filter\(item => item\.section === "program"\)/);
+  assert.match(page, /documentedOrganizations = sourcedArchive\.filter\(item => item\.section === "organization"\)/);
+  assert.match(page, /verifiedNews = sourcedArchive\.filter\(item => item\.section === "news"\)/);
+  assert.match(page, /Past &amp; Documented Programs|Past & Documented Programs/);
+  assert.match(page, /Documented Organizations/);
+  assert.match(page, /Verified Community News Archive/);
+});
+
+test("sourced news archive is visibly historical and links the government original", () => {
+  assert.match(page, /record\.source_url/);
+  assert.match(page, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(page, /not a current barangay advisory/);
+  assert.match(page, /Reference only — no open application/);
+  assert.match(page, /current officers and members not verified/);
+  assert.doesNotMatch(page, /const (?:STATIC|FAKE|SAMPLE)_ARCHIVE/);
+});
+
+test("old unverified announcement and test organization offline caches cannot reappear", () => {
+  assert.match(page, /announcements-v2/);
+  assert.match(page, /barangay-organizations-v2/);
+  assert.match(page, /tandang-sora-source-archive-v1/);
+  assert.doesNotMatch(page, /loadPublicSnapshot<Announcement\[\]>\("announcements"\)/);
+});
+
+test("new source archive enforces provenance and separate RLS", () => {
+  const migration = readFileSync(new URL("../../../supabase/migrations/20261115160426_source_verified_tandang_sora_archive.sql", import.meta.url), "utf8");
+  assert.match(migration, /tandang_sora_source_archive/);
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /is_public = true/);
+  assert.match(migration, /is_barangay_staff\(\)/);
+  assert.match(migration, /source_url/);
+  assert.doesNotMatch(migration, /notify_residents_on_announcement/);
+});
+
+test("staff announcements use actual fields and only fire notifications for new publication", () => {
+  const sql = readFileSync(new URL("../../../supabase/migrations/20261115161313_repair_announcement_publish_notification_fields.sql", import.meta.url), "utf8");
+  assert.match(sql, /SECURITY INVOKER/);
+  assert.match(sql, /NEW\.description/);
+  assert.match(sql, /NEW\.status = 'Published'/);
+  assert.match(sql, /OLD\.status IS DISTINCT FROM 'Published'/);
+  assert.doesNotMatch(sql, /NEW\.body\b|NEW\.target_audience\b/);
+});
