@@ -1,7 +1,7 @@
 "use client";
 
 import { AdminTable } from "@/components/ui/AdminTable";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Handshake,
   Plus,
@@ -50,6 +50,8 @@ function getOrgStyle(orgType: string, isCustom: boolean) {
 function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: () => void }) {
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [reloadMembers, setReloadMembers] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
@@ -64,12 +66,16 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
   const [formError, setFormError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  useState(() => {
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setMembersError(null);
     fetchOrgMembers(org.id)
-      .then(setMembers)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  });
+      .then(rows => { if (mounted) setMembers(rows); })
+      .catch(error => { if (mounted) setMembersError(error instanceof Error ? error.message : "Could not load organization members."); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [org.id, reloadMembers]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -94,7 +100,7 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
   function handleRemove(id: string) {
     if (!confirm("Remove this member?")) return;
     startTransition(async () => {
-      try { await removeOrgMember(id); setMembers((prev) => prev.filter((m) => m.id !== id)); } catch {}
+      try { await removeOrgMember(id); setMembers((prev) => prev.filter((m) => m.id !== id)); } catch (error) { setFormError(error instanceof Error ? error.message : "Removal failed."); }
     });
   }
 
@@ -110,12 +116,27 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
             </div>
             <div>
               <h2 className="font-bold text-base">{org.name}</h2>
-              <p className="text-xs text-muted-foreground">{org.org_type} · {members.length} member{members.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-muted-foreground">{org.org_type} · {loading ? "Loading members…" : membersError ? "Members unavailable" : `${members.length} member${members.length !== 1 ? "s" : ""}`}</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted transition-colors"><X className="h-5 w-5" /></button>
         </div>
 
+        <div className="border-b bg-blue-50/60 px-6 py-4">
+          <h3 className="font-bold text-blue-900">Organization Leadership</h3>
+          <p className="mt-1 text-sm text-slate-700"><strong>Leader in profile:</strong> {org.president || "Not recorded"}</p>
+          <p className="mt-1 text-xs text-blue-800">A text field alone does not verify an appointment. Add officers below using actual organization records.</p>
+          {!loading && !membersError && (
+            <div className="mt-3 space-y-1">
+              {members.filter(member => ["President", "Vice President", "Secretary", "Treasurer", "Officer"].includes(member.role || "") && member.status === "Active")
+                .map(officer => <p key={officer.id} className="text-xs text-slate-700">
+                  <strong>{officer.role}:</strong> {officer.full_name} <span className="text-slate-500">(recorded, not independently verified)</span>
+                </p>)}
+              {!members.some(member => ["President", "Vice President", "Secretary", "Treasurer", "Officer"].includes(member.role || "") && member.status === "Active") &&
+                <p className="text-xs text-slate-600">No active officers listed in the member roster.</p>}
+            </div>
+          )}
+        </div>
         {showAdd && (
           <form onSubmit={handleAdd} className="border-b px-6 py-4 bg-muted/30 space-y-3">
             {formError && <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{formError}</div>}
@@ -173,6 +194,12 @@ function MembersPanel({ org, onClose }: { org: BarangayOrganization; onClose: ()
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">Loading…</div>
+          ) : membersError ? (
+            <div role="alert" className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              Cannot load organization members: {membersError}
+              <button type="button" onClick={() => setReloadMembers(value => value + 1)}
+                className="ml-3 font-bold underline">Retry</button>
+            </div>
           ) : members.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Users className="h-10 w-10 mb-2 opacity-20" />
@@ -325,9 +352,10 @@ function CreateOrgModal({ onClose, onCreated }: { onClose: () => void; onCreated
 // ─── Main Organizations Client ────────────────────────────────────────────────
 interface Props {
   initialOrganizations: BarangayOrganization[];
+  loadError?: string | null;
 }
 
-export function OrganizationsClient({ initialOrganizations }: Props) {
+export function OrganizationsClient({ initialOrganizations, loadError }: Props) {
   const [orgs, setOrgs] = useState<BarangayOrganization[]>(initialOrganizations);
   const [search, setSearch] = useState("");
   const [selectedOrg, setSelectedOrg] = useState<BarangayOrganization | null>(null);
@@ -344,6 +372,14 @@ export function OrganizationsClient({ initialOrganizations }: Props) {
     startTransition(async () => {
       try { await deleteOrganization(id); setOrgs((prev) => prev.filter((o) => o.id !== id)); } catch {}
     });
+  }
+
+  if (loadError) {
+    return <div role="alert" className="m-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900">
+      <h1 className="text-lg font-bold">Organizations could not be loaded</h1>
+      <p className="mt-2 text-sm">{loadError}</p>
+      <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold text-white">Retry</button>
+    </div>;
   }
 
   return (
