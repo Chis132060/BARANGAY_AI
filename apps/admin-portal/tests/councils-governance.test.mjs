@@ -81,3 +81,12 @@ test("program participant load failures are explicit and lead is shown separatel
   assert.match(programs, /Program Overview/);
   assert.match(programPage, /loadError = "Unable to load programs/);
 });
+
+test("council roster and program badges reconcile with the actual fetched rows", () => {
+  assert.match(client, /member_count: memberRows\.length, program_count: linkedPrograms\.length/);
+  assert.match(client, /setCouncils\(previous => previous\.map\(council => council\.id === councilId/);
+  assert.match(client, /idempotent upsert may update an existing link/i);
+  assert.doesNotMatch(client, /program_count: \(current\.program_count \?\? 0\) \+ 1/);
+  assert.ok((client.match(/setReloadKey\(value => value \+ 1\)/g) || []).length >= 4,
+    "appointment and program mutations must trigger a count refresh");
+});

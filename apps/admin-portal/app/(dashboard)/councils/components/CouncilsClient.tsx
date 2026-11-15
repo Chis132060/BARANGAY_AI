@@ -95,6 +95,13 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
       setMembers(memberRows);
       setPrograms(linkedPrograms);
       setProgramOptions(availablePrograms);
+      // Use fetched rows as the source of truth, not optimistic count guesses.
+      setSelected(current => current?.id === councilId
+        ? { ...current, member_count: memberRows.length, program_count: linkedPrograms.length }
+        : current);
+      setCouncils(previous => previous.map(council => council.id === councilId
+        ? { ...council, member_count: memberRows.length, program_count: linkedPrograms.length }
+        : council));
     } catch (error) {
       if (serial === requestSerial.current) setDetailsError(error instanceof Error ? error.message : "Unable to load the council roster.");
     } finally {
@@ -169,6 +176,7 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
       setCouncils(previous => previous.map(c => c.id === next.id ? next : c));
       setMemberForm(initialMember);
       setAddingMember(false);
+      setReloadKey(value => value + 1);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to add appointment.");
     } finally {
@@ -187,6 +195,7 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
       const next = { ...selected, member_count: Math.max(0, (selected.member_count ?? 0) - 1) };
       setSelected(next);
       setCouncils(previous => previous.map(c => c.id === next.id ? next : c));
+      setReloadKey(value => value + 1);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to remove appointment.");
     } finally {
@@ -201,11 +210,8 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
     try {
       await linkCouncilProgram(selected.id, chosenProgram);
       setChosenProgram("");
-      setReloadKey(v => v + 1);
-      setSelected(current => current ? { ...current, program_count: (current.program_count ?? 0) + 1 } : current);
-      setCouncils(previous => previous.map(c =>
-        c.id === selected.id ? { ...c, program_count: (c.program_count ?? 0) + 1 } : c
-      ));
+      // An idempotent upsert may update an existing link; refetch the real count.
+      setReloadKey(value => value + 1);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to link program.");
     } finally {
@@ -223,6 +229,7 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
       const next = { ...selected, program_count: Math.max(0, (selected.program_count ?? 0) - 1) };
       setSelected(next);
       setCouncils(previous => previous.map(c => c.id === next.id ? next : c));
+      setReloadKey(value => value + 1);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to unlink program.");
     } finally {
