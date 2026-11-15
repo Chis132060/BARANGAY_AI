@@ -171,6 +171,7 @@ export async function submitDocumentRequest(formData: FormData) {
   }
 
   const uploadedPaths: string[] = [];
+  let createdId: string | null = null;
   try {
     for (const { requirement: req, file } of files) {
     const timestamp = crypto.randomUUID();
@@ -226,6 +227,7 @@ export async function submitDocumentRequest(formData: FormData) {
     }
     throw new Error(`Database error: ${reqError.message}`);
   }
+  createdId = created?.id ?? null;
 
   } catch (error) {
     if (uploadedPaths.length) {
@@ -238,6 +240,6 @@ export async function submitDocumentRequest(formData: FormData) {
   }
 
   revalidatePath("/requests");
-  if (!created?.id) throw new Error("Request receipt was not confirmed by the database.");
-  return { success: true, id: created.id, reference: formatRequestReference(created.id) };
+  if (!createdId) throw new Error("Request receipt was not confirmed by the database.");
+  return { success: true, id: createdId, reference: formatRequestReference(createdId) };
 }
