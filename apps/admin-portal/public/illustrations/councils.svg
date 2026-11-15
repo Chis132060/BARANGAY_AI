@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title"><title id="title">Council and committee illustration</title>
+<circle cx="128" cy="128" r="111" fill="#073C9C" stroke="#F3B41A" stroke-width="13"/>
+<path d="M54 95 128 45l74 50" fill="none" stroke="#FFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M74 102h108M81 106v68M128 106v68M175 106v68" stroke="#FFF" stroke-width="12" stroke-linecap="round"/>
+<path d="M66 179h124" stroke="#FFF" stroke-width="11" stroke-linecap="round"/>
+<circle cx="128" cy="149" r="18" fill="#F3B41A" stroke="#073C9C" stroke-width="4"/>
+<circle cx="87" cy="158" r="13" fill="#FFF" stroke="#073C9C" stroke-width="4"/>
+<circle cx="169" cy="158" r="13" fill="#FFF" stroke="#073C9C" stroke-width="4"/>
+<path d="M108 177c5-10 12-15 20-15s15 5 20 15M67 177c4-8 10-12 20-12s17 4 21 12M148 177c4-8 11-12 21-12 9 0 16 4 20 12" fill="#FFF"/>
+<rect x="50" y="177" width="156" height="45" rx="13" fill="#F3B41A" stroke="#073C9C" stroke-width="6"/>
+<path d="M84 188v24M128 188v24M172 188v24" stroke="#FFF" stroke-width="6" stroke-linecap="round"/>
+</svg>

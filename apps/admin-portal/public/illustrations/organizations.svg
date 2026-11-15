@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title"><title id="title">Community organization illustration</title>
+<circle cx="128" cy="122" r="93" fill="none" stroke="#F3B41A" stroke-width="15"/>
+<circle cx="128" cy="27" r="14" fill="#0750BF" stroke="#FFF" stroke-width="5"/>
+<circle cx="31" cy="137" r="14" fill="#0750BF" stroke="#FFF" stroke-width="5"/>
+<circle cx="225" cy="137" r="14" fill="#0750BF" stroke="#FFF" stroke-width="5"/>
+<path d="M48 125 128 62l80 63v68H48z" fill="#FFF" stroke="#0750BF" stroke-width="10" stroke-linejoin="round"/>
+<path d="M38 131 128 58l90 73" fill="none" stroke="#0750BF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M58 198h140" stroke="#0750BF" stroke-width="15" stroke-linecap="round"/>
+<rect x="109" y="122" width="38" height="73" rx="12" fill="#F3B41A"/>
+<rect x="65" y="136" width="24" height="27" rx="5" fill="#9FC7F9"/>
+<rect x="168" y="136" width="24" height="27" rx="5" fill="#9FC7F9"/>
+<circle cx="128" cy="184" r="23" fill="#0750BF" stroke="#FFF" stroke-width="5"/>
+<circle cx="76" cy="196" r="16" fill="#F3B41A" stroke="#FFF" stroke-width="5"/>
+<circle cx="180" cy="196" r="16" fill="#F3B41A" stroke="#FFF" stroke-width="5"/>
+<path d="M91 240c3-27 18-43 37-43s34 16 37 43" fill="#0750BF" stroke="#FFF" stroke-width="5"/>
+<path d="M45 235c2-20 14-31 31-31 8 0 15 3 20 8v23M211 235c-2-20-14-31-31-31-8 0-15 3-20 8v23" fill="#F3B41A" stroke="#FFF" stroke-width="5" stroke-linejoin="round"/>
+</svg>

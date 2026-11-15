@@ -1,5 +1,7 @@
 "use client";
 
+import { RecordIllustration } from "@/components/ui/RecordIllustration";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BookOpen, ClipboardCheck, FileText, Landmark, Plus, RefreshCw,
@@ -23,12 +25,6 @@ const blankDraft: CouncilDraft = {
   name: "", code: "", kind: "Council", mandate: "", mandate_reference: "",
   established_date: "", status: "Draft",
 };
-const EXAMPLES: { name: string; kind: "Council" | "Committee"; source: string }[] = [
-  { name: "Barangay Development Council (BDC)", kind: "Council", source: "RA 7160, sections 106–114" },
-  { name: "Barangay Council for the Protection of Children (BCPC)", kind: "Council", source: "Verify current DILG guidance" },
-  { name: "Barangay Anti-Drug Abuse Council (BADAC)", kind: "Council", source: "DILG–DDB JMC 2018-01" },
-  { name: "Barangay Disaster Risk Reduction and Management Committee (BDRRMC)", kind: "Committee", source: "RA 10121" },
-];
 const POSITIONS: CouncilPosition[] = [
   "Chairperson", "Vice Chairperson", "Secretary", "Treasurer", "Member",
   "Sector Representative", "Organization Representative", "Coordinator",
@@ -297,6 +293,7 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
         {matches.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {matches.map(council => <button key={council.id} type="button" onClick={() => selectCouncil(council)}
             className="rounded-2xl border bg-white p-5 text-left shadow-sm hover:border-blue-300 hover:shadow-md">
+            <RecordIllustration kind="council" name={council.name} className="mb-3 h-28 w-full" />
             <div className="flex items-start justify-between gap-3">
               <Landmark className="h-5 w-5 text-blue-700" />
               <StatusLabel status={council.status} />
@@ -312,25 +309,11 @@ export function CouncilsClient({ initialCouncils, loadError, permissions }: {
         </div> : <div className="rounded-2xl border border-dashed bg-white p-7">
           <p className="font-semibold text-slate-900">{search ? "No matching bodies." : "No verified council records entered yet."}</p>
           <p className="mt-2 text-sm text-slate-600">
-            Council names below are <strong>reference examples only</strong>; they are not evidence of a formally constituted local council.
-            Authorized staff should verify an ordinance, resolution or appointment before activating one.
+            No sample councils are inserted automatically. Only actual records returned by the database appear in this registry.
+            Staff should verify a local ordinance, resolution or authority reference before activation.
           </p>
         </div>}
-        {!search && councils.length === 0 && <section aria-label="Council reference examples">
-          <h2 className="mb-3 text-sm font-bold text-slate-800">Common council and committee types (not registered locally)</h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {EXAMPLES.map(item => <div key={item.name} className="rounded-xl border bg-slate-50 p-4">
-              <h3 className="text-sm font-bold text-slate-900">{item.name}</h3>
-              <p className="mt-1 text-xs text-slate-600">Legal reference to confirm: {item.source}</p>
-              {permissions.canCreate && <button type="button" onClick={() => {
-                setDraft({ ...blankDraft, name: item.name, kind: item.kind });
-                setCreating(true);
-              }} className="mt-3 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-800">
-                Prepare unverified draft
-              </button>}
-            </div>)}
-          </div>
-        </section>}
+        
       </>}
 
       {creating && <div role="dialog" aria-modal="true" aria-labelledby="create-council-title"

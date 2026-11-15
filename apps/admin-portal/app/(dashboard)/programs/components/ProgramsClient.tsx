@@ -1,5 +1,7 @@
 "use client";
 
+import { RecordIllustration } from "@/components/ui/RecordIllustration";
+
 import { AdminTable } from "@/components/ui/AdminTable";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -17,8 +19,7 @@ import {
   UserPlus,
   Minus,
   Activity,
-  Sparkles,
-  Heart,
+    Heart,
   Briefcase,
   Leaf,
   Trophy,
@@ -451,7 +452,7 @@ export function ProgramsClient({ initialPrograms, initialCategory, loadError }: 
             label: "Custom",
             value: programs.filter((p) => p.is_custom).length,
             delta: "Staff-created entries",
-            icon: Sparkles,
+            icon: Users,
             accentColor: "text-amber-600",
             bgColor: "bg-amber-50 dark:bg-amber-950/30",
           },
@@ -493,6 +494,7 @@ export function ProgramsClient({ initialPrograms, initialCategory, loadError }: 
               className="group relative rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md transition-all cursor-pointer"
               onClick={() => setSelectedProgram(program)}
             >
+              <RecordIllustration kind="program" name={program.name} src={program.image_url} className="mb-4 h-32 w-full" />
               <div className="flex items-start justify-between">
                 <div className={`flex h-11 w-11 items-center justify-center rounded-xl border ${colorClass}`}>
                   <Icon className="h-5 w-5" />
