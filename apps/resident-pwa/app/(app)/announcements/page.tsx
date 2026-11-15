@@ -5,6 +5,7 @@ import { Calendar, Megaphone, RefreshCw, X, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { queueProgramIntent, listProgramIntents } from "@/lib/offline/program-intents";
+import { markAnnouncementsSeen } from "@/lib/navigation/nav-badges";
 
 interface Announcement {
   id: string; title: string; description: string; category: string; created_at: string; event_start_at: string | null; event_end_at: string | null; venue: string | null;
@@ -60,7 +61,7 @@ export default function AnnouncementsPage() {
   const [applyError, setApplyError] = useState("");
   const [residentEligibility, setResidentEligibility] = useState<ResidentEligibility>({ state: "loading", age: null });
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [activeTab, setActiveTab] = useState<"programs" | "organizations" | "announcements">("programs");
+  const [activeTab, setActiveTab] = useState<"programs" | "organizations" | "announcements">("announcements");
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const lastLoadAt = useRef(0);
   const announcementsRef = useRef<Announcement[]>([]);
@@ -305,6 +306,27 @@ export default function AnnouncementsPage() {
       void supabase.removeChannel(channel);
     };
   }, [refresh]);
+
+  // Viewing the Announcements tab marks only the published records actually
+  // displayed on this device. Programs and organizations do not clear this badge.
+  useEffect(() => {
+    if (activeTab !== "announcements" || announcements.length === 0) return;
+    let active = true;
+    void createClient().auth.getSession().then(({ data: { session } }) => {
+      if (active && session?.user?.id) {
+        markAnnouncementsSeen(session.user.id, announcements.map(item => item.id));
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [activeTab, announcements]);
+
+  // Direct links from the service directory can open a specific Updates tab.
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "programs" || tab === "organizations" || tab === "announcements") {
+      setActiveTab(tab);
+    }
+  }, []);
 
   const selectedEligibilityMessage = selectedProgram ? getProgramEligibilityMessage(selectedProgram, residentEligibility) : "";
 
