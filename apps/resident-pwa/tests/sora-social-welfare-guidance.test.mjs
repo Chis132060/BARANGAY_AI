@@ -79,6 +79,13 @@ test("routes resident hunger to AICS rather than 4Ps law or a document form", as
   assert.deepEqual([...db.visited], ["verified_legal_sources"]);
 });
 
+test("natural hunger statement without exact keyword phrase still finds the official AICS office", async () => {
+  const r = await getVerifiedResidentConcernAnswer(mockDb([fourPs, city, aics]), "wala kaming makain", "tgl");
+  assert.ok(r, "free-form story should match reviewer-controlled keyword terms");
+  assert.match(r.answer, /DSWD Caraga Crisis Intervention Section/);
+  assert.match(r.citations[0], /Official government assistance program/);
+});
+
 test("English food assistance answer asks food-specific followup instead of police report", async () => {
   const r = await getVerifiedResidentConcernAnswer(mockDb([aics]), "I need financial assistance and food", "en");
   assert.ok(r);
