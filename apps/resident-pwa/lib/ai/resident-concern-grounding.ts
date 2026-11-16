@@ -113,7 +113,7 @@ export async function getVerifiedResidentConcernAnswer(
       : "Ligtas ka ba ngayon? Ano ang nangyari at nakapag-report ka na ba? Hindi mo kailangang magbigay dito ng pangalan o pribadong detalye.";
 
   return {
-    answer: intro + "\n\n" + source.summary.trim() + "\n\n" + followup,
+    answer: intro + "\n\n" + (source.summary ?? "").trim() + "\n\n" + followup,
     citations: [sourceCitation(source)],
     context_used: true,
     flagged: false,
