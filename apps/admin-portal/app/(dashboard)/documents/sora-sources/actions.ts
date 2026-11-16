@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { checkUserPermission } from "../../administration/rbac-actions";
 
 export type OfficialSource = {
@@ -44,7 +43,9 @@ async function authorize(action: "canView" | "canEdit" | "canCreate" | "canAppro
   if (error || !user || !(await checkUserPermission(user.id, "documents", action))) {
     throw new Error("You are not authorized to manage Documents & Services.");
   }
-  return { userId: user.id, admin: createAdminClient() };
+  // Use the authenticated session and document-module RLS permissions.
+  // No service-role credential is needed in the Admin Portal.
+  return { userId: user.id, admin: session };
 }
 
 function verifiedGovernmentUrl(raw: string): string {
@@ -87,7 +88,7 @@ function cleanSource(input: SourceInput) {
   };
 }
 
-async function audit(admin: ReturnType<typeof createAdminClient>, actor: string, action: string, details: object) {
+async function audit(admin: ReturnType<typeof createClient>, actor: string, action: string, details: object) {
   const { error } = await admin.from("audit_logs").insert({
     user_id: actor, action, module: "documents", details,
   });
