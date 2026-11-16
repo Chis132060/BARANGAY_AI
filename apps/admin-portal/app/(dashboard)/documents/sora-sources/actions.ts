@@ -79,7 +79,7 @@ function cleanSource(input: SourceInput) {
   const keywords = (Array.isArray(input.keywords) ? input.keywords : [])
     .filter((w): w is string => typeof w === "string")
     .map(w => w.trim().toLowerCase()).filter(w => w.length >= 2 && w.length <= 60);
-  if (keywords.length > 30) throw new Error("Use up to 30 search terms.");
+  if (keywords.length > 50) throw new Error("Use up to 50 verified search terms.");
   return {
     title,
     source_url: verifiedGovernmentUrl(input.source_url),
