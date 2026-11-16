@@ -2,53 +2,47 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const component = readFileSync(
-  new URL("../components/chat/InChatFormCard.tsx", import.meta.url), "utf8"
-);
+const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
+const component = read("../components/chat/InChatFormCard.tsx");
+const chat = read("../components/chat/ChatInterface.tsx");
 
-test("expanded Ate Sora form covers the entire viewport on phones, tablets and narrow desktop windows", () => {
-  assert.match(component, /fixed inset-0 z-\[100\] flex h-\[100dvh\] w-screen min-w-0 flex-col overflow-hidden/);
-  // The previous sm: breakpoint made an 846px desktop screenshot a floating card.
-  // Do not reintroduce breakpoint-specific viewport gaps or a max-width on the sheet.
-  assert.doesNotMatch(component, /sm:(?:top|bottom)-\[3dvh\]|sm:max-w-xl|sm:rounded-3xl|sm:h-auto/);
-  assert.match(component, /mx-auto w-full max-w-2xl/);
-  assert.doesNotMatch(component, /bottom-\[calc\(4\.5rem\+env\(safe-area-inset-bottom\)\)\]/);
-  assert.match(component, /min-h-0 flex-1 overflow-y-auto overscroll-contain/);
-  assert.match(component, /safe-area-inset-top/);
-  assert.match(component, /safe-area-inset-bottom/);
-  assert.match(component, /min-h-28 w-full resize-y/);
+test("Ate Sora form stays compact and inline at every viewport width", () => {
+  assert.match(component, /className="w-full min-w-0 overflow-hidden rounded-2xl border/);
+  assert.match(component, /Keep the form in Ate Sora's one chat scroll area/);
+  assert.match(component, /space-y-4 p-3 sm:p-4/);
+  assert.match(component, /min-h-24 w-full resize-y/);
+  assert.doesNotMatch(component, /Make form bigger|setExpanded|aria-modal|fixed inset-0 z-\\[100\\]|h-\\[100dvh\\]/);
+  assert.doesNotMatch(component, /overflow-y-auto/);
+  assert.match(chat, /ref=\\{messagesScrollRef\\} className="min-h-0 flex-1 overflow-y-auto/);
+  assert.match(chat, /max-w-\\[calc\\(100%-2\\.5rem\\)\\]/);
 });
 
-test("back header remains outside the scrolling form and does not change the route", () => {
-  const header = component.indexOf("Back to Ate Sora chat");
-  const viewport = component.indexOf("ref={expanded ? expandedScrollRef");
-  assert.ok(header > 0 && viewport > header, "back action is in fixed header");
-  assert.match(component, /onClick=\{\(\) => setExpanded\(false\)\}/);
-  assert.match(component, /Make form bigger/);
-  assert.match(component, /setExpanded\(value => !value\)/);
-  assert.match(component, /document\.body\.style\.overflow = "hidden"/);
-  assert.match(component, /document\.body\.style\.overflow = previousOverflow/);
-  assert.match(component, /event\.key === "Escape"/);
-  assert.doesNotMatch(component, /Open full-page form/);
+test("known document requests open the real form automatically inside chat", () => {
+  assert.match(chat, /if \\(userFormRequest\\.formType && isDocumentFormId\\(userFormRequest\\.formType\\)\\)/);
+  assert.match(chat, /formType: userFormRequest\\.formType/);
+  assert.match(chat, /<InChatFormCard formType=\\{m\\.formType\\}/);
+  assert.match(chat, /const top = card\\.getBoundingClientRect\\(\\)\\.top/);
+  assert.match(component, /from\\("document_types"\\)/);
 });
 
-test("keyboard and screen readers recognize the sheet as one accessible modal", () => {
-  assert.match(component, /const expandedTitleId = useId\(\)/);
-  assert.match(component, /role=\{expanded \? "dialog" : undefined\}/);
-  assert.match(component, /aria-modal=\{expanded \? true : undefined\}/);
-  assert.match(component, /aria-labelledby=\{expanded \? expandedTitleId : undefined\}/);
-  assert.match(component, /if \(event\.key !== "Tab"\) return/);
-  assert.match(component, /last\.focus\(\)/);
-  assert.match(component, /first\.focus\(\)/);
-  assert.match(component, /closeExpandedRef\.current\?\.focus\(\)/);
+test("confirmed submission removes active form, restores chat and shows a tracking receipt", () => {
+  assert.match(component, /const result = await submitDocumentRequest\\(payload\\)/);
+  assert.match(component, /if \\(!result\\?\\.success \\|\\| !result\\.reference\\) throw/);
+  assert.match(component, /onSubmitted\\?\\.\\(result\\.reference\\)/);
+  assert.match(chat, /onSubmitted=\\{reference => handleFormSubmitted\\(m\\.id, reference\\)\\}/);
+  assert.match(chat, /formType: undefined, formTitle: undefined, formSchema: undefined/);
+  assert.match(chat, /isReceipt: true/);
+  assert.match(chat, /role=\\{m\\.isReceipt \\? "status" : undefined\\}/);
+  assert.match(chat, /href="\\/requests"/);
+  assert.match(chat, /viewport\\.scrollTo\\(\\{ top: viewport\\.scrollHeight, behavior: "smooth" \\}\\)/);
+  assert.doesNotMatch(chat, /window\\.location\\.href\\s*=\\s*"\\/requests"/);
 });
 
-test("form retains wide touch targets and existing verified-ID server submission", () => {
-  assert.match(component, /min-h-\[76px\] cursor-pointer/);
-  assert.match(component, /min-h-14 w-full/);
-  assert.match(component, /text-base font-bold text-slate-900/);
+test("uploads, saved ID and idempotent server submission are unchanged", () => {
   assert.match(component, /Use my registered ID/);
   assert.match(component, /Use my registered barangay address/);
-  assert.match(component, /submitDocumentRequest\(payload\)/);
-  assert.match(component, /Automatically generated request reference/);
+  assert.match(component, /payload\\.set\\("clientOperationId", operationId\\.current\\)/);
+  assert.match(component, /submitDocumentRequest\\(payload\\)/);
+  assert.match(component, /min-h-14 w-full/);
+  assert.match(component, /no payment is collected/i);
 });
