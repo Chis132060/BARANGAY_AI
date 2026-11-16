@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ArrowUpRight, ShieldCheck, WifiOff } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ArrowUpRight, ArrowLeft, ShieldCheck, WifiOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "@/app/(app)/requests/actions";
 import { DOCUMENT_FORMS, isDocumentFormId } from "@/lib/ai/document-forms";
@@ -51,6 +51,46 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [submitted, setSubmitted] = useState(false);
   const operationId = useRef<string | null>(null);
   const submissionInFlight = useRef(false);
+  const expandedScrollRef = useRef<HTMLDivElement>(null);
+  const expandedDialogRef = useRef<HTMLElement>(null);
+  const expandedTitleId = useId();
+  const closeExpandedRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+    // Lock background scrolling while the mobile form sheet is open.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    expandedScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    closeExpandedRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setExpanded(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      // Keep keyboard focus inside this visible sheet while it is modal.
+      const items = Array.from(expandedDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? []).filter(item => item.getClientRects().length > 0);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !expandedDialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !expandedDialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [expanded]);
 
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine);
@@ -217,33 +257,49 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
 
   return (
     <section aria-label="Interactive Document Application Form"
+      ref={expanded ? expandedDialogRef : undefined}
+      role={expanded ? "dialog" : undefined}
+      aria-modal={expanded ? true : undefined}
+      aria-labelledby={expanded ? expandedTitleId : undefined}
       className={expanded
-        ? "fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] top-[4.5rem] z-[55] mx-auto w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl"
+        ? "fixed inset-0 z-[90] mx-auto flex h-[100dvh] w-full min-w-0 flex-col overflow-hidden border-0 bg-white text-slate-900 shadow-2xl sm:inset-x-0 sm:top-[3dvh] sm:bottom-[3dvh] sm:h-auto sm:max-w-xl sm:rounded-3xl sm:border sm:border-slate-200"
         : "w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm"}>
-      <div className="border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-4 sm:p-5">
+      <div className={expanded
+        ? "z-10 shrink-0 border-b border-blue-100 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-t-3xl sm:px-5 sm:pt-4"
+        : "border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-4 sm:p-5"}>
+        {expanded && (
+          <button ref={closeExpandedRef} type="button" onClick={() => setExpanded(false)}
+            className="mb-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-bold text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            Back to Ate Sora chat
+          </button>
+        )}
         <div className="flex items-start gap-3">
-          <span className="rounded-2xl bg-blue-600 p-3 text-white shadow-sm">
+          <span className="shrink-0 rounded-xl bg-blue-600 p-2.5 text-white shadow-sm">
             <FileText className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Document application</p>
-            <h3 className="mt-1 break-words text-base font-extrabold leading-snug text-slate-950">
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Document application</p>
+            <h3 id={expandedTitleId} className="mt-1 break-words text-lg font-extrabold leading-snug text-slate-950">
               {service?.title || title}
             </h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Complete the details below. The barangay will receive this request only after successful submission.
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              Complete the form, then tap Submit. Your request goes to the barangay only after confirmation.
             </p>
           </div>
         </div>
-        {catalog && <button type="button" onClick={() => setExpanded(value => !value)}
+        {catalog && !expanded && <button type="button" onClick={() => setExpanded(value => !value)}
           aria-expanded={expanded}
           className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-base font-bold text-blue-800">
-          {expanded ? "Back to Ate Sora chat" : "Make form bigger"}
+          Make form bigger
           <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
         </button>}
       </div>
 
-      <div className="space-y-4 p-4 sm:p-5">
+      <div ref={expanded ? expandedScrollRef : undefined}
+        className={expanded
+          ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-5"
+          : "space-y-4 p-4 sm:p-5"}>
         {catalogLoading && <p role="status" className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading current service catalog...
         </p>}
@@ -252,11 +308,8 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
             <p className="text-base leading-relaxed text-amber-950">{catalogError} Please try again here. If the service catalog is unavailable, no request has been submitted.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => void refreshCatalog()}
-                className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white">Retry catalog</button>
-              <button type="button" onClick={() => void refreshCatalog()}
-                className="inline-flex min-h-12 items-center rounded-xl border border-blue-300 bg-white px-4 text-base font-semibold text-blue-800">
-                Try again here
-              </button>
+                className="min-h-12 rounded-xl bg-blue-700 px-4 text-base font-bold text-white">Retry catalog</button>
+
             </div>
           </div>
         )}
@@ -265,7 +318,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
           <form onSubmit={submit} className="space-y-5">
             {catalog.description && <p className="rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{catalog.description}</p>}
             <div>
-              <label htmlFor={`chat-purpose-${catalog.id}`} className="mb-2 block text-sm font-bold text-slate-900">
+              <label htmlFor={`chat-purpose-${catalog.id}`} className="mb-2 block text-base font-bold text-slate-900">
                 <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-800">1</span>
                 Purpose / Layunin <span className="text-red-600">*</span>
               </label>
@@ -277,11 +330,11 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
             </div>
 
             <fieldset>
-              <legend className="mb-2 text-sm font-bold text-slate-900">
+              <legend className="mb-2 text-base font-bold text-slate-900">
                 <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-800">2</span>
                 Requirements and documents
               </legend>
-              <p className="mb-3 text-xs leading-relaxed text-slate-600">
+              <p className="mb-3 text-sm leading-relaxed text-slate-600">
                 Reuse an ID or your verified resident profile already on file, if available. Staff will review evidence. Additional uploads: PDF/JPG/PNG, 5 MB max.
               </p>
               {catalog.requirements_json.length === 0 && (
@@ -302,12 +355,12 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                         </span>}
                       </div>
                       {savedIdType && isValidIdRequirement(requirement) && (
-                        <div className="mb-3 space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                          <label className="flex items-center gap-2 font-semibold">
+                        <div className="mb-3 space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-base text-blue-900">
+                          <label className="flex min-h-12 items-center gap-3 font-semibold">
                             <input type="radio" name={`id-choice-${inputId}`} checked={useSavedId} onChange={() => setUseSavedId(true)} />
                             Use my registered ID ({savedIdType}) — no new upload
                           </label>
-                          <label className="flex items-center gap-2">
+                          <label className="flex min-h-12 items-center gap-3">
                             <input type="radio" name={`id-choice-${inputId}`} checked={!useSavedId} onChange={() => setUseSavedId(false)} />
                             Upload a different/current ID
                           </label>
@@ -330,13 +383,13 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                       )}
                       {!(savedIdType && useSavedId && isValidIdRequirement(requirement)) &&
                        !(hasApprovedAddress && useApprovedAddress && isResidencyProofRequirement(requirement)) && <label htmlFor={inputId}
-                        className="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
+                        className="flex min-h-[76px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
                           <UploadCloud className="h-5 w-5" aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-blue-800">{file ? "Change file" : "Tap to upload"}</span>
-                          <span className="block break-all text-xs text-slate-600">{file ? file.name : "PDF, JPG or PNG · 5 MB max"}</span>
+                          <span className="block text-base font-semibold text-blue-800">{file ? "Change file" : "Tap to upload"}</span>
+                          <span className="block break-all text-sm text-slate-600">{file ? file.name : "PDF, JPG or PNG · 5 MB max"}</span>
                         </span>
                         <input id={inputId} type="file" required accept=".pdf,.jpg,.jpeg,.png"
                           className="sr-only"
