@@ -34,14 +34,12 @@ test("residency profile is a staff-reviewed reference, not an issued certificate
   assert.match(chat,/reuseProfileProofRequirements/);
 });
 
-test("inline Ate Sora form can enlarge without changing routes and has accessible controls",()=>{
-  assert.match(chat,/setExpanded\(value => !value\)/);
-  assert.match(chat,/Make form bigger/);
-  assert.match(chat,/Back to Ate Sora chat/);
+test("inline Ate Sora form stays inside chat and has accessible controls",()=>{
+  assert.match(chat,/Interactive Document Application Form/);
   assert.match(chat,/min-h-14 w-full/);
-  assert.match(chat,/min-h-28 w-full/);
+  assert.match(chat,/min-h-24 w-full/);
   assert.match(page,/min-h-32 border/);
-  assert.doesNotMatch(chat,/Open full-page form/);
+  assert.doesNotMatch(chat,/Make form bigger|setExpanded|Open full-page form/);
 });
 
 test("join is only for truly active organizations; membership requires staff approval",()=>{
