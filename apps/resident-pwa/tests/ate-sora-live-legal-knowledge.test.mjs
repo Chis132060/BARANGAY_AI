@@ -7,8 +7,8 @@ import ts from "typescript";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 const policySource = read("../lib/ai/verified-policy-grounding.ts");
 const route = read("../app/api/chat/route.ts");
-const migration = read("../../supabase/migrations/20261116053354_published_verified_legal_sources_catalog.sql");
-const secureMigration = read("../../supabase/migrations/20261116053259_restore_private_knowledge_chunks_and_docs.sql");
+const migration = read("../../../supabase/migrations/20261116053354_published_verified_legal_sources_catalog.sql");
+const secureMigration = read("../../../supabase/migrations/20261116053259_restore_private_knowledge_chunks_and_docs.sql");
 
 const compiled = ts.transpileModule(policySource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
