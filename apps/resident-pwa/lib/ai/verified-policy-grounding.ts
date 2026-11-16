@@ -49,6 +49,7 @@ const STOPWORDS = new Set([
   "need", "apply", "application", "kuha", "kumuha", "request", "mag",
   "yung", "meron", "laman", "namin", "natin", "atin", "doon", "rito",
   "pambansang", "national", "philippine", "pilipinas", "bansa", "batasan",
+  "regarding", "law", "laws", "legal", "gusto", "malaman", "list", "available", "nandoon",
 ]);
 
 export function isPolicyQuestion(message: string): boolean {
@@ -211,7 +212,8 @@ export async function getVerifiedPolicyAnswer(
   }
   if (!knowledge.error && Array.isArray(knowledge.data)) {
     for (const row of knowledge.data as KnowledgeChunk[]) {
-      if (safeText(row.content).length < 40 || !row.published_at) continue;
+      if (safeText(row.content).length < 40 || !row.published_at ||
+          !["VERIFIED", "AUTHORITATIVE"].includes(row.trust_level ?? "")) continue;
       const meta = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? row.metadata as Record<string, unknown> : {};
       const scope = safeText(meta.jurisdiction_scope);
