@@ -541,7 +541,7 @@ export default function PoliciesPage() {
         (referencesResponse.data || []).filter(x => {
           try {
             const url = new URL(x.source_url);
-            return url.protocol === "https:" && /(?:^|\\.)gov\\.ph$/i.test(url.hostname);
+            return url.protocol === "https:" && /(?:^|\.)gov\.ph$/i.test(url.hostname);
           } catch { return false; }
         }).sort((a, b) => {
           const ordinanceNumber = (title: string) =>
@@ -788,7 +788,7 @@ export default function PoliciesPage() {
                     {policy.source_reference && (() => {
                       try {
                         const url = new URL(policy.source_reference);
-                        if (url.protocol !== "https:" || !/(?:^|\\.)gov\\.ph$/i.test(url.hostname)) return null;
+                        if (url.protocol !== "https:" || !/(?:^|\.)gov\.ph$/i.test(url.hostname)) return null;
                         return <a href={url.toString()} target="_blank" rel="noopener noreferrer"
                           className="mt-1 inline-block text-xs font-medium text-blue-700 underline">
                           Official source
