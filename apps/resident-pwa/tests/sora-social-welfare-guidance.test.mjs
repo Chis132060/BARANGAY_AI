@@ -128,7 +128,7 @@ test("review workflow, official program classification, and PDFs stay separated 
   assert.match(adminActions, /government_program/);
   assert.match(adminActions, /city_service/);
   assert.match(adminPage, /DSWD \/ national assistance program/);
-  assert.match(adminPage, /not a barangay ordinance/i);
+  assert.match(adminPage, /NOT barangay-issued ordinances/i);
   assert.match(adminPage, /kind=catalog/);
   assert.match(adminPage, /signed PDF/);
 });
