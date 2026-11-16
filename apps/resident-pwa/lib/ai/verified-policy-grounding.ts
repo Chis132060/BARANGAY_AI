@@ -26,12 +26,15 @@ type PublishedBarangayPolicy = {
   content: string | null;
 };
 type Service = { name: string; description: string | null; requirements_json: unknown };
-type KnowledgeChunk = {
-  content: string | null;
-  metadata: unknown;
-  trust_level: string | null;
-  published_at: string | null;
-  source_domain: string | null;
+type VerifiedLegalSource = {
+  title: string;
+  source_url: string;
+  jurisdiction_scope: string;
+  authority: string;
+  summary: string;
+  keywords: unknown;
+  status: string;
+  verified_at: string | null;
 };
 
 type GroundedItem = { title: string; citation: string; body: string; scope: string; searchable: string };
@@ -167,13 +170,12 @@ export async function getVerifiedPolicyAnswer(
       .or("effective_date.is.null,effective_date.lte." + today)
       .or("expiration_date.is.null,expiration_date.gte." + today)
       .limit(100),
-    // GENERAL or unverified uploaded PDFs may make false fee, income or
-    // contact assertions. Only indexed chunks marked VERIFIED/AUTHORITATIVE
-    // with publication metadata and an explicit Butuan jurisdiction qualify.
-    supabase.from("knowledge_chunks")
-      .select("content,metadata,trust_level,published_at,source_domain")
-      .in("trust_level", ["VERIFIED", "AUTHORITATIVE"])
-      .not("published_at", "is", null)
+    // Raw knowledge_chunks are intentionally private, even for residents.
+    // Use the separately reviewed, RLS-protected published legal catalog.
+    supabase.from("verified_legal_sources")
+      .select("title,source_url,jurisdiction_scope,authority,summary,keywords,status,verified_at")
+      .eq("status", "Published")
+      .not("verified_at", "is", null)
       .limit(100),
     loadServiceCatalog(supabase),
   ]);
@@ -210,31 +212,34 @@ export async function getVerifiedPolicyAnswer(
     }
   }
   if (!knowledge.error && Array.isArray(knowledge.data)) {
-    for (const row of knowledge.data as KnowledgeChunk[]) {
-      if (safeText(row.content).length < 40 || !row.published_at ||
-          !["VERIFIED", "AUTHORITATIVE"].includes(row.trust_level ?? "")) continue;
-      const meta = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
-        ? row.metadata as Record<string, unknown> : {};
-      const scope = safeText(meta.jurisdiction_scope);
-      const source = safeText(meta.source_reference) || safeText(meta.source);
-      if (!["tandang_sora_butuan", "butuan_city", "philippines"].includes(scope) || source.length < 12) continue;
-      // Verified references are restricted to government primary sources.
-      // Database metadata can be edited, so never trust arbitrary external URLs.
+    for (const row of knowledge.data as VerifiedLegalSource[]) {
+      // Defense in depth: enforce the same source gates beyond Supabase RLS.
+      if (row.status !== "Published" || !row.verified_at ||
+          safeText(row.summary).length < 40) continue;
+      const scope = safeText(row.jurisdiction_scope);
+      const source = safeText(row.source_url);
+      const authority = safeText(row.authority);
+      if (!["tandang_sora_butuan", "butuan_city", "philippines"].includes(scope) ||
+          !["national_law", "city_code_index", "barangay_policy"].includes(authority)) continue;
+      // A government hostname is mandatory. Do not accept lookalike domains.
       let officialUrl: URL;
       try { officialUrl = new URL(source); } catch { continue; }
       if (officialUrl.protocol !== "https:" || !/(?:^|\.)gov\.ph$/i.test(officialUrl.hostname)) continue;
-      const title = safeText(meta.title) || "Verified government reference";
-      const keywords = Array.isArray(meta.keywords) ? meta.keywords.filter((v): v is string => typeof v === "string").slice(0, 35) : [];
+      const title = safeText(row.title);
+      if (!title) continue;
+      const keywords = Array.isArray(row.keywords)
+        ? row.keywords.filter((v): v is string => typeof v === "string").slice(0, 35) : [];
       const isNational = scope === "philippines";
-      const isCityIndex = safeText(meta.authority) === "city_code_index";
+      const isCityIndex = authority === "city_code_index";
       items.push({
         title,
-        citation: (isNational ? "Philippine national law: " : isCityIndex ? "Butuan City code index: " : "Verified published document: ") +
+        citation: (isNational ? "Philippine national law: " : isCityIndex ? "Butuan City code index: " : "Verified barangay policy: ") +
           title + " [" + scope + "]; Official source: " + source,
-        body: safeText(row.content),
+        body: safeText(row.summary),
         scope: isNational ? "National law applicable in the Philippines, not a barangay ordinance"
-          : scope === "butuan_city" ? "Butuan City-wide" : "Barangay Tandang Sora",
-        searchable: [title, safeText(row.content), ...keywords].join(" "),
+          : isCityIndex ? "Butuan City-wide; index entry is not the complete ordinance"
+          : "Barangay Tandang Sora",
+        searchable: [title, safeText(row.summary), ...keywords].join(" "),
       });
     }
   }
