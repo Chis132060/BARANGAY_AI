@@ -631,11 +631,24 @@ export function ChatInterface() {
                   {/* Citation badges — neutral style */}
                   {!isUser && m.citations && m.citations.length > 0 && (
                     <div className="flex flex-wrap gap-1 px-1">
-                      {m.citations.slice(0, 3).map((cid) => (
-                        <span key={cid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] font-medium rounded-full border border-gray-200">
-                          <FileText className="h-2.5 w-2.5" />{cid.startsWith("policy") ? "Official Policy" : cid}
-                        </span>
-                      ))}
+                      {m.citations.slice(0, 4).map((cid) => {
+                        const candidate = cid.match(/https:\/\/[^\s;]+/i)?.[0];
+                        // Only known Philippine government domains may become
+                        // external links. Other references stay plain text.
+                        const officialUrl = candidate && /^https:\/\/(?:[a-z0-9-]+\.)*gov\.ph(?:\/|$)/i.test(candidate)
+                          ? candidate : null;
+                        const label = cid.split(";")[0].replace(/;?\s*Official source:.*/i, "").slice(0, 110);
+                        return officialUrl ? (
+                          <a key={cid} href={officialUrl} target="_blank" rel="noopener noreferrer"
+                            className="max-w-full break-words rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 underline hover:bg-blue-100">
+                            <FileText className="mr-1 inline h-3 w-3" aria-hidden="true" />{label} · Official source
+                          </a>
+                        ) : (
+                          <span key={cid} className="max-w-full break-words rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-medium text-gray-600">
+                            <FileText className="mr-1 inline h-3 w-3" aria-hidden="true" />{label}
+                          </span>
+                        );
+                      })}
                       {!m.contextUsed && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] font-medium rounded-full border border-gray-200">
                           <AlertCircle className="h-2.5 w-2.5" /> Official Record
