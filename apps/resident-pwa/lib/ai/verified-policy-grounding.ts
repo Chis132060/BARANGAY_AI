@@ -228,7 +228,7 @@ export async function getVerifiedPolicyAnswer(
       const source = safeText(row.source_url);
       const authority = safeText(row.authority);
       if (!["tandang_sora_butuan", "butuan_city", "philippines"].includes(scope) ||
-          !["national_law", "city_code_index", "barangay_policy"].includes(authority)) continue;
+          !["national_law", "city_code_index", "barangay_policy", "government_program", "city_service"].includes(authority)) continue;
       // A government hostname is mandatory. Do not accept lookalike domains.
       let officialUrl: URL;
       try { officialUrl = new URL(source); } catch { continue; }
@@ -239,12 +239,19 @@ export async function getVerifiedPolicyAnswer(
         ? row.keywords.filter((v): v is string => typeof v === "string").slice(0, 35) : [];
       const isNational = scope === "philippines";
       const isCityIndex = authority === "city_code_index";
+      const isProgram = authority === "government_program";
+      const isCityService = authority === "city_service";
       items.push({
         title,
-        citation: (isNational ? "Philippine national law: " : isCityIndex ? "Butuan City code index: " : "Verified barangay policy: ") +
+        citation: (isProgram ? "Government assistance program: " :
+          isCityService ? "Butuan City social welfare service: " :
+          authority === "national_law" ? "Philippine national law: " :
+          isCityIndex ? "Butuan City code index: " : "Verified barangay policy: ") +
           title + " [" + scope + "]; Official source: " + source,
         body: safeText(row.summary),
-        scope: isNational ? "National law applicable in the Philippines, not a barangay ordinance"
+        scope: isProgram ? "Government assistance program, not a barangay ordinance"
+          : isCityService ? "Butuan City social welfare service or resolution, not a barangay ordinance"
+          : isNational ? "National law applicable in the Philippines, not a barangay ordinance"
           : isCityIndex ? "Butuan City-wide; index entry is not the complete ordinance"
           : "Barangay Tandang Sora",
         searchable: [title, safeText(row.summary), ...keywords].join(" "),
@@ -335,8 +342,8 @@ export async function getVerifiedPolicyAnswer(
     item.scope.startsWith("Staff-published barangay"));
   const localDisclosure = !matchedBarangay && /barangay|brgy|tandang/i.test(message)
     ? (language === "en"
-      ? "I cannot confirm a matching barangay-issued ordinance in the approved local registry. The references below are national laws or city-code sources, not new barangay ordinances.\n\n"
-      : "Wala pang matching na barangay-issued ordinance na verified sa approved local registry. Ang mga reference sa ibaba ay pambansang batas o Butuan City code sources, hindi bagong barangay ordinance.\n\n")
+      ? "I cannot confirm a matching barangay-issued ordinance in the approved local registry. The references below may be national laws, government assistance programs or Butuan City services; they are not new barangay ordinances.\n\n"
+      : "Wala pang matching na barangay-issued ordinance na verified sa approved local registry. Ang mga reference sa ibaba ay pambansang batas, government assistance programs o Butuan City services, hindi bagong barangay ordinance.\n\n")
     : "";
   return {
     answer: (language === "en" ? "I can help you figure out what to do. Based on the published source I found:\n\n" :
