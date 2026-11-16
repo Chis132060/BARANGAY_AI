@@ -292,7 +292,7 @@ export async function getVerifiedPolicyAnswer(
       language === "ceb" ? "Luwas ba ka nga makig-istorya karon? Dili kinahanglan ihatag ang imong adres o personal nga detalye." :
       "Ligtas ka bang makipag-usap ngayon? Hindi mo kailangang ibigay ang address o personal na detalye mo.";
     return {
-      answer: opener + "\n\n" + guidance + "\n" + excerpt(relevant.body, terms, 850) +
+      answer: opener + "\n\n" + guidance + "\n" + relevant.title + "\n" + excerpt(relevant.body, terms, 850) +
         "\n\n" + question,
       citations: [relevant.citation],
       context_used: true, flagged: false,
@@ -301,11 +301,6 @@ export async function getVerifiedPolicyAnswer(
 
   const citations = chosen.map(item => item.citation);
   const text = chosen.map(item => excerpt(item.body, terms, 650)).join("\n\n");
-  const intro = language === "en"
-    ? "These are the matching government-source-linked legal references. National laws, city codes and barangay ordinances are different authorities:"
-    : language === "ceb"
-      ? "Kini ang mga legal references gikan sa opisyal nga government sources; lahi ang national laws, city codes ug barangay ordinances:"
-      : "Ito ang mga legal reference mula sa opisyal na government sources. Magkaiba ang pambansang batas, city code at barangay ordinance:";
   const noPolicy = official.error || barangay.error
     ? (language === "en"
       ? "The policy registry cannot be fully checked right now. I cannot confirm a local ordinance; please verify with barangay staff."
