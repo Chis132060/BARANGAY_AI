@@ -40,7 +40,7 @@ function canonical(value: string): string {
 function sourceAllowed(row: VerifiedSource): boolean {
   if (row.status !== "Published" || !row.verified_at ||
       !row.title?.trim() || !row.summary || row.summary.trim().length < 40) return false;
-  if (!["national_law", "city_code_index", "barangay_policy"].includes(row.authority ?? "")) return false;
+  if (!["national_law", "city_code_index", "barangay_policy", "government_program", "city_service"].includes(row.authority ?? "")) return false;
   if (!["philippines", "butuan_city", "tandang_sora_butuan"].includes(row.jurisdiction_scope ?? "")) return false;
   try {
     const u = new URL(row.source_url ?? "");
@@ -72,9 +72,18 @@ function relevance(message: string, row: VerifiedSource): number {
   return score;
 }
 
+export function isWelfareSupportQuestion(message: string): boolean {
+  // Match everyday hunger and financial-crisis descriptions, not every
+  // service or certificate query. Authorities, office locations and eligibility
+  // are read ONLY from published verified database records.
+  return /walang[\\s-]*wala|walang[\\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\\s-]+(?:akong|kaming|po[\\s-]+akong)[\\s\\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mah[i]?rap[\\s-]+kami|h[i]?rap[\\s-]+sa[\\s-]+pagkain|pambili[\\s-]+(?:ng[\\s-]+)?(?:pagkain|bigas|gatas)|food[\\s-]+(?:assistance|aid|support)|financial[\\s-]+(?:assistance|aid|help)|tulong[\\s-]+pinansyal|cash[\\s-]+(?:assistance|aid)|need[\\s-]+(?:money|food)|no[\\s-]+(?:money|food)|nangangailangan[\\s-]+(?:ng[\\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|mangayo[\\s-]+(?:og[\\s-]+)?(?:tabang|pagkaon)|walay[\\s-]+(?:pagkaon|kwarta)/i.test(message);
+}
+
 function sourceCitation(source: VerifiedSource): string {
   const label = source.authority === "national_law" ? "Philippine national law"
     : source.authority === "city_code_index" ? "Butuan City code index"
+    : source.authority === "government_program" ? "Official government assistance program"
+    : source.authority === "city_service" ? "Butuan City public social service"
     : "Published barangay policy";
   return label + ": " + source.title + " [" + source.jurisdiction_scope + "]; Official source: " + source.source_url;
 }
@@ -93,27 +102,43 @@ export async function getVerifiedResidentConcernAnswer(
     .not("verified_at", "is", null).limit(150);
   if (error || !Array.isArray(data)) return null;
 
+  const welfare = isWelfareSupportQuestion(message) && !/(?:4ps|pantawid)/i.test(message);
   const candidates = (data as VerifiedSource[])
     .filter(sourceAllowed)
+    // A resident asking for FOOD or emergency cash needs AICS/referral
+    // information, not an arbitrary local penalty or long-term 4Ps law.
+    .filter(source => !welfare || ["government_program", "city_service"].includes(source.authority ?? ""))
     .map(source => ({ source, score: relevance(message, source) }))
     .filter(match => match.score >= 2)
     .sort((a, b) => b.score - a.score);
   if (!candidates.length) return null;
 
   const source = candidates[0].source;
-  const intro = language === "en"
-    ? "I can help you work through this. Here's what you can do, based on a verified official reference:"
-    : language === "ceb"
-      ? "Tabangan tika niini. Mao ni ang angay nga mga lakang base sa opisyal nga reference:"
-      : "Naiintindihan ko ang concern mo. Narito ang puwede mong gawin, batay sa verified na opisyal na gabay:";
-  const followup = language === "en"
-    ? "Are you safe now? What happened, and have you reported it yet? You don't need to share names or private details here."
-    : language === "ceb"
-      ? "Luwas ba ka karon? Unsa ang nahitabo ug naka-report na ba ka? Dili kinahanglan isulti dinhi ang mga ngalan o pribadong detalye."
-      : "Ligtas ka ba ngayon? Ano ang nangyari at nakapag-report ka na ba? Hindi mo kailangang magbigay dito ng pangalan o pribadong detalye.";
+  const intro = welfare
+    ? language === "en"
+      ? "I'm here to help you find food or emergency assistance. You can ask for an urgent social-worker assessment; assistance is not automatically guaranteed."
+      : language === "ceb"
+        ? "Tabangan tika sa pagpangita og pagkaon o pinansyal nga tabang. Pangayo og dali nga assessment sa social worker; dili awtomatikong garantiya ang ayuda."
+        : "Tutulungan kitang maghanap ng pagkain o pinansyal na tulong. Kung wala nang makain ngayon, sabihin sa barangay o social worker na urgent ang pangangailangan."
+    : language === "en"
+      ? "I can help you work through this. Here's what you can do, based on a verified official reference:"
+      : language === "ceb"
+        ? "Tabangan tika niini. Mao ni ang angay nga mga lakang base sa opisyal nga reference:"
+        : "Naiintindihan ko ang concern mo. Narito ang puwede mong gawin, batay sa verified na opisyal na gabay:";
+  const followup = welfare
+    ? language === "en"
+      ? "Does your family have anything to eat today? Do you have any ID or a barangay certificate? No need to send private details here."
+      : language === "ceb"
+        ? "Aduna pa moy pagkaon karong adlawa? Aduna kay ID o barangay certification? Ayaw ibutang dinhi ang pribadong detalye."
+        : "May makakain pa ba kayo ngayong araw? May kahit anong ID o barangay certification ka ba? Huwag magpadala rito ng personal na detalye."
+    : language === "en"
+      ? "Are you safe now? What happened, and have you reported it yet? You don't need to share names or private details here."
+      : language === "ceb"
+        ? "Luwas ba ka karon? Unsa ang nahitabo ug naka-report na ba ka? Dili kinahanglan isulti dinhi ang mga ngalan o pribadong detalye."
+        : "Ligtas ka ba ngayon? Ano ang nangyari at nakapag-report ka na ba? Hindi mo kailangang magbigay dito ng pangalan o pribadong detalye.";
 
   return {
-    answer: intro + "\n\n" + (source.summary ?? "").trim() + "\n\n" + followup,
+    answer: intro + "\n\n" + (source.summary ?? "").trim().replace(/\s+\(([1-4])\)\s+/g, "\n$1. ") + "\n\n" + followup,
     citations: [sourceCitation(source)],
     context_used: true,
     flagged: false,
