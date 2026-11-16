@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { runSoraAgent } from "@/lib/ai/sora-agent";
 import { matchServiceFaq, buildServiceFaqAnswer, buildServiceFaqUnavailable } from "@/lib/ai/verified-service-faq";
 import { isPolicyQuestion, getVerifiedPolicyAnswer, isServiceInformationQuestion, getVerifiedServiceAnswer } from "@/lib/ai/verified-policy-grounding";
+import { getVerifiedResidentConcernAnswer, getOfflineConversationReply } from "@/lib/ai/resident-concern-grounding";
 
 export const runtime = "nodejs";
 
@@ -183,6 +184,32 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Understand ordinary descriptions ("ninakawan ako", "may problema sa..."),
+  // not only messages containing the words "policy" or "batas". The category,
+  // next steps and citation come from published staff-reviewed database rows.
+  // Unknown concerns continue through the normal AI backend rather than
+  // being mapped to a random or unverified legal reference.
+  try {
+    const concern = await getVerifiedResidentConcernAnswer(supabase, message, language);
+    if (concern) {
+      const auditRecorded = await writeFallbackAudit(supabase, {
+        userId: user.id, sessionId,
+        query: "VERIFIED_RESIDENT_CONCERN", // avoid storing sensitive incident descriptions
+        answer: concern.answer, citations: concern.citations,
+        flagged: false, modelUsed: "verified-incident-guide/no-llm",
+        tokensPrompt: 0, tokensCompletion: 0,
+      });
+      return NextResponse.json({
+        ...concern, auditRecorded,
+        answer_source: "published_incident_guide",
+        model_used: "verified-incident-guide/no-llm",
+        tokens_prompt: 0, tokens_completion: 0,
+      });
+    }
+  } catch (err) {
+    console.warn("Published incident lookup unavailable; continuing to authenticated AI backend.");
+  }
+
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
   const agentResponse = await runSoraAgent({
@@ -235,14 +262,9 @@ export async function POST(request: NextRequest) {
   // Do not answer from hard-coded policy facts, fees, office hours, or events.
   // These local constants have no publication status or expiry guarantee.
 
-  // If no approved, current record is available, return uncertainty instead of
-  // inventing an official answer or attaching a misleading official citation.
-  const unavailable: Record<string, string> = {
-    tgl: "Hindi ko pa ma-verify ang opisyal at kasalukuyang impormasyon. Pakikumpirma muna sa tanggapan ng barangay.",
-    ceb: "Dili pa nako ma-verify ang opisyal ug kasamtangang impormasyon. Palihug kumpirmaha una sa opisina sa barangay.",
-    en: "I cannot verify current official information right now. Please confirm with the barangay office.",
-  };
-  const answer = unavailable[language] || unavailable.en;
+  // Even during a backend outage, keep the conversation useful and honest.
+  // Do not repeat a dead-end "cannot verify" message or invent local laws.
+  const answer = getOfflineConversationReply(message, language);
   const auditRecorded = await writeFallbackAudit(supabase, {
     userId: user?.id,
     sessionId,
