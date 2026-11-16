@@ -8,7 +8,7 @@ export type OfficialSource = {
   title: string;
   source_url: string;
   jurisdiction_scope: "philippines" | "butuan_city" | "tandang_sora_butuan";
-  authority: "national_law" | "city_code_index" | "barangay_policy";
+  authority: "national_law" | "city_code_index" | "barangay_policy" | "government_program" | "city_service";
   summary: string;
   keywords: string[];
   status: "Published" | "Archived";
@@ -66,12 +66,14 @@ function cleanSource(input: SourceInput) {
   if (title.length < 8 || title.length > 180) throw new Error("Source title must be 8–180 characters.");
   if (summary.length < 40 || summary.length > 3500) throw new Error("Provide a source-checked 40–3500 character plain-language summary.");
   const allowedScopes = ["philippines", "butuan_city", "tandang_sora_butuan"];
-  const allowedAuthority = ["national_law", "city_code_index", "barangay_policy"];
+  const allowedAuthority = ["national_law", "city_code_index", "barangay_policy", "government_program", "city_service"];
   if (!allowedScopes.includes(input.jurisdiction_scope) || !allowedAuthority.includes(input.authority))
     throw new Error("Choose an approved jurisdiction and source classification.");
   if (input.authority === "national_law" && input.jurisdiction_scope !== "philippines" ||
       input.authority === "city_code_index" && input.jurisdiction_scope !== "butuan_city" ||
-      input.authority === "barangay_policy" && input.jurisdiction_scope !== "tandang_sora_butuan") {
+      input.authority === "barangay_policy" && input.jurisdiction_scope !== "tandang_sora_butuan" ||
+      input.authority === "government_program" && input.jurisdiction_scope !== "philippines" ||
+      input.authority === "city_service" && input.jurisdiction_scope !== "butuan_city") {
     throw new Error("The document classification does not match its jurisdiction.");
   }
   const keywords = (Array.isArray(input.keywords) ? input.keywords : [])
