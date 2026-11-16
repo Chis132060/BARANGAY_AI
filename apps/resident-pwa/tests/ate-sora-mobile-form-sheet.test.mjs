@@ -6,14 +6,17 @@ const component = readFileSync(
   new URL("../components/chat/InChatFormCard.tsx", import.meta.url), "utf8"
 );
 
-test("expanded Ate Sora form fills a small phone viewport rather than clipping inside the app shell", () => {
-  assert.match(component, /fixed inset-0 z-\[90\]/);
-  assert.match(component, /h-\[100dvh\] w-full min-w-0 flex-col overflow-hidden/);
-  assert.match(component, /sm:max-w-xl sm:rounded-3xl/);
+test("expanded Ate Sora form covers the entire viewport on phones, tablets and narrow desktop windows", () => {
+  assert.match(component, /fixed inset-0 z-\[100\] flex h-\[100dvh\] w-screen min-w-0 flex-col overflow-hidden/);
+  // The previous sm: breakpoint made an 846px desktop screenshot a floating card.
+  // Do not reintroduce breakpoint-specific viewport gaps or a max-width on the sheet.
+  assert.doesNotMatch(component, /sm:(?:top|bottom)-\[3dvh\]|sm:max-w-xl|sm:rounded-3xl|sm:h-auto/);
+  assert.match(component, /mx-auto w-full max-w-2xl/);
   assert.doesNotMatch(component, /bottom-\[calc\(4\.5rem\+env\(safe-area-inset-bottom\)\)\]/);
-  assert.match(component, /min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain/);
+  assert.match(component, /min-h-0 flex-1 overflow-y-auto overscroll-contain/);
   assert.match(component, /safe-area-inset-top/);
   assert.match(component, /safe-area-inset-bottom/);
+  assert.match(component, /min-h-28 w-full resize-y/);
 });
 
 test("back header remains outside the scrolling form and does not change the route", () => {

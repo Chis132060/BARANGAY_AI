@@ -58,7 +58,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
 
   useEffect(() => {
     if (!expanded) return;
-    // Lock background scrolling while the mobile form sheet is open.
+    // Lock background scrolling while the expanded fullscreen form is open.
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     expandedScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -262,11 +262,12 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       aria-modal={expanded ? true : undefined}
       aria-labelledby={expanded ? expandedTitleId : undefined}
       className={expanded
-        ? "fixed inset-0 z-[90] mx-auto flex h-[100dvh] w-full min-w-0 flex-col overflow-hidden border-0 bg-white text-slate-900 shadow-2xl sm:inset-x-0 sm:top-[3dvh] sm:bottom-[3dvh] sm:h-auto sm:max-w-xl sm:rounded-3xl sm:border sm:border-slate-200"
+        ? "fixed inset-0 z-[100] flex h-[100dvh] w-screen min-w-0 flex-col overflow-hidden border-0 bg-white text-slate-900"
         : "w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm"}>
       <div className={expanded
-        ? "z-10 shrink-0 border-b border-blue-100 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-t-3xl sm:px-5 sm:pt-4"
+        ? "z-10 shrink-0 border-b border-blue-100 bg-white px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:pb-4"
         : "border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-4 sm:p-5"}>
+        <div className={expanded ? "mx-auto w-full max-w-2xl" : ""}>
         {expanded && (
           <button ref={closeExpandedRef} type="button" onClick={() => setExpanded(false)}
             className="mb-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-bold text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
@@ -294,12 +295,14 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
           Make form bigger
           <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
         </button>}
+        </div>
       </div>
 
       <div ref={expanded ? expandedScrollRef : undefined}
         className={expanded
-          ? "min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-5"
+          ? "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-5"
           : "space-y-4 p-4 sm:p-5"}>
+        <div className={expanded ? "mx-auto w-full max-w-2xl space-y-4" : "space-y-4"}>
         {catalogLoading && <p role="status" className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading current service catalog...
         </p>}
@@ -324,7 +327,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
               </label>
               <textarea id={`chat-purpose-${catalog.id}`} required rows={3} maxLength={2000}
                 value={purpose} onChange={event => setPurpose(event.target.value)}
-                className="block min-h-32 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-4 text-base leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="block min-h-28 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-4 text-base leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 placeholder="Why do you need this document?" />
               <p className="mt-1.5 text-right text-xs text-slate-500">{purpose.length}/2000 characters</p>
             </div>
@@ -441,6 +444,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
             <p className="text-center text-xs text-slate-500">A confirmation will appear only when the barangay server accepts your request.</p>
           </form>
         )}
+        </div>
       </div>
     </section>
   );

@@ -39,7 +39,7 @@ test("inline Ate Sora form can enlarge without changing routes and has accessibl
   assert.match(chat,/Make form bigger/);
   assert.match(chat,/Back to Ate Sora chat/);
   assert.match(chat,/min-h-14 w-full/);
-  assert.match(chat,/min-h-32 w-full/);
+  assert.match(chat,/min-h-28 w-full/);
   assert.match(page,/min-h-32 border/);
   assert.doesNotMatch(chat,/Open full-page form/);
 });
