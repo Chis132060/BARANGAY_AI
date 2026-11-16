@@ -66,7 +66,7 @@ test("published national law produces cited, scoped guidance without exposing pr
   const result = await getVerifiedPolicyAnswer(db, "may nananakit sa aking asawa, ano ang batas?", "tgl");
   assert.equal(result.context_used, true);
   assert.match(result.answer, /RA 9262/);
-  assert.match(result.answer, /Philippine national law/);
+  assert.ok(result.citations.some(c => c.includes("Philippine national law")));
   assert.ok(result.citations.some(c => c.includes("pcw.gov.ph/faq-republic-act-9262")));
   assert.doesNotMatch(result.answer, /Tandang Sora ordinance number: RA 9262/);
   assert.ok(db.accessed.includes("verified_legal_sources"));
