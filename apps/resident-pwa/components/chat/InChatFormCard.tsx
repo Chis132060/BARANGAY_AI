@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ArrowUpRight, ArrowLeft, ShieldCheck, WifiOff } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ShieldCheck, WifiOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { submitDocumentRequest } from "@/app/(app)/requests/actions";
 import { DOCUMENT_FORMS, isDocumentFormId } from "@/lib/ai/document-forms";
@@ -15,7 +15,7 @@ interface InChatFormCardProps {
   title: string;
   sessionId?: string;
   formSchema?: unknown;
-  onSubmitted?: (summary: { titles: string[]; totalFee: number; sessionId: string }) => void;
+  onSubmitted?: (reference: string) => void;
 }
 
 interface CatalogDocument {
@@ -31,7 +31,7 @@ interface CatalogDocument {
  * Avoid the old multi-insert client transaction: it could leave partial rows
  * after a failed file upload. Never use AI-proposed form schemas or fees.
  */
-export function InChatFormCard({ formType, title }: InChatFormCardProps) {
+export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardProps) {
   const supabase = useMemo(() => createClient(), []);
   const service = isDocumentFormId(formType) ? DOCUMENT_FORMS[formType] : null;
   const [catalog, setCatalog] = useState<CatalogDocument | null>(null);
@@ -44,54 +44,12 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const [useSavedId, setUseSavedId] = useState(true);
   const [hasApprovedAddress, setHasApprovedAddress] = useState(false);
   const [useApprovedAddress, setUseApprovedAddress] = useState(true);
-  const [expanded, setExpanded] = useState(false);
   const [receiptReference, setReceiptReference] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const operationId = useRef<string | null>(null);
   const submissionInFlight = useRef(false);
-  const expandedScrollRef = useRef<HTMLDivElement>(null);
-  const expandedDialogRef = useRef<HTMLElement>(null);
-  const expandedTitleId = useId();
-  const closeExpandedRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!expanded) return;
-    // Lock background scrolling while the expanded fullscreen form is open.
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    expandedScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-    closeExpandedRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setExpanded(false);
-        return;
-      }
-      if (event.key !== "Tab") return;
-      // Keep keyboard focus inside this visible sheet while it is modal.
-      const items = Array.from(expandedDialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      ) ?? []).filter(item => item.getClientRects().length > 0);
-      if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && (document.activeElement === first || !expandedDialogRef.current?.contains(document.activeElement))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (document.activeElement === last || !expandedDialogRef.current?.contains(document.activeElement))) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [expanded]);
-
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine);
     update();
@@ -202,6 +160,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
       setReceiptReference(result.reference);
       setSubmitted(true);
       window.dispatchEvent(new Event(NAV_BADGES_CHANGED));
+      onSubmitted?.(result.reference);
     } catch (error) {
       setSubmitError(
         (error instanceof Error ? error.message : "") ||
@@ -257,52 +216,26 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
 
   return (
     <section aria-label="Interactive Document Application Form"
-      ref={expanded ? expandedDialogRef : undefined}
-      role={expanded ? "dialog" : undefined}
-      aria-modal={expanded ? true : undefined}
-      aria-labelledby={expanded ? expandedTitleId : undefined}
-      className={expanded
-        ? "fixed inset-0 z-[100] flex h-[100dvh] w-screen min-w-0 flex-col overflow-hidden border-0 bg-white text-slate-900"
-        : "w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm"}>
-      <div className={expanded
-        ? "z-10 shrink-0 border-b border-blue-100 bg-white px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:pb-4"
-        : "border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-4 sm:p-5"}>
-        <div className={expanded ? "mx-auto w-full max-w-2xl" : ""}>
-        {expanded && (
-          <button ref={closeExpandedRef} type="button" onClick={() => setExpanded(false)}
-            className="mb-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-bold text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            Back to Ate Sora chat
-          </button>
-        )}
-        <div className="flex items-start gap-3">
-          <span className="shrink-0 rounded-xl bg-blue-600 p-2.5 text-white shadow-sm">
+      className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm">
+      <div className="border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white px-3 py-3 sm:px-4">
+        <div className="flex items-start gap-2.5">
+          <span className="shrink-0 rounded-xl bg-blue-600 p-2 text-white shadow-sm">
             <FileText className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Document application</p>
-            <h3 id={expandedTitleId} className="mt-1 break-words text-lg font-extrabold leading-snug text-slate-950">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Document application</p>
+            <h3 className="mt-0.5 break-words text-base font-extrabold leading-snug text-slate-950">
               {service?.title || title}
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
-              Complete the form, then tap Submit. Your request goes to the barangay only after confirmation.
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Fill out the form below. The barangay receives it only after you tap Submit.
             </p>
           </div>
         </div>
-        {catalog && !expanded && <button type="button" onClick={() => setExpanded(value => !value)}
-          aria-expanded={expanded}
-          className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-base font-bold text-blue-800">
-          Make form bigger
-          <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
-        </button>}
-        </div>
       </div>
 
-      <div ref={expanded ? expandedScrollRef : undefined}
-        className={expanded
-          ? "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-5"
-          : "space-y-4 p-4 sm:p-5"}>
-        <div className={expanded ? "mx-auto w-full max-w-2xl space-y-4" : "space-y-4"}>
+      {/* Keep the form in Ate Sora's one chat scroll area, not a second modal or viewport. */}
+      <div className="space-y-4 p-3 sm:p-4">
         {catalogLoading && <p role="status" className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading current service catalog...
         </p>}
@@ -327,7 +260,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
               </label>
               <textarea id={`chat-purpose-${catalog.id}`} required rows={3} maxLength={2000}
                 value={purpose} onChange={event => setPurpose(event.target.value)}
-                className="block min-h-28 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-4 text-base leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="block min-h-24 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-4 text-base leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 placeholder="Why do you need this document?" />
               <p className="mt-1.5 text-right text-xs text-slate-500">{purpose.length}/2000 characters</p>
             </div>
@@ -386,7 +319,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
                       )}
                       {!(savedIdType && useSavedId && isValidIdRequirement(requirement)) &&
                        !(hasApprovedAddress && useApprovedAddress && isResidencyProofRequirement(requirement)) && <label htmlFor={inputId}
-                        className="flex min-h-[76px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
+                        className="flex min-h-[64px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-3 transition-colors hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-500">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
                           <UploadCloud className="h-5 w-5" aria-hidden="true" />
                         </span>
@@ -444,7 +377,6 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
             <p className="text-center text-xs text-slate-500">A confirmation will appear only when the barangay server accepts your request.</p>
           </form>
         )}
-        </div>
       </div>
     </section>
   );
