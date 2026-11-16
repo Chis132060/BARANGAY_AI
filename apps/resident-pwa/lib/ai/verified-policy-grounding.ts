@@ -53,10 +53,18 @@ const STOPWORDS = new Set([
   "yung", "meron", "laman", "namin", "natin", "atin", "doon", "rito",
   "pambansang", "national", "philippine", "pilipinas", "bansa", "batasan",
   "regarding", "law", "laws", "legal", "gusto", "malaman", "list", "available", "nandoon",
+  "hey", "hello", "could", "give", "tell", "show", "please", "kayo", "ate", "ako", "aking", "mo", "naman", "din", "na", "sige",
 ]);
 
 export function isPolicyQuestion(message: string): boolean {
-  return /(?:^|[^a-z])(?:polic(?:y|ies|ys)|polisiya|ordinance|ordinances|ordinansa|ordinansiya|patakaran|batas|balaod|lagda|curfew|multa|fine|penalty|penalties|noise|karaoke|regulation|regulasyon|zoning|sanitation|solid waste|basura|garbage|smoking|traffic rule|resolution|reklamo|magreklamo|sumbong|kapitbahay|away|gulo|pananakit|nananakit|abuso|abuse|harass(?:ment)?|bastos|threat|banta|marital|asawa|protection order|evacuation|bagyo|baha|disaster|data privacy|jobseeker|job seeker|first time job|senior citizen|pwd|child abuse|bata|bullying|diskriminasyon|discrimination|labor rights)(?:$|[^a-z])/i.test(message);
+  return /(?:^|[^a-z])(?:polic(?:y|ies|ys)|polisiya|ordinance|ordinances|ordinansa|ordinansiya|patakaran|batas|balaod|lagda|curfew|multa|fine|penalty|penalties|noise|karaoke|regulation|regulasyon|zoning|sanitation|solid waste|basura|garbage|smoking|traffic rule|resolution|reklamo|magreklamo|sumbong|kapitbahay|away|gulo|pananakit|nananakit|sinasaktan|sinaktan|binubugbog|bugbog|saktan|pananakot|pinagbabantaan|abuso|abuse|harass(?:ment)?|bastos|threat|banta|marital|asawa|protection order|evacuation|bagyo|baha|disaster|data privacy|jobseeker|job seeker|first time job|senior citizen|pwd|child abuse|bata|bullying|diskriminasyon|discrimination|labor rights)(?:$|[^a-z])/i.test(message);
+}
+
+function isPersonalSafetyDisclosure(message: string): boolean {
+  // Situation detection only. Law numbers and remedies still come from live records.
+  const harm = /\b(?:sinasaktan|sinaktan|binubugbog|sinusuntok|nananakit|pinagbabantaan|abuso|abuse|hurting|beating|hitting|threatening)\b/i;
+  const selfOrFamily = /\b(?:ako|aking|akin|ko|kami|namin|asawa|anak|partner|me|my|mine|us|mother|daughter)\b/i;
+  return harm.test(message) && selfOrFamily.test(message);
 }
 
 export function isServiceInformationQuestion(message: string): boolean {
@@ -245,6 +253,21 @@ export async function getVerifiedPolicyAnswer(
   }
 
   const terms = significantTerms(message);
+  // Generic "give me a policy" is an invitation to converse, not to select
+  // an arbitrary law (formerly the first row, e.g. Data Privacy).
+  if (!terms.length) {
+    const exampleTitles = items.slice(0, 5).map(item => item.title);
+    const examples = exampleTitles.length ? "\n\n" +
+      (language === "en" ? "Some available official topics: " : "May mga official reference ako gaya ng: ") +
+      exampleTitles.join("; ") + "." : "";
+    const answer = language === "en"
+      ? "Of course, I can help. What happened or which barangay policy do you need? You can ask about a complaint, documents, safety or another concern. I'll explain what you can do next and cite the relevant official source."
+      : language === "ceb"
+        ? "Oo, tabangan tika. Unsa imong kabalaka o unsang policy ang imong gipangita? Isulti lang ang sitwasyon aron matagaan tika ug sunod nga lakang ug opisyal nga source."
+        : "Oo naman, tutulungan kita. Anong problema o patakaran ang gusto mong malaman? Kuwento mo lang ang sitwasyon, at tutulungan kitang malaman ang puwedeng gawin at ang tamang opisyal na sanggunian.";
+    return { answer: answer + examples, citations: [] as string[], context_used: items.length > 0,
+      flagged: items.length === 0 };
+  }
   // Brief overview on mobile; residents can ask a follow-up for a specific law.
   const ranked = items.map(item => ({
     item,
@@ -253,9 +276,31 @@ export async function getVerifiedPolicyAnswer(
     .sort((a, b) => b.relevance - a.relevance);
   const chosen = ranked.slice(0, terms.length ? 4 : 5).map(entry => entry.item);
   const serviceMatches = Array.isArray(services) ? relevantServices(services, terms) : [];
+  if (isPersonalSafetyDisclosure(message) && chosen.length) {
+    const relevant = chosen[0];
+    // Safety-first natural language, followed by content from a published
+    // government reference. No hardcoded law, fine, office address or fee.
+    const opener = language === "en"
+      ? "I'm sorry you're going through this. Your safety matters. If you are in immediate danger, move somewhere safe if you can and contact police or emergency services."
+      : language === "ceb"
+        ? "Nasubo ko sa imong giagian. Importante ang imong kaluwasan. Kung naa kay dayong hulga, adto sa luwas nga lugar kon mahimo ug pangayo dayon ug tabang sa pulis o emergency responders."
+        : "Nalulungkot akong marinig na nararanasan mo ito. Mahalaga ang kaligtasan mo. Kung may agarang panganib, pumunta sa ligtas na lugar kung kaya at humingi agad ng tulong sa pulis o emergency responders.";
+    const guidance = language === "en" ? "Here's what the official guidance says you can do:" :
+      language === "ceb" ? "Mao ni ang mahimo nimong buhaton sumala sa opisyal nga source:" :
+      "Batay sa opisyal na gabay, ito ang puwede mong gawin:";
+    const question = language === "en" ? "Are you safe to talk right now? You don't need to share your address or identifying details." :
+      language === "ceb" ? "Luwas ba ka nga makig-istorya karon? Dili kinahanglan ihatag ang imong adres o personal nga detalye." :
+      "Ligtas ka bang makipag-usap ngayon? Hindi mo kailangang ibigay ang address o personal na detalye mo.";
+    return {
+      answer: opener + "\n\n" + guidance + "\n" + excerpt(relevant.body, terms, 850) +
+        "\n\n" + question,
+      citations: [relevant.citation],
+      context_used: true, flagged: false,
+    };
+  }
+
   const citations = chosen.map(item => item.citation);
-  const text = chosen.map(item =>
-    item.citation + "\n" + (item.scope.includes("National") ? "General legal guidance from source: " : "Published record summary: ") + excerpt(item.body, terms, terms.length ? 650 : 310)).join("\n\n");
+  const text = chosen.map(item => excerpt(item.body, terms, 650)).join("\n\n");
   const intro = language === "en"
     ? "These are the matching government-source-linked legal references. National laws, city codes and barangay ordinances are different authorities:"
     : language === "ceb"
@@ -291,7 +336,13 @@ export async function getVerifiedPolicyAnswer(
       : "Wala pang matching na barangay-issued ordinance na verified sa approved local registry. Ang mga reference sa ibaba ay pambansang batas o Butuan City code sources, hindi bagong barangay ordinance.\n\n")
     : "";
   return {
-    answer: localDisclosure + intro + "\n\n" + text + servicesSection +
+    answer: (language === "en" ? "I can help you figure out what to do. Based on the published source I found:\n\n" :
+      language === "ceb" ? "Tabangan tika. Base sa opisyal nga reference:\n\n" :
+      "Sige, tutulungan kita. Batay sa opisyal na impormasyong nakita ko:\n\n") +
+      localDisclosure + text + servicesSection +
+      (language === "en" ? "\n\nTell me a little more about what happened so we can work out the best next step." :
+        language === "ceb" ? "\n\nUnsa pa ang nahitabo? Tabangan tika sa sunod nga lakang." :
+        "\n\nGusto mo bang ikuwento nang kaunti kung ano ang nangyari para matulungan kitang piliin ang susunod na hakbang?") +
       (!terms.length ? "\n\n" + (language === "en" ? "Ask me about a specific concern to see the most relevant law and next steps." : "Ikwento ang partikular na problema para makita ang pinakaangkop na batas at susunod na hakbang.") : ""),
     citations: [...citations, ...(
       canShowServices ? serviceMatches.map(s => "Barangay document-service catalog: " + safeText(s.name)) : []
