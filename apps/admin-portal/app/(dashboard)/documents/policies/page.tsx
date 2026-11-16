@@ -507,6 +507,9 @@ function CategoryBadge({ category }: { category: PolicyCategory }) {
 
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [verifiedCitySources, setVerifiedCitySources] = useState<
+    Array<{ title: string; summary: string; source_url: string; status: string }>
+  >([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<"All" | PolicyCategory>("All");
@@ -523,10 +526,29 @@ export default function PoliciesPage() {
     let mounted = true;
     (async () => {
       const supabase = createClient();
-      const { data, error } = await supabase.from("policies").select("*").order("effective_date", { ascending: false });
+      const [policiesResponse, referencesResponse] = await Promise.all([
+        supabase.from("policies").select("*").order("effective_date", { ascending: false }),
+        // The actual official city register powers this list: no hardcoded
+        // ordinance names or summaries in the Admin UI.
+        supabase.from("verified_legal_sources")
+          .select("title,summary,source_url,status")
+          .eq("authority", "city_code_index").eq("status", "Published").limit(100),
+      ]);
       if (!mounted) return;
-      if (error) setLoadError(error.message);
-      setPolicies((data || []) as Policy[]);
+      if (policiesResponse.error) setLoadError(policiesResponse.error.message);
+      setPolicies((policiesResponse.data || []) as Policy[]);
+      if (!referencesResponse.error) setVerifiedCitySources(
+        (referencesResponse.data || []).filter(x => {
+          try {
+            const url = new URL(x.source_url);
+            return url.protocol === "https:" && /(?:^|\.)gov\.ph$/i.test(url.hostname);
+          } catch { return false; }
+        }).sort((a, b) => {
+          const ordinanceNumber = (title: string) =>
+            Number(title.match(/(?:Ordinance|ordinance)[^0-9]*([0-9]{4})/)?.[1] || 0);
+          return ordinanceNumber(b.title) - ordinanceNumber(a.title);
+        }),
+      );
     })();
     return () => { mounted = false; };
   }, []);
@@ -551,6 +573,10 @@ export default function PoliciesPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { alert("Please sign in again."); return; }
+    if (data.status === "Active" && /NOT THE ORIGINAL SIGNED FULL TEXT/i.test(data.full_text || "")) {
+      alert("This is an official city source-index SUMMARY, not the signed full ordinance. Attach and verify the original signed PDF before marking the policy Active.");
+      return;
+    }
     if (data.status === "Active" && (data.jurisdiction_scope === "unverified" ||
         !data.source_reference?.trim() || !data.enacted_by?.trim() ||
         !data.policy_number?.trim() || data.policy_number.toUpperCase().startsWith("DRAFT-") ||
@@ -638,6 +664,20 @@ export default function PoliciesPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <a href="/api/documents/sora-sources/pdf?kind=catalog" target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800">
+          <FileText className="h-4 w-4" /> View published reference PDF
+        </a>
+        <a href="/api/documents/sora-sources/pdf?kind=catalog&amp;download=1"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold">
+          Download reference PDF
+        </a>
+        <span className="text-xs text-muted-foreground">
+          Generated from reviewed published records; not an original signed ordinance.
+        </span>
+      </div>
       {loadError && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">Policy database is unavailable: {loadError}</div>}
 
       {/* Stats Cards */}
@@ -659,6 +699,38 @@ export default function PoliciesPage() {
           </div>
         ))}
       </div>
+
+      {/* Distinct from the signed, Active ordinance registry. These are
+          verified citywide reference summaries from the published DB. */}
+      <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3">
+        <div>
+          <h2 className="font-bold text-base text-blue-950">
+            Verified Butuan City Ordinance References ({verifiedCitySources.length})
+          </h2>
+          <p className="text-xs leading-relaxed text-blue-900 mt-1">
+            These official citywide ordinances may apply in Barangay Tandang Sora.
+            Their verified source links and summaries are already searchable by Ate Sora.
+            Items marked Under Review in the policy registry still require the
+            original signed PDF and an authorized review before becoming Active.
+            They are NOT ordinances issued by Barangay Tandang Sora.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {verifiedCitySources.map(item => (
+            <div key={item.title} className="rounded-xl border border-blue-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+              <p className="mt-1 line-clamp-3 text-xs text-slate-600">{item.summary}</p>
+              <a href={item.source_url} target="_blank" rel="noopener noreferrer"
+                className="mt-2 inline-flex min-h-9 items-center text-xs font-semibold text-blue-700 underline">
+                Open government source
+              </a>
+            </div>
+          ))}
+        </div>
+        {!verifiedCitySources.length && <p className="text-sm text-blue-800">
+          No published citywide reference records available. Check Ate Sora Sources or refresh after source review.
+        </p>}
+      </section>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -721,6 +793,22 @@ export default function PoliciesPage() {
                   <td className="px-5 py-4 max-w-xs">
                     <p className="font-semibold text-sm leading-snug line-clamp-2">{policy.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{policy.description}</p>
+                    {policy.jurisdiction_scope === "butuan_city" && (
+                      <p className="mt-1 text-[11px] text-blue-800">
+                        Butuan Citywide
+                        {policy.status === "Under Review" ? " · signed original still required" : ""}
+                      </p>
+                    )}
+                    {policy.source_reference && (() => {
+                      try {
+                        const url = new URL(policy.source_reference);
+                        if (url.protocol !== "https:" || !/(?:^|\.)gov\.ph$/i.test(url.hostname)) return null;
+                        return <a href={url.toString()} target="_blank" rel="noopener noreferrer"
+                          className="mt-1 inline-block text-xs font-medium text-blue-700 underline">
+                          Official source
+                        </a>;
+                      } catch { return null; }
+                    })()}
                   </td>
                   <td className="px-5 py-4"><CategoryBadge category={policy.category} /></td>
                   <td className="px-5 py-4"><StatusBadge status={policy.status} /></td>
