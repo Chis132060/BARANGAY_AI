@@ -20,13 +20,18 @@ test("no direct client admin writes or service role secrets", () => {
   assert.doesNotMatch(page, /SUPABASE_SERVICE_ROLE_KEY|createAdminClient|\.from\("verified_legal_sources"\)\.insert/);
   assert.match(actions, /^"use server"/);
   assert.match(actions, /checkUserPermission\(user.id, "documents", action\)/);
-  assert.match(actions, /createAdminClient\(\)/);
+  assert.match(actions, /admin: session/);
+  assert.doesNotMatch(actions, /createAdminClient|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(actions, /verifiedGovernmentUrl/);
   assert.match(actions, /gov\\\.ph/);
 });
 
 test("source edits unpublish until a distinct authenticated approval", () => {
   assert.match(actions, /status: "Archived"/);
+  const migration = read("../../../supabase/migrations/20261116065613_legal_source_admin_auth_rls_and_archive_edit_guard.sql");
+  assert.match(migration, /has_module_permission\('documents','approve'\)/);
+  assert.match(migration, /NEW.status := 'Archived'/);
+  assert.match(migration, /GRANT SELECT, INSERT, UPDATE/);
   assert.match(actions, /authorize\("canApprove"\)/);
   assert.match(actions, /confirmedReviewed !== true/);
   assert.match(actions, /REVIEW/i);
