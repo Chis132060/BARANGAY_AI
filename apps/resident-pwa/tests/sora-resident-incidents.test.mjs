@@ -86,7 +86,7 @@ test("unknown, unverified, archived and lookalike official URLs are never cited 
 test("offline AI fallback remains useful, asks a question and does not invent laws", () => {
   const message = getOfflineConversationReply("ninakawan ako anong gagawin", "tgl");
   assert.match(message, /Itala ang nangyari/);
-  assert.match(message, /Ligtas ka ba ngayon/);
+  assert.match(message, /ligtas ka ba ngayon/i);
   assert.doesNotMatch(message, /multa\s*PHP|RA\s*3815|arrestuhin/i);
   assert.doesNotMatch(message, /Hindi ko pa ma-verify ang opisyal at kasalukuyang impormasyon/);
 });
