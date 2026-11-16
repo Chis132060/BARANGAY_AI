@@ -241,12 +241,13 @@ export async function getVerifiedPolicyAnswer(
   }
 
   const terms = significantTerms(message);
+  // Brief overview on mobile; residents can ask a follow-up for a specific law.
   const chosen = items.filter(item =>
-    matchesTerms(item.searchable, terms)).slice(0, terms.length ? 4 : 7);
+    matchesTerms(item.searchable, terms)).slice(0, terms.length ? 4 : 5);
   const serviceMatches = Array.isArray(services) ? relevantServices(services, terms) : [];
   const citations = chosen.map(item => item.citation);
   const text = chosen.map(item =>
-    item.citation + "\n" + (item.scope.includes("National") ? "General legal guidance from source: " : "Published record summary: ") + excerpt(item.body, terms)).join("\n\n");
+    item.citation + "\n" + (item.scope.includes("National") ? "General legal guidance from source: " : "Published record summary: ") + excerpt(item.body, terms, terms.length ? 650 : 310)).join("\n\n");
   const intro = language === "en"
     ? "These are the matching government-source-linked legal references. National laws, city codes and barangay ordinances are different authorities:"
     : language === "ceb"
@@ -274,8 +275,16 @@ export async function getVerifiedPolicyAnswer(
       flagged: true,
     };
   }
+  const matchedBarangay = chosen.some(item => item.scope.includes("Barangay Tandang Sora") ||
+    item.scope.startsWith("Staff-published barangay"));
+  const localDisclosure = !matchedBarangay && /barangay|brgy|tandang/i.test(message)
+    ? (language === "en"
+      ? "I cannot confirm a matching barangay-issued ordinance in the approved local registry. The references below are national laws or city-code sources, not new barangay ordinances.\n\n"
+      : "Wala pang matching na barangay-issued ordinance na verified sa approved local registry. Ang mga reference sa ibaba ay pambansang batas o Butuan City code sources, hindi bagong barangay ordinance.\n\n")
+    : "";
   return {
-    answer: intro + "\n\n" + text + servicesSection,
+    answer: localDisclosure + intro + "\n\n" + text + servicesSection +
+      (!terms.length ? "\n\n" + (language === "en" ? "Ask me about a specific concern to see the most relevant law and next steps." : "Ikwento ang partikular na problema para makita ang pinakaangkop na batas at susunod na hakbang.") : ""),
     citations: [...citations, ...(
       canShowServices ? serviceMatches.map(s => "Barangay document-service catalog: " + safeText(s.name)) : []
     )],
