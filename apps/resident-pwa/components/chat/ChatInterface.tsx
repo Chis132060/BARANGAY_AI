@@ -36,6 +36,7 @@ interface Message {
   citations?: string[];
   contextUsed?: boolean;
   isError?: boolean;
+  isReceipt?: boolean;
   timestamp?: number;
 }
 
@@ -218,6 +219,30 @@ export function ChatInterface() {
     // Scroll only the message viewport, never the outer PWA page and bottom nav.
     viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  // A confirmed server receipt closes the inline form and restores normal chat.
+  // The reference remains visible in the conversation for the resident to track.
+  function handleFormSubmitted(messageId: string, reference: string) {
+    setMessages(previous => {
+      if (!previous.some(message => message.id === messageId && message.formType)) return previous;
+      return [
+        ...previous.map(message => message.id === messageId
+          ? { ...message, formType: undefined, formTitle: undefined, formSchema: undefined }
+          : message),
+        {
+          id: `ai-receipt-${uuidv4()}`,
+          sender: "ai",
+          text: ttsLang === "ceb"
+            ? `Na-submit na ang imong dokumento sa barangay para sa review. Reference: ${reference}. Makita nimo kini sa My Requests. Wala pa'y nakumpirmang bayad o petsa sa pagkuha. Unsa pa akong ikatabang?`
+            : ttsLang === "en"
+              ? `Your document request was submitted to the barangay for review. Reference: ${reference}. Track it in My Requests. No fee or pickup date is confirmed yet. What else can I help you with?`
+              : `Na-submit na ang iyong document request sa barangay para sa review. Reference: ${reference}. Tingnan ang status sa My Requests. Wala pang kumpirmadong bayad o pickup date. Ano pa ang maitutulong ko?`,
+          isReceipt: true,
+          timestamp: Date.now(),
+        },
+      ];
+    });
+  }
 
   function resetChat() {
     setMessages([{ id: "welcome", sender: "ai", text: welcomeByLanguage[ttsLang], timestamp: Date.now() }]);
@@ -563,7 +588,7 @@ export function ChatInterface() {
 
                 <div className={`${m.formType ? "w-full min-w-0 max-w-[calc(100%-2.5rem)]" : "max-w-[85%]"} flex flex-col space-y-1.5 ${isUser ? "items-end" : "items-start"}`}>
                   {/* Bubble */}
-                  <div className={`px-4 py-3 text-xs leading-relaxed ${
+                  <div role={m.isReceipt ? "status" : undefined} className={`px-4 py-3 text-xs leading-relaxed ${
                     isUser
                       ? "bg-blue-600 text-white rounded-2xl rounded-br-sm font-medium shadow-2xs"
                       : m.isError
@@ -571,6 +596,7 @@ export function ChatInterface() {
                       : "bg-gray-50 text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100"
                   }`}>
                     <p className="whitespace-pre-line">{m.text}</p>
+                    {m.isReceipt && <Link href="/requests" className="mt-2 inline-flex min-h-11 items-center font-bold text-blue-700 underline">View My Requests</Link>}
                   </div>
 
                   {/* Timestamp */}
@@ -621,7 +647,8 @@ export function ChatInterface() {
                   {/* Dynamic In-Chat Form */}
                   {m.formType && m.formTitle && (
                     <div className="w-full">
-                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} formSchema={m.formSchema} />
+                      <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} formSchema={m.formSchema}
+                         onSubmitted={reference => handleFormSubmitted(m.id, reference)} />
                     </div>
                   )}
 
