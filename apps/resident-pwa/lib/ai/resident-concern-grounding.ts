@@ -76,7 +76,7 @@ export function isWelfareSupportQuestion(message: string): boolean {
   // Match everyday hunger and financial-crisis descriptions, not every
   // service or certificate query. Authorities, office locations and eligibility
   // are read ONLY from published verified database records.
-  return /walang[\\s-]*wala|walang[\\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\\s-]+(?:akong|kaming|po[\\s-]+akong)[\\s\\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mah[i]?rap[\\s-]+kami|h[i]?rap[\\s-]+sa[\\s-]+pagkain|pambili[\\s-]+(?:ng[\\s-]+)?(?:pagkain|bigas|gatas)|food[\\s-]+(?:assistance|aid|support)|financial[\\s-]+(?:assistance|aid|help)|tulong[\\s-]+pinansyal|cash[\\s-]+(?:assistance|aid)|need[\\s-]+(?:money|food)|no[\\s-]+(?:money|food)|nangangailangan[\\s-]+(?:ng[\\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|mangayo[\\s-]+(?:og[\\s-]+)?(?:tabang|pagkaon)|walay[\\s-]+(?:pagkaon|kwarta)/i.test(message);
+  return /walang[\s-]*wala|walang[\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\s-]+(?:akong|kaming|po[\s-]+akong)[\s\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mah[i]?rap[\s-]+kami|h[i]?rap[\s-]+sa[\s-]+pagkain|pambili[\s-]+(?:ng[\s-]+)?(?:pagkain|bigas|gatas)|food[\s-]+(?:assistance|aid|support)|financial[\s-]+(?:assistance|aid|help)|tulong[\s-]+pinansyal|cash[\s-]+(?:assistance|aid)|need[\s-]+(?:money|food)|no[\s-]+(?:money|food)|nangangailangan[\s-]+(?:ng[\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|mangayo[\s-]+(?:og[\s-]+)?(?:tabang|pagkaon)|walay[\s-]+(?:pagkaon|kwarta)/i.test(message);
 }
 
 function sourceCitation(source: VerifiedSource): string {
