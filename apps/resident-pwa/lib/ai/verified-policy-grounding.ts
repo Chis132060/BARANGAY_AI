@@ -96,11 +96,14 @@ async function loadServiceCatalog(supabase: any): Promise<Service[] | null> {
 
 function relevantServices(services: Service[], terms: string[]): Service[] {
   if (!terms.length) return services.slice(0, 6);
-  return services.filter(service => {
-    // Do not treat text inside an unrelated service's requirements as a title match.
-    const name = safeText(service.name).toLowerCase();
-    return terms.some(term => name.includes(term));
-  }).slice(0, 5);
+  // Prefer the best matching title. A query for Certificate of Indigency
+  // must not return Certificate of Residency just because both share "Certificate".
+  const ranked = services.map(service => ({
+    service,
+    score: terms.filter(term => safeText(service.name).toLowerCase().includes(term)).length,
+  })).filter(item => item.score > 0).sort((a, b) => b.score - a.score);
+  const best = ranked[0]?.score ?? 0;
+  return ranked.filter(item => item.score === best).slice(0, 5).map(item => item.service);
 }
 
 function serviceBlock(service: Service, lang: Language): string {
@@ -242,8 +245,12 @@ export async function getVerifiedPolicyAnswer(
 
   const terms = significantTerms(message);
   // Brief overview on mobile; residents can ask a follow-up for a specific law.
-  const chosen = items.filter(item =>
-    matchesTerms(item.searchable, terms)).slice(0, terms.length ? 4 : 5);
+  const ranked = items.map(item => ({
+    item,
+    relevance: terms.filter(term => item.searchable.toLowerCase().includes(term)).length,
+  })).filter(entry => !terms.length || entry.relevance > 0)
+    .sort((a, b) => b.relevance - a.relevance);
+  const chosen = ranked.slice(0, terms.length ? 4 : 5).map(entry => entry.item);
   const serviceMatches = Array.isArray(services) ? relevantServices(services, terms) : [];
   const citations = chosen.map(item => item.citation);
   const text = chosen.map(item =>
