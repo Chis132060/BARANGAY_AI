@@ -76,6 +76,8 @@ export const navigationConfig: NavigationModule[] = [
       { title: "Certificates", href: "/documents/certificates", module: "documents" },
       { title: "Business Clearance", href: "/documents/business-clearance", module: "documents" },
       { title: "Policies", href: "/documents/policies", module: "documents" },
+      { title: "Ate Sora Sources", href: "/documents/sora-sources", module: "documents" },
+      { title: "Knowledge Uploads", href: "/knowledge", module: "documents" },
     ],
   },
   {
