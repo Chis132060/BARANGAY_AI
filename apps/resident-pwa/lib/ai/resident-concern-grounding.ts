@@ -42,6 +42,8 @@ function sourceAllowed(row: VerifiedSource): boolean {
       !row.title?.trim() || !row.summary || row.summary.trim().length < 40) return false;
   if (!["national_law", "city_code_index", "barangay_policy", "government_program", "city_service"].includes(row.authority ?? "")) return false;
   if (!["philippines", "butuan_city", "tandang_sora_butuan"].includes(row.jurisdiction_scope ?? "")) return false;
+  if (row.authority === "government_program" && row.jurisdiction_scope !== "philippines") return false;
+  if (row.authority === "city_service" && row.jurisdiction_scope !== "butuan_city") return false;
   try {
     const u = new URL(row.source_url ?? "");
     return u.protocol === "https:" && !u.username && !u.password && !u.port &&
@@ -76,7 +78,7 @@ export function isWelfareSupportQuestion(message: string): boolean {
   // Match everyday hunger and financial-crisis descriptions, not every
   // service or certificate query. Authorities, office locations and eligibility
   // are read ONLY from published verified database records.
-  return /walang[\s-]*wala|walang[\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\s-]+(?:akong|kaming|po[\s-]+akong)[\s\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mah[i]?rap[\s-]+kami|h[i]?rap[\s-]+sa[\s-]+pagkain|pambili[\s-]+(?:ng[\s-]+)?(?:pagkain|bigas|gatas)|food[\s-]+(?:assistance|aid|support)|financial[\s-]+(?:assistance|aid|help)|tulong[\s-]+pinansyal|cash[\s-]+(?:assistance|aid)|need[\s-]+(?:money|food)|no[\s-]+(?:money|food)|nangangailangan[\s-]+(?:ng[\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|mangayo[\s-]+(?:og[\s-]+)?(?:tabang|pagkaon)|walay[\s-]+(?:pagkaon|kwarta)/i.test(message);
+  return /walang[\s-]*wala|walang[\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\s-]+(?:akong|kaming|po[\s-]+akong)[\s\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mah[i]?rap[\s-]+kami|h[i]?rap[\s-]+sa[\s-]+pagkain|pambili[\s-]+(?:ng[\s-]+)?(?:pagkain|bigas|gatas)|food[\s-]+(?:assistance|aid|support)|financial[\s-]+(?:assistance|aid|help)|tulong[\s-]+pinansyal|cash[\s-]+(?:assistance|aid)|need[\s-]+(?:money|food)|no[\s-]+(?:money|food)|nangangailangan[\s-]+(?:ng[\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|tulong[\s-]+(?:sa[\s-]+)?(?:pagkain|bigas)|(?:kailangan|need)[\s\S]{0,35}(?:pagkain|bigas|gatas)|mangayo[\s-]+(?:og[\s-]+)?(?:tabang|pagkaon)|walay[\s-]+(?:pagkaon|kwarta)/i.test(message);
 }
 
 function sourceCitation(source: VerifiedSource): string {
@@ -146,6 +148,11 @@ export async function getVerifiedResidentConcernAnswer(
 }
 
 export function getOfflineConversationReply(message: string, language: Language): string {
+  if (isWelfareSupportQuestion(message)) {
+    if (language === "en") return "I'm here to help. If your family has no food today, please tell the staff at your barangay hall that you need urgent assistance and ask for a social-worker referral. Butuan City Social Welfare and Development Department or DSWD Caraga's Crisis Intervention Section can assess food or financial assistance. Availability and requirements must be confirmed with them; I can't guarantee a grant. Does anyone in your family have food to eat today?";
+    if (language === "ceb") return "Tabangan tika. Kung wala moy pagkaon karong adlawa, sultihi ang inyong barangay hall nga kinahanglan og dali nga tabang ug referral sa social worker. Pangutan-a ang Butuan CSWDD o DSWD Caraga Crisis Intervention Section bahin sa food o financial assistance. Dili garantiya ang ayuda ug kinahanglan ang assessment. Aduna pa moy pagkaon karong adlawa?";
+    return "Tutulungan kita. Kung wala kayong makain ngayong araw, sabihin agad sa Barangay Tandang Sora Hall na urgent ang pangangailangan at humingi ng referral sa social worker. Maaari ring lumapit sa Butuan CSWDD o DSWD Caraga Crisis Intervention Section para sa assessment ng food o financial assistance. Kailangan pang kumpirmahin ang requirements at availability; hindi garantisado ang tulong. May makakain pa ba kayo ngayong araw?";
+  }
   const incident = /(?:problema|nangyari|nakaw|nawala|sinaktan|takot|threat|reklamo|help|tulong|gawin|nasaktan|emergency|accident|scam|away|nagrereklamo)/i.test(message);
   if (language === "en") {
     return incident
