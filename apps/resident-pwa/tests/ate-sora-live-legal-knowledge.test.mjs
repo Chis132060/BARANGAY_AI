@@ -214,6 +214,8 @@ test("Admin policies show both review-only source summaries and published code r
   assert.match(page, /verified_legal_sources/);
   assert.match(page, /Verified Butuan City Ordinance References/);
   assert.match(page, /Open government source/);
+  assert.match(page, /View published reference PDF/);
+  assert.match(page, /Download reference PDF/);
   assert.match(page, /signed original still required/);
   assert.match(page, /NOT THE ORIGINAL SIGNED FULL TEXT/);
   assert.doesNotMatch(page, /const (?:CITY_ORDINANCES|BARANGAY_ORDINANCES)\s*=/);
