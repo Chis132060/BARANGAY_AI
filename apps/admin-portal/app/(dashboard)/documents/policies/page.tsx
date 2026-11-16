@@ -664,6 +664,20 @@ export default function PoliciesPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <a href="/api/documents/sora-sources/pdf?kind=catalog" target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-800">
+          <FileText className="h-4 w-4" /> View published reference PDF
+        </a>
+        <a href="/api/documents/sora-sources/pdf?kind=catalog&amp;download=1"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold">
+          Download reference PDF
+        </a>
+        <span className="text-xs text-muted-foreground">
+          Generated from reviewed published records; not an original signed ordinance.
+        </span>
+      </div>
       {loadError && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">Policy database is unavailable: {loadError}</div>}
 
       {/* Stats Cards */}
