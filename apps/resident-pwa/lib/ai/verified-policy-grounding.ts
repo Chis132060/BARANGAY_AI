@@ -315,6 +315,14 @@ export async function getVerifiedPolicyAnswer(
       "\n\n" + serviceMatches.map(s => serviceBlock(s, language)).join("\n\n") +
       "\n\n" + serviceNote(language)
     : "";
+  if (!chosen.length && isPersonalSafetyDisclosure(message)) {
+    const immediate = language === "en"
+      ? "I'm sorry this is happening. If you are in immediate danger, move to a safer place if you can and contact police or emergency responders. I can't verify a matching legal source right now, but you can ask your barangay VAW Desk or local social welfare office for help. Are you safe to talk right now?"
+      : language === "ceb"
+        ? "Nasubo ko sa imong giagian. Kung adunay dayong hulga, adto sa luwas nga lugar kon mahimo ug pangayo dayon ug tabang sa pulis o emergency responders. Dili ko makumpirma ang angay nga legal source karon. Luwas ba ka makig-istorya?"
+        : "Nalulungkot akong marinig iyan. Kung may agarang panganib, pumunta sa ligtas na lugar kung kaya at humingi agad ng tulong sa pulis o emergency responders. Hindi ko pa ma-verify ang angkop na legal source ngayon; maaari kang lumapit sa barangay VAW Desk o local social welfare office. Ligtas ka bang makipag-usap ngayon?";
+    return { answer: immediate, citations: [] as string[], context_used: false, flagged: true };
+  }
   if (!chosen.length) {
     return {
       answer: noPolicy + servicesSection,
