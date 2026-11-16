@@ -263,16 +263,59 @@ export async function getVerifiedPolicyAnswer(
   // Generic "give me a policy" is an invitation to converse, not to select
   // an arbitrary law (formerly the first row, e.g. Data Privacy).
   if (!terms.length) {
-    const exampleTitles = items.slice(0, 5).map(item => item.title);
-    const examples = exampleTitles.length ? "\n\n" +
-      (language === "en" ? "Some available official topics: " : "May mga official reference ako gaya ng: ") +
-      exampleTitles.join("; ") + "." : "";
+    // A broad "ano ang policies ng barangay" question deserves an actual
+    // list of *local* rules instead of the first five arbitrary national laws.
+    // Every name/citation comes from the verified, published database.
+    const barangayPolicies = items.filter(item =>
+      item.scope === "Barangay Tandang Sora" ||
+      item.scope.startsWith("Staff-published barangay"));
+    const cityPolicies = items.filter(item =>
+      item.scope.startsWith("Butuan City-wide"));
+    const selected = [...barangayPolicies, ...cityPolicies]
+      .sort((a, b) => {
+        const number = (value: string) => {
+          const match = value.match(/(?:Ordinance|ordinance|ORD)[^0-9]*([0-9]{4})/);
+          return match ? Number(match[1]) : 0;
+        };
+        return Number(b.scope === "Barangay Tandang Sora") - Number(a.scope === "Barangay Tandang Sora")
+          || number(b.title) - number(a.title) || a.title.localeCompare(b.title);
+      }).slice(0, 7);
+    if (selected.length) {
+      const localCount = barangayPolicies.length;
+      const intro = language === "en"
+        ? "Here are the verified, published local policy references that can apply in Tandang Sora:"
+        : language === "ceb"
+          ? "Mao ni ang verified nga mga balaod ug polisiya nga may kalabotan sa Tandang Sora:"
+          : "Oo, narito ang mga verified na patakarang maaaring naaangkop sa Barangay Tandang Sora:";
+      const disclosure = language === "en"
+        ? (localCount ? "Barangay-issued rules are distinct from Butuan City ordinances."
+          : "No signed, verified Tandang Sora-issued ordinance is published in the approved registry yet. The items above are BUTUAN CITY ordinances, not separate barangay laws.")
+        : language === "ceb"
+          ? (localCount ? "Lahi ang mga ordinansa sa barangay ug sa Butuan City."
+            : "Wala pay verified nga ordinansa nga gi-isyu mismo sa Barangay Tandang Sora. Ang nasa taas mga ordinansa sa BUTUAN CITY, dili bag-ong balaod sa barangay.")
+          : (localCount ? "Magkaiba ang barangay-issued ordinances at ang mga citywide na patakaran."
+            : "Wala pang verified na ordinansang mismong Barangay Tandang Sora ang naglabas. Ang nasa itaas ay mga ordinansa ng BUTUAN CITY na maaaring naaangkop sa barangay, hindi bagong barangay ordinances.");
+      const followup = language === "en"
+        ? "Which concern should I explain, such as garbage dumping, sanitation or safety? I'll show what you can do and the official source."
+        : language === "ceb"
+          ? "Unsa nga problema o polisiya ang gusto nimong masabtan? Isulti lang aron matabangan tika."
+          : "Anong problema o patakaran ang gusto mong malaman? Kuwento mo lang, at ipapaliwanag ko kung ano ang puwedeng gawin at saan magsumbong.";
+      return {
+        answer: intro + "\n\n" + selected.map((item, i) =>
+          (i + 1) + ". " + item.title +
+          (item.scope.startsWith("Butuan City-wide") ? " (Citywide)" : " (Barangay)")
+        ).join("\n") + "\n\n" + disclosure + "\n\n" + followup,
+        citations: selected.map(item => item.citation),
+        context_used: true,
+        flagged: false,
+      };
+    }
     const answer = language === "en"
-      ? "Of course, I can help. What happened or which barangay policy do you need? You can ask about a complaint, documents, safety or another concern. I'll explain what you can do next and cite the relevant official source."
+      ? "I can help. No verified local ordinance is published in the approved registry yet. What concern do you have? I'll look for an official source."
       : language === "ceb"
-        ? "Oo, tabangan tika. Unsa imong kabalaka o unsang policy ang imong gipangita? Isulti lang ang sitwasyon aron matagaan tika ug sunod nga lakang ug opisyal nga source."
-        : "Oo naman, tutulungan kita. Anong problema o patakaran ang gusto mong malaman? Kuwento mo lang ang sitwasyon, at tutulungan kitang malaman ang puwedeng gawin at ang tamang opisyal na sanggunian.";
-    return { answer: answer + examples, citations: [] as string[], context_used: items.length > 0,
+        ? "Tabangan tika. Wala pay verified nga lokal nga ordinansa sa registry. Unsa imong kabalaka?"
+        : "Oo naman, tutulungan kita. Wala pang na-verify na lokal na ordinansa sa registry. Anong problema o patakaran ang gusto mong malaman? Kuwento mo lang ang sitwasyon para mahanap natin ang tamang opisyal na sanggunian.";
+    return { answer, citations: [] as string[], context_used: items.length > 0,
       flagged: items.length === 0 };
   }
   // Brief overview on mobile; residents can ask a follow-up for a specific law.
