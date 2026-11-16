@@ -236,7 +236,7 @@ export async function getVerifiedPolicyAnswer(
       const title = safeText(row.title);
       if (!title) continue;
       const keywords = Array.isArray(row.keywords)
-        ? row.keywords.filter((v): v is string => typeof v === "string").slice(0, 35) : [];
+        ? row.keywords.filter((v): v is string => typeof v === "string").slice(0, 50) : [];
       const isNational = scope === "philippines";
       const isCityIndex = authority === "city_code_index";
       const isProgram = authority === "government_program";
