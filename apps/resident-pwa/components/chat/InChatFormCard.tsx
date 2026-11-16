@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ArrowUpRight, ArrowLeft, ShieldCheck, WifiOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -52,6 +52,8 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
   const operationId = useRef<string | null>(null);
   const submissionInFlight = useRef(false);
   const expandedScrollRef = useRef<HTMLDivElement>(null);
+  const expandedDialogRef = useRef<HTMLElement>(null);
+  const expandedTitleId = useId();
   const closeExpandedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -62,7 +64,26 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
     expandedScrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
     closeExpandedRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setExpanded(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setExpanded(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      // Keep keyboard focus inside this visible sheet while it is modal.
+      const items = Array.from(expandedDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? []).filter(item => item.getClientRects().length > 0);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !expandedDialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !expandedDialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
@@ -236,9 +257,10 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
 
   return (
     <section aria-label="Interactive Document Application Form"
+      ref={expanded ? expandedDialogRef : undefined}
       role={expanded ? "dialog" : undefined}
       aria-modal={expanded ? true : undefined}
-      aria-labelledby={expanded ? "ate-sora-expanded-form-title" : undefined}
+      aria-labelledby={expanded ? expandedTitleId : undefined}
       className={expanded
         ? "fixed inset-0 z-[90] mx-auto flex h-[100dvh] w-full min-w-0 flex-col overflow-hidden border-0 bg-white text-slate-900 shadow-2xl sm:inset-x-0 sm:top-[3dvh] sm:bottom-[3dvh] sm:h-auto sm:max-w-xl sm:rounded-3xl sm:border sm:border-slate-200"
         : "w-full min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm"}>
@@ -258,7 +280,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Document application</p>
-            <h3 id="ate-sora-expanded-form-title" className="mt-1 break-words text-lg font-extrabold leading-snug text-slate-950">
+            <h3 id={expandedTitleId} className="mt-1 break-words text-lg font-extrabold leading-snug text-slate-950">
               {service?.title || title}
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-slate-600">
