@@ -26,6 +26,7 @@ const IGNORE = new Set([
   "here", "what", "should", "could", "can", "with", "your",
   "were", "when", "this", "that", "from", "just", "need", "have",
   "law", "laws", "policy", "policies", "document", "services",
+  "wala", "walang", "kaming", "akong", "kami",
 ]);
 
 function words(value: string): string[] {
@@ -40,8 +41,10 @@ function canonical(value: string): string {
 function sourceAllowed(row: VerifiedSource): boolean {
   if (row.status !== "Published" || !row.verified_at ||
       !row.title?.trim() || !row.summary || row.summary.trim().length < 40) return false;
-  if (!["national_law", "city_code_index", "barangay_policy"].includes(row.authority ?? "")) return false;
+  if (!["national_law", "city_code_index", "barangay_policy", "government_program", "city_service"].includes(row.authority ?? "")) return false;
   if (!["philippines", "butuan_city", "tandang_sora_butuan"].includes(row.jurisdiction_scope ?? "")) return false;
+  if (row.authority === "government_program" && row.jurisdiction_scope !== "philippines") return false;
+  if (row.authority === "city_service" && row.jurisdiction_scope !== "butuan_city") return false;
   try {
     const u = new URL(row.source_url ?? "");
     return u.protocol === "https:" && !u.username && !u.password && !u.port &&
@@ -69,12 +72,29 @@ function relevance(message: string, row: VerifiedSource): number {
   }
   // A source is relevant only when its *reviewed keywords* or distinctive
   // law title match. Generic words inside summary never make a legal match.
+  // Allow flexible wording such as "wala kaming makain" even if the
+  // reviewed keyword says "walang makain". Only distinctive words from
+  // reviewer-controlled keywords may earn this limited extra score.
+  const approvedWords = new Set(keywords.flatMap(value => words(value))
+    .filter(word => word.length >= 5 && !IGNORE.has(word)));
+  for (const word of terms) {
+    if (approvedWords.has(word)) score += 3;
+  }
   return score;
+}
+
+export function isWelfareSupportQuestion(message: string): boolean {
+  // Match everyday hunger and financial-crisis descriptions, not every
+  // service or certificate query. Authorities, office locations and eligibility
+  // are read ONLY from published verified database records.
+  return /walang[\s-]*wala|walang[\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\s-]+(?:akong|kaming|po[\s-]+akong)[\s\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mapakain|mah[i]?rap[\s-]+kami|h[i]?rap[\s-]+sa[\s-]+pagkain|pambili[\s-]+(?:ng[\s-]+)?(?:pagkain|bigas|gatas)|food[\s-]+(?:assistance|aid|support)|financial[\s-]+(?:assistance|aid|help)|tulong[\s-]+pinansyal|cash[\s-]+(?:assistance|aid)|need[\s-]+(?:money|food)|no[\s-]+(?:money|food)|nangangailangan[\s-]+(?:ng[\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|tulong[\s-]+(?:sa[\s-]+)?(?:pagkain|bigas)|(?:kailangan|need)[\s\S]{0,35}(?:pagkain|bigas|gatas)|mangayo[\s-]+(?:og[\s-]+)?(?:tabang|pagkaon)|walay[\s-]+(?:pagkaon|kwarta)/i.test(message);
 }
 
 function sourceCitation(source: VerifiedSource): string {
   const label = source.authority === "national_law" ? "Philippine national law"
     : source.authority === "city_code_index" ? "Butuan City code index"
+    : source.authority === "government_program" ? "Official government assistance program"
+    : source.authority === "city_service" ? "Butuan City public social service"
     : "Published barangay policy";
   return label + ": " + source.title + " [" + source.jurisdiction_scope + "]; Official source: " + source.source_url;
 }
@@ -85,7 +105,7 @@ export async function getVerifiedResidentConcernAnswer(
   // Do not interpret a short greeting or generic open-ended prompt as a legal
   // complaint. It can be handled by the normal conversational assistant.
   const significant = words(message).filter(w => w.length >= 4 && !IGNORE.has(w));
-  if (!significant.length) return null;
+  if (!significant.length && !isWelfareSupportQuestion(message)) return null;
 
   const { data, error } = await supabase.from("verified_legal_sources")
     .select("title,source_url,jurisdiction_scope,authority,summary,keywords,status,verified_at")
@@ -93,27 +113,43 @@ export async function getVerifiedResidentConcernAnswer(
     .not("verified_at", "is", null).limit(150);
   if (error || !Array.isArray(data)) return null;
 
+  const welfare = isWelfareSupportQuestion(message) && !/(?:4ps|pantawid)/i.test(message);
   const candidates = (data as VerifiedSource[])
     .filter(sourceAllowed)
+    // A resident asking for FOOD or emergency cash needs AICS/referral
+    // information, not an arbitrary local penalty or long-term 4Ps law.
+    .filter(source => !welfare || ["government_program", "city_service"].includes(source.authority ?? ""))
     .map(source => ({ source, score: relevance(message, source) }))
     .filter(match => match.score >= 2)
     .sort((a, b) => b.score - a.score);
   if (!candidates.length) return null;
 
   const source = candidates[0].source;
-  const intro = language === "en"
-    ? "I can help you work through this. Here's what you can do, based on a verified official reference:"
-    : language === "ceb"
-      ? "Tabangan tika niini. Mao ni ang angay nga mga lakang base sa opisyal nga reference:"
-      : "Naiintindihan ko ang concern mo. Narito ang puwede mong gawin, batay sa verified na opisyal na gabay:";
-  const followup = language === "en"
-    ? "Are you safe now? What happened, and have you reported it yet? You don't need to share names or private details here."
-    : language === "ceb"
-      ? "Luwas ba ka karon? Unsa ang nahitabo ug naka-report na ba ka? Dili kinahanglan isulti dinhi ang mga ngalan o pribadong detalye."
-      : "Ligtas ka ba ngayon? Ano ang nangyari at nakapag-report ka na ba? Hindi mo kailangang magbigay dito ng pangalan o pribadong detalye.";
+  const intro = welfare
+    ? language === "en"
+      ? "I'm here to help you find food or emergency assistance. You can ask for an urgent social-worker assessment; assistance is not automatically guaranteed."
+      : language === "ceb"
+        ? "Tabangan tika sa pagpangita og pagkaon o pinansyal nga tabang. Pangayo og dali nga assessment sa social worker; dili awtomatikong garantiya ang ayuda."
+        : "Tutulungan kitang maghanap ng pagkain o pinansyal na tulong. Kung wala nang makain ngayon, sabihin sa barangay o social worker na urgent ang pangangailangan."
+    : language === "en"
+      ? "I can help you work through this. Here's what you can do, based on a verified official reference:"
+      : language === "ceb"
+        ? "Tabangan tika niini. Mao ni ang angay nga mga lakang base sa opisyal nga reference:"
+        : "Naiintindihan ko ang concern mo. Narito ang puwede mong gawin, batay sa verified na opisyal na gabay:";
+  const followup = welfare
+    ? language === "en"
+      ? "Does your family have anything to eat today? Do you have any ID or a barangay certificate? No need to send private details here."
+      : language === "ceb"
+        ? "Aduna pa moy pagkaon karong adlawa? Aduna kay ID o barangay certification? Ayaw ibutang dinhi ang pribadong detalye."
+        : "May makakain pa ba kayo ngayong araw? May kahit anong ID o barangay certification ka ba? Huwag magpadala rito ng personal na detalye."
+    : language === "en"
+      ? "Are you safe now? What happened, and have you reported it yet? You don't need to share names or private details here."
+      : language === "ceb"
+        ? "Luwas ba ka karon? Unsa ang nahitabo ug naka-report na ba ka? Dili kinahanglan isulti dinhi ang mga ngalan o pribadong detalye."
+        : "Ligtas ka ba ngayon? Ano ang nangyari at nakapag-report ka na ba? Hindi mo kailangang magbigay dito ng pangalan o pribadong detalye.";
 
   return {
-    answer: intro + "\n\n" + (source.summary ?? "").trim() + "\n\n" + followup,
+    answer: intro + "\n\n" + (source.summary ?? "").trim().replace(/\s+\(([1-4])\)\s+/g, "\n$1. ") + "\n\n" + followup,
     citations: [sourceCitation(source)],
     context_used: true,
     flagged: false,
@@ -121,6 +157,11 @@ export async function getVerifiedResidentConcernAnswer(
 }
 
 export function getOfflineConversationReply(message: string, language: Language): string {
+  if (isWelfareSupportQuestion(message)) {
+    if (language === "en") return "I'm here to help. If your family has no food today, please tell the staff at your barangay hall that you need urgent assistance and ask for a social-worker referral. Butuan City Social Welfare and Development Department or DSWD Caraga's Crisis Intervention Section can assess food or financial assistance. Availability and requirements must be confirmed with them; I can't guarantee a grant. Does anyone in your family have food to eat today?";
+    if (language === "ceb") return "Tabangan tika. Kung wala moy pagkaon karong adlawa, sultihi ang inyong barangay hall nga kinahanglan og dali nga tabang ug referral sa social worker. Pangutan-a ang Butuan CSWDD o DSWD Caraga Crisis Intervention Section bahin sa food o financial assistance. Dili garantiya ang ayuda ug kinahanglan ang assessment. Aduna pa moy pagkaon karong adlawa?";
+    return "Tutulungan kita. Kung wala kayong makain ngayong araw, sabihin agad sa Barangay Tandang Sora Hall na urgent ang pangangailangan at humingi ng referral sa social worker. Maaari ring lumapit sa Butuan CSWDD o DSWD Caraga Crisis Intervention Section para sa assessment ng food o financial assistance. Kailangan pang kumpirmahin ang requirements at availability; hindi garantisado ang tulong. May makakain pa ba kayo ngayong araw?";
+  }
   const incident = /(?:problema|nangyari|nakaw|nawala|sinaktan|takot|threat|reklamo|help|tulong|gawin|nasaktan|emergency|accident|scam|away|nagrereklamo)/i.test(message);
   if (language === "en") {
     return incident

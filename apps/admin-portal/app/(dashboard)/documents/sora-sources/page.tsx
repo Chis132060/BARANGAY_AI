@@ -81,8 +81,7 @@ export default function SoraSourcesPage() {
       </p>
     </header>
     <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-      National laws, Butuan City codes, and barangay ordinances are different authorities. Never publish guessed fines,
-      contact numbers, or schedules. For signed PDF or DOCX policies, <Link href="/documents/policies" className="font-bold underline">import the document as Draft under Policies</Link> and verify the original before activation.
+      National laws, DSWD social welfare programs, Butuan City services, and actual barangay ordinances are DIFFERENT authorities. Never publish guessed cash grants, food pack availability, fines, contact numbers, or schedules. For signed PDF or DOCX policies, <Link href="/documents/policies" className="font-bold underline">import the document as Draft under Policies</Link> and verify the original before activation.
       For text knowledge uploads, use the <Link href="/knowledge" className="font-bold underline">Knowledge Management</Link> page; unverified uploads remain private.
     </section>
     <div className="flex flex-wrap gap-2">
@@ -94,6 +93,15 @@ export default function SoraSourcesPage() {
         className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-blue-700">
         Download PDF guide
       </a>
+    </div>
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+      <strong>Barangay Tandang Sora (Poblacion / former Brgy. 12) ordinance verification:</strong>
+      {" "}{sources.filter(s => s.authority === "barangay_policy" && s.status === "Published").length}
+      {" "}published barangay-specific references in the reviewed catalog.
+      DSWD AICS programs and Butuan CSWDD referrals are available as separate
+      official guidance, but are NOT barangay-issued ordinances.
+      For an actual Tandang Sora ordinance, obtain its signed PDF from the Sangguniang Barangay
+      and import it as Draft under Policies. Only an authorized reviewer should approve it.
     </div>
     <nav className="flex flex-wrap gap-2" aria-label="Ate Sora source sections">
       <button onClick={() => setTab("law")} className={tab === "law" ? "min-h-11 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white" : "min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold"}>
@@ -126,12 +134,17 @@ export default function SoraSourcesPage() {
             <select className={inputStyle + " mt-1"} value={form.authority}
               onChange={e => {
                 const authority = e.target.value as OfficialSource["authority"];
-                const jurisdiction_scope = authority === "national_law" ? "philippines" : authority === "city_code_index" ? "butuan_city" : "tandang_sora_butuan";
+                const jurisdiction_scope = authority === "national_law" || authority === "government_program"
+                  ? "philippines"
+                  : authority === "city_code_index" || authority === "city_service"
+                    ? "butuan_city" : "tandang_sora_butuan";
                 setForm(v => v && ({ ...v, authority, jurisdiction_scope }));
               }}>
               <option value="national_law">National law (Philippines)</option>
               <option value="city_code_index">Butuan City code/index</option>
-              <option value="barangay_policy">Tandang Sora barangay policy</option>
+              <option value="government_program">DSWD / national assistance program (not an ordinance)</option>
+              <option value="city_service">Butuan City social welfare service or resolution</option>
+              <option value="barangay_policy">Tandang Sora barangay-issued policy (signed, reviewed source required)</option>
             </select>
           </label>
           <label className="text-xs font-semibold">Search phrases, comma-separated
