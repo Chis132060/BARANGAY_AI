@@ -61,7 +61,7 @@ export function InChatFormCard({ formType, title }: InChatFormCardProps) {
     // Lock background scrolling while the mobile form sheet is open.
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    expandedScrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
+    expandedScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
     closeExpandedRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
