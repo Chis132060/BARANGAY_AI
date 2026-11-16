@@ -279,7 +279,7 @@ export async function getVerifiedPolicyAnswer(
         };
         return Number(b.scope === "Barangay Tandang Sora") - Number(a.scope === "Barangay Tandang Sora")
           || number(b.title) - number(a.title) || a.title.localeCompare(b.title);
-      }).slice(0, 7);
+      }).slice(0, 10);
     if (selected.length) {
       const localCount = barangayPolicies.length;
       const intro = language === "en"
