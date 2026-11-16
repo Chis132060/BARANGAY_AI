@@ -48,7 +48,8 @@ test("Ate Sora's policy questions are source-gated before any AI provider", () =
   assert.match(policyGrounding, /source_reference/);
   assert.match(policyGrounding, /quezon\\s\+city/);
   assert.match(policyGrounding, /No matching currently published and source-verified ordinance/);
-  assert.match(policyGrounding, /\["VERIFIED", "AUTHORITATIVE"\]/);
+  assert.match(policyGrounding, /\.from\("verified_legal_sources"\)/);
+  assert.doesNotMatch(policyGrounding, /\.from\("knowledge_chunks"\)/);
   assert.match(policyGrounding, /getVerifiedServiceAnswer/);
   assert.match(assistantRoute, /model_used: "verified-policy-registry\/no-llm"/);
   assert.doesNotMatch(suggestions, /₱50|₱500|this saturday|processing time: 15|No Noon Break/i);
