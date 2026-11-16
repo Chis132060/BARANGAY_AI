@@ -34,7 +34,7 @@ type KnowledgeChunk = {
   source_domain: string | null;
 };
 
-type GroundedItem = { title: string; citation: string; body: string; scope: string };
+type GroundedItem = { title: string; citation: string; body: string; scope: string; searchable: string };
 
 const STOPWORDS = new Set([
   "ano", "ang", "mga", "nang", "ng", "sa", "may", "para", "tungkol",
@@ -47,10 +47,12 @@ const STOPWORDS = new Set([
   "document", "documents", "service", "services", "serbisyo", "dokumento",
   "requirements", "requirement", "rekisitos", "kailangan", "kinahanglan",
   "need", "apply", "application", "kuha", "kumuha", "request", "mag",
+  "yung", "meron", "laman", "namin", "natin", "atin", "doon", "rito",
+  "pambansang", "national", "philippine", "pilipinas", "bansa", "batasan",
 ]);
 
 export function isPolicyQuestion(message: string): boolean {
-  return /(?:^|[^a-z])(?:polic(?:y|ies|ys)|polisiya|ordinance|ordinances|ordinansa|ordinansiya|patakaran|batas|balaod|lagda|curfew|multa|fine|penalty|penalties|noise|karaoke|regulation|regulasyon|zoning|sanitation|solid waste|basura|garbage|smoking|traffic rule|resolution)(?:$|[^a-z])/i.test(message);
+  return /(?:^|[^a-z])(?:polic(?:y|ies|ys)|polisiya|ordinance|ordinances|ordinansa|ordinansiya|patakaran|batas|balaod|lagda|curfew|multa|fine|penalty|penalties|noise|karaoke|regulation|regulasyon|zoning|sanitation|solid waste|basura|garbage|smoking|traffic rule|resolution|reklamo|magreklamo|sumbong|kapitbahay|away|gulo|pananakit|nananakit|abuso|abuse|harass(?:ment)?|bastos|threat|banta|marital|asawa|protection order|evacuation|bagyo|baha|disaster|data privacy|jobseeker|job seeker|first time job|senior citizen|pwd|child abuse|bata|bullying|diskriminasyon|discrimination|labor rights)(?:$|[^a-z])/i.test(message);
 }
 
 export function isServiceInformationQuestion(message: string): boolean {
@@ -190,6 +192,7 @@ export async function getVerifiedPolicyAnswer(
           " [" + scope + "]; Primary source: " + safeText(row.source_reference),
         body: safeText(row.full_text),
         scope,
+        searchable: [row.title, row.description, row.full_text].map(safeText).join(" "),
       });
     }
   }
@@ -202,6 +205,7 @@ export async function getVerifiedPolicyAnswer(
           " (record " + String(row.id) + "; category: " + safeText(row.category) + ")",
         body: safeText(row.content),
         scope: "Staff-published barangay policy; confirm ordinance number with the office",
+        searchable: [row.title,row.category,row.description,row.content].map(safeText).join(" "),
       });
     }
   }
@@ -212,29 +216,40 @@ export async function getVerifiedPolicyAnswer(
         ? row.metadata as Record<string, unknown> : {};
       const scope = safeText(meta.jurisdiction_scope);
       const source = safeText(meta.source_reference) || safeText(meta.source);
-      if (!["tandang_sora_butuan", "butuan_city"].includes(scope) || source.length < 12) continue;
-      const title = safeText(meta.title) || "Verified barangay knowledge document";
+      if (!["tandang_sora_butuan", "butuan_city", "philippines"].includes(scope) || source.length < 12) continue;
+      // Verified references are restricted to government primary sources.
+      // Database metadata can be edited, so never trust arbitrary external URLs.
+      let officialUrl: URL;
+      try { officialUrl = new URL(source); } catch { continue; }
+      if (officialUrl.protocol !== "https:" || !/(?:^|\.)gov\.ph$/i.test(officialUrl.hostname)) continue;
+      const title = safeText(meta.title) || "Verified government reference";
+      const keywords = Array.isArray(meta.keywords) ? meta.keywords.filter((v): v is string => typeof v === "string").slice(0, 35) : [];
+      const isNational = scope === "philippines";
+      const isCityIndex = safeText(meta.authority) === "city_code_index";
       items.push({
         title,
-        citation: "Verified published document: " + title + " [" + scope + "]; Source: " + source,
+        citation: (isNational ? "Philippine national law: " : isCityIndex ? "Butuan City code index: " : "Verified published document: ") +
+          title + " [" + scope + "]; Official source: " + source,
         body: safeText(row.content),
-        scope: scope === "butuan_city" ? "Butuan City-wide" : "Barangay Tandang Sora",
+        scope: isNational ? "National law applicable in the Philippines, not a barangay ordinance"
+          : scope === "butuan_city" ? "Butuan City-wide" : "Barangay Tandang Sora",
+        searchable: [title, safeText(row.content), ...keywords].join(" "),
       });
     }
   }
 
   const terms = significantTerms(message);
   const chosen = items.filter(item =>
-    matchesTerms(item.title + " " + item.citation + " " + item.body, terms)).slice(0, 5);
+    matchesTerms(item.searchable, terms)).slice(0, terms.length ? 4 : 7);
   const serviceMatches = Array.isArray(services) ? relevantServices(services, terms) : [];
   const citations = chosen.map(item => item.citation);
   const text = chosen.map(item =>
-    item.citation + "\nPublished record excerpt: " + excerpt(item.body, terms)).join("\n\n");
+    item.citation + "\n" + (item.scope.includes("National") ? "General legal guidance from source: " : "Published record summary: ") + excerpt(item.body, terms)).join("\n\n");
   const intro = language === "en"
-    ? "These are the matching published, source-verified policy records:"
+    ? "These are the matching government-source-linked legal references. National laws, city codes and barangay ordinances are different authorities:"
     : language === "ceb"
-      ? "Kini ang mga publikado ug source-verified nga policy records:"
-      : "Ito ang mga published at source-verified na policy records:";
+      ? "Kini ang mga legal references gikan sa opisyal nga government sources; lahi ang national laws, city codes ug barangay ordinances:"
+      : "Ito ang mga legal reference mula sa opisyal na government sources. Magkaiba ang pambansang batas, city code at barangay ordinance:";
   const noPolicy = official.error || barangay.error
     ? (language === "en"
       ? "The policy registry cannot be fully checked right now. I cannot confirm a local ordinance; please verify with barangay staff."
