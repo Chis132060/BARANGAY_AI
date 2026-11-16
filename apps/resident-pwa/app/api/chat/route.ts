@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runSoraAgent } from "@/lib/ai/sora-agent";
 import { matchServiceFaq, buildServiceFaqAnswer, buildServiceFaqUnavailable } from "@/lib/ai/verified-service-faq";
-import { isPolicyQuestion, getVerifiedPolicyAnswer } from "@/lib/ai/verified-policy-grounding";
+import { isPolicyQuestion, getVerifiedPolicyAnswer, isServiceInformationQuestion, getVerifiedServiceAnswer } from "@/lib/ai/verified-policy-grounding";
 
 export const runtime = "nodejs";
 
@@ -108,10 +108,15 @@ export async function POST(request: NextRequest) {
       catalogVerified = false;
     }
 
+    // Read details from the live service catalog. The static FAQ gives
+    // navigation guidance only, never requirements, fees or eligibility.
+    const serviceDetails = catalogVerified
+      ? await getVerifiedServiceAnswer(supabase, faq.documentName, language) : null;
     const answer = catalogVerified
-      ? buildServiceFaqAnswer(faq, language)
+      ? [serviceDetails?.answer, buildServiceFaqAnswer(faq, language)].filter(Boolean).join("\n\n")
       : buildServiceFaqUnavailable(faq, language);
-    const citations = catalogVerified ? ["App service catalog: " + faq.documentName] : [];
+    const citations = catalogVerified
+      ? (serviceDetails?.citations ?? ["App service catalog: " + faq.documentName]) : [];
     const auditRecorded = await writeFallbackAudit(supabase, {
       userId: user.id,
       sessionId,
@@ -136,9 +141,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Serve policy/rules questions from source-verified Butuan documents BEFORE
-  // any model or RAG backend. Draft/unverified/foreign records must not leak as
-  // official Tandang Sora ordinances. Never let an LLM invent the missing rule.
+  // Answer residents about laws and neighborhood problems from LIVE, approved
+  // barangay policies, Butuan City code references and Philippine government
+  // legal sources. Unverified draft PDFs are never legal authority.
+  // Keep this before all models so an LLM cannot fill in missing rules.
   if (isPolicyQuestion(message)) {
     const grounded = await getVerifiedPolicyAnswer(supabase, message, language);
     const auditRecorded = await writeFallbackAudit(supabase, {
@@ -150,11 +156,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ...grounded,
       auditRecorded,
-      answer_source: grounded.context_used ? "verified_policy_registry" : "policy_not_verified",
+      answer_source: grounded.context_used ? "verified_legal_and_service_registry" : "policy_not_verified",
       model_used: "verified-policy-registry/no-llm",
       tokens_prompt: 0,
       tokens_completion: 0,
     });
+  }
+
+  // All published document-service entries, including services beyond the four
+  // shortcuts, must come from the actual database rather than hardcoded names.
+  if (isServiceInformationQuestion(message)) {
+    const grounded = await getVerifiedServiceAnswer(supabase, message, language);
+    if (grounded) {
+      const auditRecorded = await writeFallbackAudit(supabase, {
+        userId: user.id, sessionId, query: "SERVICE_INFO:" + message,
+        answer: grounded.answer, citations: grounded.citations,
+        flagged: grounded.flagged, modelUsed: "live-document-catalog/no-llm",
+        tokensPrompt: 0, tokensCompletion: 0,
+      });
+      return NextResponse.json({
+        ...grounded, auditRecorded,
+        answer_source: "live_document_catalog",
+        model_used: "live-document-catalog/no-llm",
+        tokens_prompt: 0, tokens_completion: 0,
+      });
+    }
   }
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
