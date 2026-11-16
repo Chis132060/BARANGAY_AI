@@ -150,3 +150,71 @@ test("when legal catalog is down, disclosed violence still receives safe practic
   assert.match(reply.answer, /pulis o emergency responders/);
   assert.match(reply.answer, /Ligtas ka bang makipag-usap/);
 });
+
+test("broad barangay policy request lists verified Butuan ordinances instead of random national laws", async () => {
+  const publishedCityWaste = {
+    ...nationalLaw,
+    title: "Butuan Ordinance 7192-2024 — Solid Waste Code",
+    authority: "city_code_index",
+    jurisdiction_scope: "butuan_city",
+    source_url: "https://sp.butuan.gov.ph/codes/",
+    keywords: ["basura", "solid waste", "illegal dumping"],
+    summary: "The verified Butuan City ordinance prohibits illegal dumping. Document the incident and report to barangay and city environment staff; the exact penalties require the signed code.",
+  };
+  const publishedCityHealth = {
+    ...publishedCityWaste,
+    title: "Butuan Ordinance 7095-2024 — Sanitation Code",
+    keywords: ["sanitation", "hygiene"],
+    summary: "This is the Butuan City Sanitation Code. For health and drainage complaints, report to the barangay or appropriate city health office and request verification.",
+  };
+  const draftLocal = {
+    policy_number: "POL-DRAFT-001",
+    title: "UNVERIFIED Tandang Sora barangay curfew draft",
+    description: "Unverified draft",
+    full_text: "No official signature or signed ordinance exists for this draft title.",
+    enacted_by: "Unknown",
+    jurisdiction_scope: "tandang_sora_butuan",
+    source_reference: "",
+  };
+  const db = fakeDb({
+    policies: { data: [draftLocal], error: null },
+    verified_legal_sources: { data: [nationalLaw, publishedCityWaste, publishedCityHealth], error: null },
+  });
+  const result = await getVerifiedPolicyAnswer(db, "ano ano ba ang policy ng barangay", "tgl");
+  assert.match(result.answer, /7192-2024/);
+  assert.match(result.answer, /7095-2024/);
+  assert.match(result.answer, /BUTUAN CITY/);
+  assert.match(result.answer, /Wala pang verified na ordinansang mismong Barangay Tandang Sora/);
+  assert.doesNotMatch(result.answer, /RA 9262|UNVERIFIED Tandang Sora/);
+  assert.equal(result.citations.length, 2);
+  assert.ok(result.citations.every(source => source.includes("sp.butuan.gov.ph/codes/")));
+  assert.equal(result.context_used, true);
+});
+
+test("garbage dumping question gets cited citywide legal guidance, not invented Tandang Sora penalties", async () => {
+  const dumping = {
+    ...nationalLaw,
+    title: "Butuan Ordinance 5445-2017 — Anti-Illegal Dumping Ordinance",
+    authority: "city_code_index",
+    jurisdiction_scope: "butuan_city",
+    source_url: "https://www.butuan.gov.ph/official-garbage-report",
+    keywords: ["magtapon", "basura", "illegal dumping"],
+    summary: "Sa Butuan City bawal ang illegal dumping. Kung may nagtapon ng basura, itala ang lugar, petsa at oras at ireport sa barangay at City Environment and Natural Resources Department (CENRD). Ang multa ay kailangang kumpirmahin sa opisyal na signed city ordinance.",
+  };
+  const db = fakeDb({ verified_legal_sources: { data: [dumping, nationalLaw], error: null } });
+  const answer = await getVerifiedPolicyAnswer(db, "bawal ba magtapon ng basura sa kalsada", "tgl");
+  assert.match(answer.answer, /bawal ang illegal dumping/i);
+  assert.match(answer.answer, /ireport sa barangay/);
+  assert.ok(answer.citations.some(c => c.includes("5445-2017")));
+  assert.doesNotMatch(answer.answer, /Tandang Sora ordinance number|₱\s*\d+/);
+});
+
+test("Admin policies show both review-only source summaries and published code references", () => {
+  const page = read("../../admin-portal/app/(dashboard)/documents/policies/page.tsx");
+  assert.match(page, /verified_legal_sources/);
+  assert.match(page, /Verified Butuan City Ordinance References/);
+  assert.match(page, /Open government source/);
+  assert.match(page, /signed original still required/);
+  assert.match(page, /NOT THE ORIGINAL SIGNED FULL TEXT/);
+  assert.doesNotMatch(page, /const (?:CITY_ORDINANCES|BARANGAY_ORDINANCES)\s*=/);
+});
