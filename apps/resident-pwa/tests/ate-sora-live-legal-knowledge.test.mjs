@@ -67,7 +67,7 @@ test("published national law produces cited, scoped guidance without exposing pr
   assert.equal(result.context_used, true);
   assert.match(result.answer, /RA 9262/);
   assert.match(result.answer, /Philippine national law/);
-  assert.match(result.answer, /pcw\.gov\.ph\/faq-republic-act-9262/);
+  assert.ok(result.citations.some(c => c.includes("pcw.gov.ph/faq-republic-act-9262")));
   assert.doesNotMatch(result.answer, /Tandang Sora ordinance number: RA 9262/);
   assert.ok(db.accessed.includes("verified_legal_sources"));
   assert.ok(!db.accessed.includes("knowledge_chunks"));
@@ -99,10 +99,10 @@ test("service catalog is dynamic and separate from ordinances", async () => {
   assert.match(answer.answer, /1 Valid ID/);
   assert.match(answer.answer, /HINDI mga ordinansa/);
   const policy = await getVerifiedPolicyAnswer(db, "ano yong mga policy sa barangay", "tgl");
-  assert.match(policy.answer, /Wala pang matching/i);
-  assert.match(policy.answer, /Barangay Clearance/);
+  assert.match(policy.answer, /Anong problema o patakaran/);
+  assert.equal(policy.citations.length, 0);
   assert.equal(policy.flagged, true);
-  assert.ok(policy.citations.some(c => c.includes("document-service catalog")));
+  assert.ok(policy.answer.includes("Kuwento mo lang"));
 });
 
 test("published legal sources RLS is read-only; raw knowledge remains private", () => {
@@ -119,4 +119,34 @@ test("published legal sources RLS is read-only; raw knowledge remains private", 
   assert.match(route, /if \(isServiceInformationQuestion\(message\)\)/);
   assert.ok(route.indexOf("if (isPolicyQuestion(message))") < route.indexOf("const apiBaseUrl"));
   assert.ok(route.indexOf("if (isServiceInformationQuestion(message))") < route.indexOf("const apiBaseUrl"));
+});
+
+test("generic policy request opens a friendly clarifying conversation, not random Data Privacy advice", async () => {
+  const privacy = { ...nationalLaw, title: "RA 10173 — Data Privacy Act",
+    summary: "The Data Privacy Act protects personal information and residents may seek correction of inaccurate records." };
+  const db = fakeDb({ verified_legal_sources: { data: [privacy, nationalLaw], error: null } });
+  const answer = await getVerifiedPolicyAnswer(db, "hey ate sora could give me a policy", "tgl");
+  assert.match(answer.answer, /Anong problema o patakaran/);
+  assert.doesNotMatch(answer.answer, /General legal guidance from source/);
+  assert.equal(answer.citations.length, 0);
+  assert.equal(answer.context_used, true);
+});
+
+test("a personal violence disclosure gets immediate steps and a safety check, not just legal citations", async () => {
+  const db = fakeDb({ verified_legal_sources: { data: [nationalLaw], error: null } });
+  const reply = await getVerifiedPolicyAnswer(db, "alam mo ba sinasaktan ako ng asawa ko", "tgl");
+  assert.match(reply.answer, /kaligtasan mo/i);
+  assert.match(reply.answer, /Ligtas ka bang makipag-usap ngayon/);
+  assert.match(reply.answer, /RA 9262/);
+  assert.ok(reply.citations.some(c => c.includes("pcw.gov.ph")));
+  assert.ok(!reply.answer.includes("Ito ang mga legal reference mula"));
+});
+
+test("when legal catalog is down, disclosed violence still receives safe practical direction without fake citations", async () => {
+  const db = fakeDb({ verified_legal_sources: { data: [], error: { message: "unavailable" } } });
+  const reply = await getVerifiedPolicyAnswer(db, "sinasaktan ako ng asawa ko", "tgl");
+  assert.equal(reply.flagged, true);
+  assert.equal(reply.citations.length, 0);
+  assert.match(reply.answer, /pulis o emergency responders/);
+  assert.match(reply.answer, /Ligtas ka bang makipag-usap/);
 });
