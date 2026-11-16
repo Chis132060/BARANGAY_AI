@@ -79,10 +79,6 @@ function excerpt(text: string, terms: string[], max = 700): string {
     (clean.length > start + max ? "…" : "");
 }
 
-function matchesTerms(item: string, terms: string[]): boolean {
-  return !terms.length || terms.some(term => item.toLowerCase().includes(term));
-}
-
 function safeText(value: unknown): string {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
