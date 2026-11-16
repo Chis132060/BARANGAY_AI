@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { runSoraAgent } from "@/lib/ai/sora-agent";
 import { matchServiceFaq, buildServiceFaqAnswer, buildServiceFaqUnavailable } from "@/lib/ai/verified-service-faq";
 import { isPolicyQuestion, getVerifiedPolicyAnswer, isServiceInformationQuestion, getVerifiedServiceAnswer } from "@/lib/ai/verified-policy-grounding";
-import { getVerifiedResidentConcernAnswer, getOfflineConversationReply } from "@/lib/ai/resident-concern-grounding";
+import { getVerifiedResidentConcernAnswer, getOfflineConversationReply, isWelfareSupportQuestion } from "@/lib/ai/resident-concern-grounding";
 
 export const runtime = "nodejs";
 
@@ -87,6 +87,34 @@ export async function POST(request: NextRequest) {
       { error: "Too many requests. Please wait a moment before trying again." },
       { status: 429 }
     );
+  }
+
+  // Urgent hunger and financial crises must be answered before general service
+  // FAQs or legal-policy matching. Residents may mention "Certificate of
+  // Indigency" in a hunger request: do not mistake it for an ordinary form FAQ.
+  // The sources, requirements, offices and eligibility remain from the
+  // staff-reviewed, RLS-scoped government program and CSWDD database records.
+  if (isWelfareSupportQuestion(message)) {
+    try {
+      const assistance = await getVerifiedResidentConcernAnswer(supabase, message, language);
+      if (assistance) {
+        const auditRecorded = await writeFallbackAudit(supabase, {
+          userId: user.id, sessionId,
+          query: "VERIFIED_WELFARE_GUIDANCE", // Do not store private financial-crisis description.
+          answer: assistance.answer, citations: assistance.citations,
+          flagged: false, modelUsed: "verified-welfare-reference/no-llm",
+          tokensPrompt: 0, tokensCompletion: 0,
+        });
+        return NextResponse.json({
+          ...assistance, auditRecorded,
+          answer_source: "published_social_welfare_guidance",
+          model_used: "verified-welfare-reference/no-llm",
+          tokens_prompt: 0, tokens_completion: 0,
+        });
+      }
+    } catch {
+      console.warn("Approved welfare catalog unavailable; falling back to normal chat routing.");
+    }
   }
 
   // First check safe, common service-navigation questions against the existing
