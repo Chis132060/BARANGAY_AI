@@ -85,6 +85,16 @@ export default function SoraSourcesPage() {
       contact numbers, or schedules. For signed PDF or DOCX policies, <Link href="/documents/policies" className="font-bold underline">import the document as Draft under Policies</Link> and verify the original before activation.
       For text knowledge uploads, use the <Link href="/knowledge" className="font-bold underline">Knowledge Management</Link> page; unverified uploads remain private.
     </section>
+    <div className="flex flex-wrap gap-2">
+      <a href="/api/documents/sora-sources/pdf?kind=catalog" target="_blank" rel="noopener noreferrer"
+        className="inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 text-sm font-bold text-white">
+        View PDF knowledge &amp; services guide
+      </a>
+      <a href="/api/documents/sora-sources/pdf?kind=catalog&amp;download=1"
+        className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-blue-700">
+        Download PDF guide
+      </a>
+    </div>
     <nav className="flex flex-wrap gap-2" aria-label="Ate Sora source sections">
       <button onClick={() => setTab("law")} className={tab === "law" ? "min-h-11 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white" : "min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold"}>
         Official sources ({sources.filter(s => s.status === "Published").length} published)
@@ -153,7 +163,15 @@ export default function SoraSourcesPage() {
             <span className="ml-2 text-xs text-slate-500">{s.authority.replaceAll("_"," ")} · {s.jurisdiction_scope.replaceAll("_"," ")}</span>
             <h2 className="mt-3 font-bold">{s.title}</h2>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{s.summary}</p>
-            <a href={s.source_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block break-all text-sm font-semibold text-blue-700 underline">Read original official source</a>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <a href={`/api/documents/sora-sources/pdf?kind=source&id=${encodeURIComponent(s.id)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex min-h-10 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800">
+                View PDF summary
+              </a>
+              <a href={s.source_url} target="_blank" rel="noopener noreferrer"
+                className="inline-block break-all text-xs font-semibold text-blue-700 underline">Read original official source</a>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {canEdit && <button disabled={busy} onClick={() => openForm(s)} className="min-h-10 rounded-lg border px-3 text-xs font-bold">Edit</button>}
@@ -183,7 +201,12 @@ export default function SoraSourcesPage() {
                 : <p>No verified requirements listed.</p>}
             </div>
           </div>
-          {canEdit && <button disabled={busy} className="min-h-10 rounded-lg border px-3 text-xs font-bold" onClick={() => openService(s)}>Edit</button>}
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <a href={`/api/documents/sora-sources/pdf?kind=service&id=${encodeURIComponent(s.id)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex min-h-10 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800">View PDF</a>
+            {canEdit && <button disabled={busy} className="min-h-10 rounded-lg border px-3 text-xs font-bold" onClick={() => openService(s)}>Edit</button>}
+          </div>
         </div>
         {editService?.id === s.id && <div className="mt-4 space-y-3 border-t pt-4">
           <label className="block text-xs font-semibold">Description
