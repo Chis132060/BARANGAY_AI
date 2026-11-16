@@ -26,6 +26,7 @@ const IGNORE = new Set([
   "here", "what", "should", "could", "can", "with", "your",
   "were", "when", "this", "that", "from", "just", "need", "have",
   "law", "laws", "policy", "policies", "document", "services",
+  "wala", "walang", "kaming", "akong", "kami",
 ]);
 
 function words(value: string): string[] {
@@ -71,6 +72,14 @@ function relevance(message: string, row: VerifiedSource): number {
   }
   // A source is relevant only when its *reviewed keywords* or distinctive
   // law title match. Generic words inside summary never make a legal match.
+  // Allow flexible wording such as "wala kaming makain" even if the
+  // reviewed keyword says "walang makain". Only distinctive words from
+  // reviewer-controlled keywords may earn this limited extra score.
+  const approvedWords = new Set(keywords.flatMap(value => words(value))
+    .filter(word => word.length >= 5 && !IGNORE.has(word)));
+  for (const word of terms) {
+    if (approvedWords.has(word)) score += 3;
+  }
   return score;
 }
 
@@ -78,7 +87,7 @@ export function isWelfareSupportQuestion(message: string): boolean {
   // Match everyday hunger and financial-crisis descriptions, not every
   // service or certificate query. Authorities, office locations and eligibility
   // are read ONLY from published verified database records.
-  return /walang[\s-]*wala|walang[\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\s-]+(?:akong|kaming|po[\s-]+akong)[\s\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mah[i]?rap[\s-]+kami|h[i]?rap[\s-]+sa[\s-]+pagkain|pambili[\s-]+(?:ng[\s-]+)?(?:pagkain|bigas|gatas)|food[\s-]+(?:assistance|aid|support)|financial[\s-]+(?:assistance|aid|help)|tulong[\s-]+pinansyal|cash[\s-]+(?:assistance|aid)|need[\s-]+(?:money|food)|no[\s-]+(?:money|food)|nangangailangan[\s-]+(?:ng[\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|tulong[\s-]+(?:sa[\s-]+)?(?:pagkain|bigas)|(?:kailangan|need)[\s\S]{0,35}(?:pagkain|bigas|gatas)|mangayo[\s-]+(?:og[\s-]+)?(?:tabang|pagkaon)|walay[\s-]+(?:pagkaon|kwarta)/i.test(message);
+  return /walang[\s-]*wala|walang[\s-]+(?:makain|pagkain|pera|pambili|trabaho|mapakain)|wala[\s-]+(?:akong|kaming|po[\s-]+akong)[\s\S]{0,55}(?:makain|pagkain|pera|pambili)|gutom|nagugutom|mapakain|mah[i]?rap[\s-]+kami|h[i]?rap[\s-]+sa[\s-]+pagkain|pambili[\s-]+(?:ng[\s-]+)?(?:pagkain|bigas|gatas)|food[\s-]+(?:assistance|aid|support)|financial[\s-]+(?:assistance|aid|help)|tulong[\s-]+pinansyal|cash[\s-]+(?:assistance|aid)|need[\s-]+(?:money|food)|no[\s-]+(?:money|food)|nangangailangan[\s-]+(?:ng[\s-]+)?(?:tulong|pagkain|pera)|ayuda|aics|tulong[\s-]+(?:sa[\s-]+)?(?:pagkain|bigas)|(?:kailangan|need)[\s\S]{0,35}(?:pagkain|bigas|gatas)|mangayo[\s-]+(?:og[\s-]+)?(?:tabang|pagkaon)|walay[\s-]+(?:pagkaon|kwarta)/i.test(message);
 }
 
 function sourceCitation(source: VerifiedSource): string {
@@ -96,7 +105,7 @@ export async function getVerifiedResidentConcernAnswer(
   // Do not interpret a short greeting or generic open-ended prompt as a legal
   // complaint. It can be handled by the normal conversational assistant.
   const significant = words(message).filter(w => w.length >= 4 && !IGNORE.has(w));
-  if (!significant.length) return null;
+  if (!significant.length && !isWelfareSupportQuestion(message)) return null;
 
   const { data, error } = await supabase.from("verified_legal_sources")
     .select("title,source_url,jurisdiction_scope,authority,summary,keywords,status,verified_at")
