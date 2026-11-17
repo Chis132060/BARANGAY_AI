@@ -19,6 +19,8 @@ import { SoraRealtimeControls } from "./SoraRealtimeControls";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { matchServiceFaq } from "@/lib/ai/verified-service-faq";
+import { buildOfflineServiceReply, type OfflineDocument, type OfflineDocumentSnapshot } from "@/lib/ai/sora-offline-service-guide";
+import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
@@ -38,6 +40,7 @@ interface Message {
   contextUsed?: boolean;
   isError?: boolean;
   isReceipt?: boolean;
+  isOfflineGuide?: boolean;
   timestamp?: number;
 }
 
@@ -73,6 +76,7 @@ export function ChatInterface() {
   const [authChecked, setAuthChecked] = useState(false);
   const [cachedAuthUnverified, setCachedAuthUnverified] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [offlineCatalogCount, setOfflineCatalogCount] = useState<number | null>(null);
   const startupRequestHandledRef = useRef(false);
   const [userInitials, setUserInitials] = useState<string>("");
   const [showGuestModal, setShowGuestModal] = useState(false);
@@ -195,6 +199,43 @@ export function ChatInterface() {
       window.removeEventListener("online", checkAuth);
     };
   }, [supabase]);
+
+  // Public app document names/descriptions only; never cache resident chats,
+  // required IDs, private fields, eligibility or application submissions.
+  useEffect(() => {
+    let active = true;
+    void loadPublicSnapshot<OfflineDocument[]>("document-types")
+      .then(snapshot => {
+        if (active && snapshot && Array.isArray(snapshot.data))
+          setOfflineCatalogCount(snapshot.data.length);
+      }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked || !authUserId || !isLoggedIn || cachedAuthUnverified || !isOnline) return;
+    let active = true;
+    async function refreshGuide() {
+      try {
+        const { data, error } = await supabase.from("document_types")
+          .select("id,name,description").order("name").limit(100);
+        if (error || !Array.isArray(data) || !data.length || !active) return;
+        const safe = data.filter(row => row && typeof row.id === "string" &&
+          typeof row.name === "string" && row.name.trim().length > 0).map(row => ({
+            id: row.id,
+            name: row.name.trim().slice(0, 120),
+            description: typeof row.description === "string" ? row.description.slice(0, 380) : null,
+          }));
+        if (!safe.length || !active) return;
+        await savePublicSnapshot("document-types", safe, 24 * 60 * 60 * 1000);
+        if (active) setOfflineCatalogCount(safe.length);
+      } catch {
+        // Retain the existing public snapshot if the network fails.
+      }
+    }
+    void refreshGuide();
+    return () => { active = false; };
+  }, [authChecked, authUserId, isLoggedIn, cachedAuthUnverified, isOnline, supabase]);
 
   function memoryKey(userId: string) {
     return "ate-sora-current-session:" + userId;
@@ -525,6 +566,30 @@ export function ChatInterface() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
+    // Local-only, read-only service answers while the device reports offline.
+    // No LLM, browser API, chat-history write or document submission occurs.
+    // Requests outside the offline FAQ still take the existing API path.
+    if (!isOnline) {
+      let savedCatalog: OfflineDocumentSnapshot = null;
+      try {
+        savedCatalog = await loadPublicSnapshot<OfflineDocument[]>("document-types");
+      } catch {
+        // Navigation-only guidance also works without IndexedDB.
+      }
+      const guide = buildOfflineServiceReply(userText, ttsLang, savedCatalog);
+      if (guide) {
+        setMessages(previous => [...previous, {
+          id: "ai-offline-guide-" + uuidv4(),
+          sender: "ai",
+          text: guide.answer,
+          isOfflineGuide: true,
+          timestamp: Date.now(),
+        }]);
+        voiceRequestInFlightRef.current = false;
+        return;
+      }
+    }
+
     // A resident explicitly requesting a known form should not need an AI call,
     // a chat quota, or a functioning LLM backend before the actual form appears.
     // InChatFormCard fetches the authoritative document catalog and performs
@@ -682,7 +747,7 @@ export function ChatInterface() {
       voiceRequestInFlightRef.current = false;
       setLoading(false);
     }
-  }, [input, loading, historyLoading, historyBusy, isLoggedIn, sessionId, supabase, ttsLang]);
+  }, [input, loading, historyLoading, historyBusy, isLoggedIn, isOnline, sessionId, supabase, ttsLang]);
 
   const handleSuggestion = (query: string) => {
     const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -769,7 +834,7 @@ export function ChatInterface() {
 
       {!isOnline && (
         <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs leading-relaxed text-amber-950 shrink-0">
-          Ate Sora needs internet for AI answers and previous chats. You can view already saved offline information, but new chat questions and document requests are not automatically queued.
+          Ate Sora needs internet for AI answers and previous chats. Offline Quick Guide can answer common service questions{offlineCatalogCount ? " using " + offlineCatalogCount + " saved catalog entries" : " with basic navigation help"}. Requirements, fees, and actual applications still need online verification. No offline chat is automatically submitted.
           {" "}<Link href="/~offline" className="font-semibold underline underline-offset-2">View offline help</Link>
         </div>
       )}
@@ -866,6 +931,7 @@ export function ChatInterface() {
                       ? "bg-gray-50 text-gray-600 rounded-2xl rounded-bl-sm border border-gray-200"
                       : "bg-gray-50 text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100"
                   }`}>
+                    {m.isOfflineGuide && <span className="mb-1.5 block text-[10px] font-semibold text-amber-700">Offline Quick Guide · not submitted</span>}
                     <p className="whitespace-pre-line">{m.text}</p>
                     {m.isReceipt && <Link href="/requests" className="mt-2 inline-flex min-h-11 items-center font-bold text-blue-700 underline">View My Requests</Link>}
                   </div>

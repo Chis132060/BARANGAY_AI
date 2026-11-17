@@ -62,12 +62,46 @@ try {
   // precached public fallback instead, while network connectivity is disabled.
   assert.ok(cachedRoutes.some((entry) => entry.endsWith(" :: /~offline")),
     "the public offline fallback document must be precached");
+  // Seed a small PUBLIC document catalog in the same allowlisted IndexedDB
+  // store used by Ate Sora. This proves the offline help UI actually renders
+  // saved document information after the network is physically disconnected.
+  // The fake names below are isolated to this test browser, never production.
+  await activeWorker.evaluate(async () => {
+    await new Promise((resolve, reject) => {
+      const request = indexedDB.open("barangay-public-snapshots-v1", 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains("snapshots"))
+          request.result.createObjectStore("snapshots", { keyPath: "key" });
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction("snapshots", "readwrite");
+        tx.objectStore("snapshots").put({
+          key: "document-types",
+          data: [{
+            id: "offline-smoke-public-test",
+            name: "Offline Smoke Sample Service",
+            description: "Public saved service catalog browser check",
+          }],
+          cachedAt: Date.now(),
+          expiresAt: Date.now() + 60_000,
+        });
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+      };
+    });
+  });
   await context.setOffline(true);
   const offlineResponse = await page.goto(base + "/~offline", { waitUntil: "domcontentloaded", timeout: 20000 });
   assert.equal(offlineResponse?.status(), 200, "offline fallback must be served from precache");
   assert.equal(new URL(page.url()).pathname, "/~offline", "offline fallback must not redirect to login");
   await page.getByRole("heading", { name: "No connection right now" }).waitFor({ timeout: 15000 });
   console.log("PASS: disconnected browser can open the precached public offline help page");
+  await page.getByRole("heading", { name: "Saved barangay document services" }).waitFor({ timeout: 15000 });
+  await page.getByText("Offline Smoke Sample Service", { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByText("Public saved service catalog browser check", { exact: true }).waitFor({ timeout: 15000 });
+  console.log("PASS: disconnected browser renders saved public document services from IndexedDB");
 
   const leaks = await page.evaluate(async () => {
     const forbidden = [];
