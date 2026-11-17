@@ -94,7 +94,14 @@ export async function POST(request: NextRequest) {
   // is opt-in by database preference (never trusted from the request body).
   // A bounded history supports explicit recall, not fake persistent facts or
   // memory of every message ever written.
-  const residentMemory = await getResidentChatMemory(supabase, user.id, sessionId);
+  let residentMemory = { turns: [] as Array<{ sender: "user" | "ai"; message: string; id: string; created_at: string | null; session_id: string | null }>, remembersOtherChats: false, context: "" };
+  try {
+    residentMemory = await getResidentChatMemory(supabase, user.id, sessionId);
+  } catch {
+    // Memory is optional. A history storage outage must never block
+    // legal guidance, crisis help, resident documents or normal AI answers.
+    console.warn("Chat memory unavailable; continuing without past context.");
+  }
   if (isChatMemoryQuestion(message)) {
     const answer = buildSavedConversationRecall(residentMemory, language, message);
     const auditRecorded = await writeFallbackAudit(supabase, {
