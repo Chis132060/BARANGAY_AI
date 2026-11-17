@@ -134,13 +134,11 @@ export function ChatInterface() {
   // merely because network verification cannot run. No remote permission or
   // submitted application is ever inferred from this cached identity.
   useEffect(() => {
-    let active = true;
     const updateDeviceStatus = () => setIsOnline(navigator.onLine);
     updateDeviceStatus();
     window.addEventListener("online", updateDeviceStatus);
     window.addEventListener("offline", updateDeviceStatus);
     return () => {
-      active = false;
       window.removeEventListener("online", updateDeviceStatus);
       window.removeEventListener("offline", updateDeviceStatus);
     };
@@ -160,7 +158,7 @@ export function ChatInterface() {
         user.email?.split("@")[0] ||
         "";
       const initials = rawName
-        .split(/[\\s._-]+/)
+        .split(/[\s._-]+/)
         .map((word: string) => word[0] || "")
         .join("")
         .toUpperCase()
