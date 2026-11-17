@@ -134,7 +134,11 @@ export function ChatInterface() {
   // merely because network verification cannot run. No remote permission or
   // submitted application is ever inferred from this cached identity.
   useEffect(() => {
-    const updateDeviceStatus = () => setIsOnline(navigator.onLine);
+    const updateDeviceStatus = () => {
+      const connected = navigator.onLine;
+      setIsOnline(connected);
+      if (!connected) setCachedAuthUnverified(true);
+    };
     updateDeviceStatus();
     window.addEventListener("online", updateDeviceStatus);
     window.addEventListener("offline", updateDeviceStatus);
@@ -289,6 +293,11 @@ export function ChatInterface() {
   async function openChatHistory() {
     if (!authUserId || !isLoggedIn) return;
     setChatHistoryOpen(true);
+    if (!isOnline) {
+      setHistoryError("Previous chats are stored online, not deleted. Reconnect to load them.");
+      setHistoryLoading(false);
+      return;
+    }
     setHistoryError("");
     setHistoryLoading(true);
     try {
@@ -515,26 +524,6 @@ export function ChatInterface() {
       timestamp: Date.now(),
     };
     setMessages((prev) => [...prev, userMsg]);
-
-    // Cloud-based AI and current document requirements cannot run without
-    // connectivity. Don't pretend this question was answered or submitted.
-    // The browser onLine value is a hint; if it claims online we still try
-    // the server below and report an actual request failure.
-    if (!navigator.onLine) {
-      setMessages((prev) => [...prev, {
-        id: `ai-offline-${uuidv4()}`,
-        sender: "ai",
-        text: ttsLang === "ceb"
-          ? "Offline ang device. Kinahanglan og internet ang AI replies, live document requirements ug saved chat history. Wala nako gi-submit ang request o gi-save ang pangutana sa server. Ablihi ang View offline help para sa na-save nga impormasyon, unya sulayi pag-usab kung online na."
-          : ttsLang === "en"
-            ? "Your device is offline. AI replies, current document requirements and saved chat history need internet. This question was not sent or saved to the server, and no request was submitted. Open View offline help for saved information, then ask again when connected."
-            : "Offline ang device. Kailangan ng internet para sa AI replies, kasalukuyang document requirements at saved chat history. Hindi naipadala o nai-save sa server ang tanong at walang request na naisumite. Buksan ang View offline help para sa saved information at subukan muli kapag online.",
-        isError: true,
-        timestamp: Date.now(),
-      }]);
-      voiceRequestInFlightRef.current = false;
-      return;
-    }
 
     // A resident explicitly requesting a known form should not need an AI call,
     // a chat quota, or a functioning LLM backend before the actual form appears.
