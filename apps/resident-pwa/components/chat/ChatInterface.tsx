@@ -19,6 +19,8 @@ import { SoraRealtimeControls } from "./SoraRealtimeControls";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { matchServiceFaq } from "@/lib/ai/verified-service-faq";
+import { buildOfflineServiceReply, type OfflineDocument } from "@/lib/ai/sora-offline-service-guide";
+import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
@@ -38,6 +40,7 @@ interface Message {
   contextUsed?: boolean;
   isError?: boolean;
   isReceipt?: boolean;
+  isOfflineGuide?: boolean;
   timestamp?: number;
 }
 
@@ -73,6 +76,7 @@ export function ChatInterface() {
   const [authChecked, setAuthChecked] = useState(false);
   const [cachedAuthUnverified, setCachedAuthUnverified] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [offlineCatalogCount, setOfflineCatalogCount] = useState<number | null>(null);
   const startupRequestHandledRef = useRef(false);
   const [userInitials, setUserInitials] = useState<string>("");
   const [showGuestModal, setShowGuestModal] = useState(false);
@@ -195,6 +199,43 @@ export function ChatInterface() {
       window.removeEventListener("online", checkAuth);
     };
   }, [supabase]);
+
+  // Public app document names/descriptions only; never cache resident chats,
+  // required IDs, private fields, eligibility or application submissions.
+  useEffect(() => {
+    let active = true;
+    void loadPublicSnapshot<OfflineDocument[]>("document-types")
+      .then(snapshot => {
+        if (active && snapshot && Array.isArray(snapshot.data))
+          setOfflineCatalogCount(snapshot.data.length);
+      }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked || !authUserId || !isLoggedIn || cachedAuthUnverified || !isOnline) return;
+    let active = true;
+    async function refreshGuide() {
+      try {
+        const { data, error } = await supabase.from("document_types")
+          .select("id,name,description").order("name").limit(100);
+        if (error || !Array.isArray(data) || !data.length || !active) return;
+        const safe = data.filter(row => row && typeof row.id === "string" &&
+          typeof row.name === "string" && row.name.trim().length > 0).map(row => ({
+            id: row.id,
+            name: row.name.trim().slice(0, 120),
+            description: typeof row.description === "string" ? row.description.slice(0, 380) : null,
+          }));
+        if (!safe.length || !active) return;
+        await savePublicSnapshot("document-types", safe, 24 * 60 * 60 * 1000);
+        if (active) setOfflineCatalogCount(safe.length);
+      } catch {
+        // Retain the existing public snapshot if the network fails.
+      }
+    }
+    void refreshGuide();
+    return () => { active = false; };
+  }, [authChecked, authUserId, isLoggedIn, cachedAuthUnverified, isOnline, supabase]);
 
   function memoryKey(userId: string) {
     return "ate-sora-current-session:" + userId;
