@@ -71,6 +71,8 @@ export function ChatInterface() {
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [cachedAuthUnverified, setCachedAuthUnverified] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const startupRequestHandledRef = useRef(false);
   const [userInitials, setUserInitials] = useState<string>("");
   const [showGuestModal, setShowGuestModal] = useState(false);
@@ -127,30 +129,70 @@ export function ChatInterface() {
     else setShowLanguagePicker(true);
   }, []);
 
+  // The outer PWA shell uses a cached Supabase session offline. Match that
+  // behavior here so a previously signed-in resident is not shown as Guest
+  // merely because network verification cannot run. No remote permission or
+  // submitted application is ever inferred from this cached identity.
   useEffect(() => {
-    async function checkAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
+    let active = true;
+    const updateDeviceStatus = () => setIsOnline(navigator.onLine);
+    updateDeviceStatus();
+    window.addEventListener("online", updateDeviceStatus);
+    window.addEventListener("offline", updateDeviceStatus);
+    return () => {
+      active = false;
+      window.removeEventListener("online", updateDeviceStatus);
+      window.removeEventListener("offline", updateDeviceStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    function applyUser(user: { id: string; user_metadata?: Record<string, any>; email?: string } | null, unverified: boolean) {
+      if (!active) return;
       setIsLoggedIn(!!user);
-      setAuthChecked(true);
       setAuthUserId(user?.id ?? null);
-      if (user) {
-        const rawName =
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          user.email?.split("@")[0] ||
-          "";
-        const initials = rawName
-          .split(/[\s._-]+/)
-          .map((w: string) => w[0] || "")
-          .join("")
-          .toUpperCase()
-          .slice(0, 2);
-        setUserInitials(initials || "U");
+      setCachedAuthUnverified(!!user && unverified);
+      if (!user) { setUserInitials(""); return; }
+      const rawName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "";
+      const initials = rawName
+        .split(/[\\s._-]+/)
+        .map((word: string) => word[0] || "")
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+      setUserInitials(initials || "U");
+    }
+    async function checkAuth() {
+      try {
+        // getSession can use the locally cached session. getUser is the only
+        // server verification and is required again when connectivity returns.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!active) return;
+        applyUser(session?.user ?? null, true);
+        if (navigator.onLine) {
+          const { data: { user }, error } = await supabase.auth.getUser();
+          if (!active) return;
+          if (!error) applyUser(user, false);
+        }
+      } catch {
+        // Keep the last known state until connectivity returns; the server
+        // will authorize every protected operation regardless of this UI.
+      } finally {
+        if (active) setAuthChecked(true);
       }
     }
-    checkAuth();
+    void checkAuth();
+    window.addEventListener("online", checkAuth);
+    return () => {
+      active = false;
+      window.removeEventListener("online", checkAuth);
+    };
   }, [supabase]);
-
 
   function memoryKey(userId: string) {
     return "ate-sora-current-session:" + userId;
@@ -197,6 +239,15 @@ export function ChatInterface() {
       return;
     }
     if (!authUserId) return;
+    if (!isOnline) {
+      // Cloud history has not been copied to this device. Never show an empty
+      // result as proof that a resident's saved conversations were deleted.
+      setHistoryError("Saved chat history needs an internet connection. Your earlier chats are still stored online; reconnect to open them.");
+      setHistoryLoading(false);
+      setHistoryHydrated(true);
+      return;
+    }
+    setHistoryError("");
     const version = ++historyLoadVersionRef.current;
     let cancelled = false;
     async function hydrate() {
@@ -235,7 +286,7 @@ export function ChatInterface() {
     }
     void hydrate();
     return () => { cancelled = true; };
-  }, [authChecked, isLoggedIn, authUserId, fetchSavedSessions, supabase]);
+  }, [authChecked, isLoggedIn, authUserId, isOnline, fetchSavedSessions, supabase]);
 
   async function openChatHistory() {
     if (!authUserId || !isLoggedIn) return;
@@ -467,6 +518,26 @@ export function ChatInterface() {
     };
     setMessages((prev) => [...prev, userMsg]);
 
+    // Cloud-based AI and current document requirements cannot run without
+    // connectivity. Don't pretend this question was answered or submitted.
+    // The browser onLine value is a hint; if it claims online we still try
+    // the server below and report an actual request failure.
+    if (!navigator.onLine) {
+      setMessages((prev) => [...prev, {
+        id: `ai-offline-${uuidv4()}`,
+        sender: "ai",
+        text: ttsLang === "ceb"
+          ? "Offline ang device. Kinahanglan og internet ang AI replies, live document requirements ug saved chat history. Wala nako gi-submit ang request o gi-save ang pangutana sa server. Ablihi ang View offline help para sa na-save nga impormasyon, unya sulayi pag-usab kung online na."
+          : ttsLang === "en"
+            ? "Your device is offline. AI replies, current document requirements and saved chat history need internet. This question was not sent or saved to the server, and no request was submitted. Open View offline help for saved information, then ask again when connected."
+            : "Offline ang device. Kailangan ng internet para sa AI replies, kasalukuyang document requirements at saved chat history. Hindi naipadala o nai-save sa server ang tanong at walang request na naisumite. Buksan ang View offline help para sa saved information at subukan muli kapag online.",
+        isError: true,
+        timestamp: Date.now(),
+      }]);
+      voiceRequestInFlightRef.current = false;
+      return;
+    }
+
     // A resident explicitly requesting a known form should not need an AI call,
     // a chat quota, or a functioning LLM backend before the actual form appears.
     // InChatFormCard fetches the authoritative document catalog and performs
@@ -608,7 +679,7 @@ export function ChatInterface() {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
         text: likelyOffline
-          ? "Walang connection sa server ngayon. Maaari mong subukang muli kapag may internet; hindi pa naisumite ang application."
+          ? "Hindi maabot ang Ate Sora server. Kailangan ng internet para sa live AI chat at service catalog. Huwag ituring na submitted o saved ang tanong o application hangga't walang server confirmation. Subukan muli kapag connected."
           : networkFailed
             ? "Hindi maabot ang Ate Sora service sa ngayon kahit may internet connection ka. Subukang muli; maaari mo pa ring punan ang form sa chat kung available ang document catalog."
             : err?.message || "Pansamantalang hindi available ang Ate Sora service. Subukang muli.",
@@ -643,7 +714,7 @@ export function ChatInterface() {
             <h1 className="text-sm font-bold text-gray-900 leading-tight">{AI_NAME}</h1>
             <p className="text-[10px] font-medium flex items-center gap-1 mt-0.5">
               {isLoggedIn ? (
-                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" /><span className="text-green-600">Resident Mode</span></>
+                <><span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" /><span className="text-green-600">{cachedAuthUnverified ? "Cached resident session · not yet verified" : "Resident Mode"}</span></>
               ) : (
                 <><span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-300 mr-0.5" /><span className="text-gray-400">Guest Mode</span></>
               )}
@@ -708,6 +779,13 @@ export function ChatInterface() {
           )}
         </div>
       </div>
+
+      {!isOnline && (
+        <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs leading-relaxed text-amber-950 shrink-0">
+          Ate Sora needs internet for AI answers and previous chats. You can view already saved offline information, but new chat questions and document requests are not automatically queued.
+          {" "}<Link href="/~offline" className="font-semibold underline underline-offset-2">View offline help</Link>
+        </div>
+      )}
 
       {/* Guest info strip */}
       {!isLoggedIn && (
