@@ -23,7 +23,7 @@ const SHORTCUTS = [
 
 const GENERAL_SERVICES = /\b(?:services?|serbisyo|servisyo|document(?:s)?|dokumento|certificate(?:s)?|sertipiko|mga\s+clearance|unsay\s+(?:mga\s+)?serbisyo|ano(?:-ano)?\s+(?:ang\s+)?serbisyo)\b/i;
 const PROGRAM_INFO = /\b(?:barangay\s+programs?|community\s+programs?|mga\s+programa|programa\s+sa\s+barangay|ayuda|assistance\s+programs?)\b/i;
-const NEEDS_ONLINE_SOURCE = /\b(?:ordinan[sc]|batas|law|policy|policies|patakaran|curfew|fine|penalty|multas?|bayad|magkano|price|cost|fee|fees|libre|free|office\s+hours|oras\s+(?:ng\s+)?opisina|schedule|iskedyul)\b/i;
+const NEEDS_ONLINE_SOURCE = /\b(?:ordinan(?:sa|ce|s|c)|batas|law|policy|policies|patakaran|curfew|fine|penalty|multas?|bayad|magkano|price|cost|fee|fees|libre|free|office\s+hours|oras\s+(?:ng\s+)?opisina|schedule|iskedyul|requirements?|rekisitos|eligible|eligibility|kwalipikado)\b/i;
 // Important resident crises should not be misclassified as a routine document FAQ.
 const RESIDENT_CRISIS = /\b(?:ninakawan|nakawan|sinaktan|sinasaktan|pang-aabuso|inaabuso|violence|abuse|assault|rape|pinagbabantaan|threat|emergency|wala\s+(?:kaming|akong)\s+makain|gutom\s+na)\b/i;
 const DIRECT_SUBMISSION = /\b(?:submit|ipasa\s+ang\s+(?:form|request)|i\s+want\s+to\s+request|mag-apply\s+ako|gusto\s+kong\s+mag-apply|mag-request\s+ako)\b/i;
