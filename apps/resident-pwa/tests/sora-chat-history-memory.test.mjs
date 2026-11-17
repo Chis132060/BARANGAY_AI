@@ -152,12 +152,12 @@ test("database RLS prevents accessing another user's memories or linking message
 });
 
 test("offline chat retains cached resident identity without claiming server verification", () => {
-  assert.match(chat, /supabase\\.auth\\.getSession\\(\\)/);
-  assert.match(chat, /if \\(navigator\\.onLine\\) \\{[\\s\\S]*?await supabase\\.auth\\.getUser\\(\\)/);
-  assert.match(chat, /setCachedAuthUnverified\\(!!user && unverified\\)/);
+  assert.match(chat, /supabase\.auth\.getSession\(\)/);
+  assert.match(chat, /if \(navigator\.onLine\) \{[\s\S]*?await supabase\.auth\.getUser\(\)/);
+  assert.match(chat, /setCachedAuthUnverified\(!!user && unverified\)/);
   assert.match(chat, /Cached resident session · not yet verified/);
-  assert.match(chat, /setHistoryError\\("Saved chat history needs an internet connection/);
-  assert.match(chat, /if \\(!navigator\\.onLine\\) \\{/);
+  assert.match(chat, /setHistoryError\("Saved chat history needs an internet connection/);
+  assert.match(chat, /if \(!navigator\.onLine\) \{/);
   assert.match(chat, /This question was not sent or saved to the server/);
-  assert.match(drawer, /!props\\.sessions\\.length && !props\\.error/);
+  assert.match(drawer, /!props\.sessions\.length && !props\.error/);
 });
