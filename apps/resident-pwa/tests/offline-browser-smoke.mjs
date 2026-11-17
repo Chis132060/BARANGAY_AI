@@ -23,6 +23,12 @@ try {
       waitUntil: "domcontentloaded", timeout: 30000,
     });
     assert.equal(chatResponse?.status(), 200, "guest chat route must load on mobile");
+    // Brand-new visitors must choose a language once. Complete that real UI
+    // step before testing the composer; do not force-click through its modal.
+    const languageDialog = phone.getByRole("dialog");
+    await languageDialog.waitFor({ state: "visible", timeout: 15000 });
+    await languageDialog.getByRole("button", { name: /Tagalog/ }).click();
+    await languageDialog.waitFor({ state: "hidden", timeout: 15000 });
     const input = phone.getByRole("textbox", { name: "Ask Ate Sora a question" });
     const composer = phone.locator('[data-chat-composer="true"]');
     await input.waitFor({ state: "visible", timeout: 20000 });
