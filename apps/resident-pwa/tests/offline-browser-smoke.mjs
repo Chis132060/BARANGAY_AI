@@ -66,7 +66,7 @@ try {
   // store used by Ate Sora. This proves the offline help UI actually renders
   // saved document information after the network is physically disconnected.
   // The fake names below are isolated to this test browser, never production.
-  await page.evaluate(async () => {
+  await activeWorker.evaluate(async () => {
     await new Promise((resolve, reject) => {
       const request = indexedDB.open("barangay-public-snapshots-v1", 1);
       request.onupgradeneeded = () => {
