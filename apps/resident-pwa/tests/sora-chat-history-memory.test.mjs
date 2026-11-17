@@ -157,7 +157,8 @@ test("offline chat retains cached resident identity without claiming server veri
   assert.match(chat, /setCachedAuthUnverified\(!!user && unverified\)/);
   assert.match(chat, /Cached resident session · not yet verified/);
   assert.match(chat, /setHistoryError\("Saved chat history needs an internet connection/);
-  assert.match(chat, /if \(!navigator\.onLine\) \{/);
-  assert.match(chat, /This question was not sent or saved to the server/);
+  assert.match(chat, /const likelyOffline = networkFailed && !navigator\.onLine/);
+  assert.match(chat, /Ate Sora needs internet for AI answers and previous chats/);
+  assert.match(chat, /Huwag ituring na submitted o saved/);
   assert.match(drawer, /!props\.sessions\.length && !props\.error/);
 });
