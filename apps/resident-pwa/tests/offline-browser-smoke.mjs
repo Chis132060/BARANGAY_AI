@@ -6,6 +6,51 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ serviceWorkers: "allow" });
 const page = await context.newPage();
 try {
+  // Reproduce the reported phone screenshot in the *guest* chat. A 100%-high
+  // chat inside a min-height-only shell used to leave a large blank strip
+  // under the composer. Test typing, click targets and layout before the
+  // service-worker offline assertions.
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+    serviceWorkers: "block",
+  });
+  try {
+    const phone = await mobileContext.newPage();
+    const chatResponse = await phone.goto(base + "/chat", {
+      waitUntil: "domcontentloaded", timeout: 30000,
+    });
+    assert.equal(chatResponse?.status(), 200, "guest chat route must load on mobile");
+    const input = phone.getByRole("textbox", { name: "Ask Ate Sora a question" });
+    const composer = phone.locator('[data-chat-composer="true"]');
+    await input.waitFor({ state: "visible", timeout: 20000 });
+    const fontSize = await input.evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+    assert.ok(fontSize >= 16, "mobile input text must be at least 16px to prevent iOS focus zoom");
+    const initialBox = await composer.boundingBox();
+    assert.ok(initialBox, "chat composer must have a measurable position");
+    const initialGap = 844 - (initialBox.y + initialBox.height);
+    assert.ok(initialGap >= -4 && initialGap <= 34,
+      "guest mobile composer must stay anchored near viewport bottom (gap: " + initialGap + "px)");
+    const chatInputText = "Paano kumuha ng Certificate of Indigency?";
+    await input.fill(chatInputText);
+    await phone.waitForFunction(() => {
+      const button = document.querySelector('button[aria-label="Send message"]');
+      return button && !button.disabled;
+    }, null, { timeout: 20000 });
+    const send = phone.getByRole("button", { name: "Send message" });
+    const sendBox = await send.boundingBox();
+    assert.ok(sendBox && sendBox.width >= 44 && sendBox.height >= 44,
+      "Send button must have a >=44px mobile touch target");
+    await send.click();
+    await phone.getByText(chatInputText, { exact: true }).waitFor({ timeout: 15000 });
+    await phone.getByText(/Please sign in with your resident account to access the current application form/).waitFor({ timeout: 15000 });
+    console.log("PASS: mobile guest composer stays bottom-aligned, accepts typing and submits a chat turn");
+  } finally {
+    await mobileContext.close();
+  }
+
   const response = await page.goto(base + "/~offline", { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.equal(response?.status(), 200, "offline fallback page must load while connected");
   assert.equal(new URL(page.url()).pathname, "/~offline", "offline fallback must remain public and must not redirect to login");
