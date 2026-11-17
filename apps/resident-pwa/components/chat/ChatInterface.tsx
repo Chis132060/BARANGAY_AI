@@ -5,11 +5,12 @@ import { v4 as uuidv4 } from "uuid";
 import {
   User, Send, Lock, ArrowRight, RotateCcw,
   FileText, Globe, AlertCircle, Clock, Volume2, VolumeX, Loader2, Mic, MicOff, Check,
-  ChevronRight,
+  ChevronRight, History,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InChatFormCard } from "./InChatFormCard";
 import { ServiceDirectory } from "./ServiceDirectory";
+import { ChatHistoryPanel, type ResidentChatSession } from "./ChatHistoryPanel";
 import { GuestAuthModal } from "@/components/guest/GuestAuthModal";
 import { useTTS, TTSLanguage } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
@@ -74,7 +75,16 @@ export function ChatInterface() {
   const [userInitials, setUserInitials] = useState<string>("");
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
-  const [sessionId] = useState<string>(() => uuidv4());
+  const [sessionId, setSessionId] = useState<string>(() => uuidv4());
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [savedSessions, setSavedSessions] = useState<ResidentChatSession[]>([]);
+  const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [rememberPreviousChats, setRememberPreviousChats] = useState(false);
+  const [memoryBusy, setMemoryBusy] = useState(false);
+  const historyLoadVersionRef = useRef(0);
   const [ttsLang, setTtsLang] = useState<TTSLanguage>("tgl");
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [serviceDirectoryOpen, setServiceDirectoryOpen] = useState(false);
@@ -119,6 +129,7 @@ export function ChatInterface() {
       const { data: { user } } = await supabase.auth.getUser();
       setIsLoggedIn(!!user);
       setAuthChecked(true);
+      setAuthUserId(user?.id ?? null);
       if (user) {
         const rawName =
           user.user_metadata?.full_name ||
@@ -137,6 +148,172 @@ export function ChatInterface() {
     checkAuth();
   }, [supabase]);
 
+
+  function memoryKey(userId: string) {
+    return "ate-sora-current-session:" + userId;
+  }
+
+  function fromSavedRows(rows: Array<{
+    id: string; sender: "user" | "ai"; message: string;
+    citations?: unknown; created_at?: string | null; form_type?: string | null;
+  }>): Message[] {
+    const restored = rows.filter(row =>
+      (row.sender === "ai" || row.sender === "user") && typeof row.message === "string"
+    ).map(row => ({
+      id: row.id,
+      sender: row.sender,
+      text: row.message,
+      citations: Array.isArray(row.citations)
+        ? row.citations.filter((item): item is string => typeof item === "string") : [],
+      timestamp: row.created_at ? Date.parse(row.created_at) : Date.now(),
+      // Previous form cards are deliberately NOT resubmitted or re-opened from
+      // historical messages; residents may open a new form when ready.
+    }));
+    return restored.length ? restored : [{
+      id: "welcome", sender: "ai" as const,
+      text: welcomeByLanguage[ttsLang], timestamp: Date.now(),
+    }];
+  }
+
+  const fetchSavedSessions = useCallback(async (uid: string) => {
+    const { data, error } = await supabase.from("chat_sessions")
+      .select("id,session_token,title,started_at,last_active_at")
+      .eq("user_id", uid)
+      .order("last_active_at", { ascending: false }).limit(100);
+    if (error) throw new Error("Unable to load saved conversations: " + error.message);
+    return (data ?? []) as ResidentChatSession[];
+  }, [supabase]);
+
+  // Recover the previous conversation when re-opening the PWA or navigating
+  // back from a document. Never erase it just because the component remounted.
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!isLoggedIn || !authUserId) {
+      setHistoryLoading(false);
+      return;
+    }
+    const version = ++historyLoadVersionRef.current;
+    let cancelled = false;
+    async function hydrate() {
+      setHistoryLoading(true);
+      try {
+        const [allSessions, preference] = await Promise.all([
+          fetchSavedSessions(authUserId!),
+          supabase.from("sora_chat_memory_preferences")
+            .select("remember_previous_chats").eq("user_id", authUserId!).maybeSingle(),
+        ]);
+        if (cancelled || historyLoadVersionRef.current !== version) return;
+        setSavedSessions(allSessions);
+        if (!preference.error)
+          setRememberPreviousChats(preference.data?.remember_previous_chats === true);
+
+        const storedToken = window.localStorage.getItem(memoryKey(authUserId!));
+        const target = allSessions.find(entry => entry.session_token === storedToken) ?? allSessions[0];
+        if (!target) return;
+        const { data: rows, error: messagesError } = await supabase.from("chat_messages")
+          .select("id,sender,message,citations,created_at,form_type")
+          .eq("user_id", authUserId!).eq("session_id", target.id)
+          .order("created_at", { ascending: true }).limit(500);
+        if (messagesError) throw new Error("Unable to load saved messages: " + messagesError.message);
+        if (cancelled || historyLoadVersionRef.current !== version) return;
+        setSessionId(target.session_token);
+        setMessages(fromSavedRows(rows ?? []));
+        window.localStorage.setItem(memoryKey(authUserId!), target.session_token);
+      } catch (error) {
+        if (!cancelled) setHistoryError(error instanceof Error ? error.message : "Unable to restore chat history.");
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    }
+    void hydrate();
+    return () => { cancelled = true; };
+  }, [authChecked, isLoggedIn, authUserId, fetchSavedSessions, supabase]);
+
+  async function openChatHistory() {
+    if (!authUserId || !isLoggedIn) return;
+    setChatHistoryOpen(true);
+    setHistoryError("");
+    setHistoryLoading(true);
+    try {
+      setSavedSessions(await fetchSavedSessions(authUserId));
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : "Unable to refresh history.");
+    } finally { setHistoryLoading(false); }
+  }
+
+  async function switchToSavedSession(saved: ResidentChatSession) {
+    if (!authUserId || loading || historyBusy) return;
+    setHistoryBusy(true);
+    setHistoryError("");
+    const version = ++historyLoadVersionRef.current;
+    try {
+      const { data: owned, error: sessionError } = await supabase.from("chat_sessions")
+        .select("id,session_token").eq("id", saved.id).eq("user_id", authUserId)
+        .eq("session_token", saved.session_token).maybeSingle();
+      if (sessionError || !owned) throw new Error("This chat isn't available in your account.");
+      const { data: rows, error: rowsError } = await supabase.from("chat_messages")
+        .select("id,sender,message,citations,created_at,form_type")
+        .eq("user_id", authUserId).eq("session_id", owned.id)
+        .order("created_at", { ascending: true }).limit(500);
+      if (rowsError) throw new Error("Unable to read this conversation.");
+      if (version !== historyLoadVersionRef.current) return;
+      stopSpeaking();
+      setSessionId(owned.session_token);
+      setMessages(fromSavedRows(rows ?? []));
+      setInput("");
+      setChatHistoryOpen(false);
+      window.localStorage.setItem(memoryKey(authUserId), owned.session_token);
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : "Could not reopen this chat.");
+    } finally { setHistoryBusy(false); }
+  }
+
+  async function toggleRememberPreviousChats(enabled: boolean) {
+    if (!authUserId) return;
+    setMemoryBusy(true);
+    setHistoryError("");
+    try {
+      const { error } = await supabase.from("sora_chat_memory_preferences")
+        .upsert({ user_id: authUserId, remember_previous_chats: enabled,
+          updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (error) throw error;
+      setRememberPreviousChats(enabled);
+    } catch {
+      setHistoryError("Could not update memory setting. Your previous choice is unchanged.");
+    } finally { setMemoryBusy(false); }
+  }
+
+  // Persist direct form messages, voice replies and submission receipts in the
+  // same authenticated, RLS-protected chat schema as typed AI messages.
+  async function persistLocalMessage(
+    sender: "user" | "ai", text: string, token: string,
+    extra: { formType?: string; citations?: string[] } = {}
+  ) {
+    if (!authUserId || !text.trim()) return;
+    try {
+      const { data: session, error: sessionError } = await supabase.from("chat_sessions")
+        .upsert({ user_id: authUserId, session_token: token,
+          last_active_at: new Date().toISOString() }, { onConflict: "session_token" })
+        .select("id").single();
+      if (sessionError || !session?.id) throw new Error("Chat session could not be saved.");
+      const { error } = await supabase.from("chat_messages").insert({
+        user_id: authUserId, sender, message: text, session_id: session.id,
+        ...(extra.formType ? { form_type: extra.formType } : {}),
+        ...(extra.citations ? { citations: extra.citations } : {}),
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Unable to save a local chat turn:", error);
+      setHistoryError("Some chat messages could not be saved. Check your connection.");
+    }
+  }
+
+  async function persistLocalExchange(question: string, answer: string,
+    formType?: string, citations?: string[], token = sessionId) {
+    await persistLocalMessage("user", question, token);
+    await persistLocalMessage("ai", answer, token, { formType, citations });
+  }
+
   useEffect(() => {
     setMessages((current) =>
       current.map((message) =>
@@ -149,7 +326,7 @@ export function ChatInterface() {
   // Resolve sign-in before opening the form so logged-in residents are not
   // accidentally given the guest-only prompt after client navigation.
   useEffect(() => {
-    if (!authChecked || startupRequestHandledRef.current) return;
+    if (!authChecked || historyLoading || (isLoggedIn && !authUserId) || startupRequestHandledRef.current) return;
     startupRequestHandledRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const document = params.get("document");
@@ -172,7 +349,7 @@ export function ChatInterface() {
     } else if (params.get("services") === "1") {
       setServiceDirectoryOpen(true);
     }
-  }, [authChecked, isLoggedIn]);
+  }, [authChecked, isLoggedIn, authUserId, historyLoading]);
 
   useEffect(() => {
     if (!voiceMode || loading) return;
@@ -245,6 +422,11 @@ export function ChatInterface() {
   }
 
   function resetChat() {
+    // "New conversation" creates a NEW session; it never deletes the old one.
+    ++historyLoadVersionRef.current;
+    setSessionId(uuidv4());
+    if (authUserId) window.localStorage.removeItem(memoryKey(authUserId));
+    setChatHistoryOpen(false);
     setMessages([{ id: "welcome", sender: "ai", text: welcomeByLanguage[ttsLang], timestamp: Date.now() }]);
     setInput("");
     voiceTranscriptRef.current = null;
@@ -455,11 +637,20 @@ export function ChatInterface() {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {isLoggedIn && (
+            <button type="button" onClick={() => void openChatHistory()}
+              title="Chat history" aria-label="Chat history"
+              disabled={loading || historyBusy}
+              className="h-8 w-8 rounded-full bg-gray-50 border border-gray-200 text-blue-700 hover:bg-blue-50 flex items-center justify-center disabled:opacity-50">
+              <History className="h-4 w-4" />
+            </button>
+          )}
           {/* New chat button — only visible during a conversation */}
           {!isWelcomeOnly && (
             <button
               type="button"
               onClick={resetChat}
+              disabled={loading || historyBusy || historyLoading}
               title="New conversation"
               aria-label="New conversation"
               className="h-8 w-8 rounded-full bg-gray-50 border border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex items-center justify-center transition-colors"
@@ -834,6 +1025,22 @@ export function ChatInterface() {
         )}
       </form>
 
+      {isLoggedIn && (
+        <ChatHistoryPanel
+          open={chatHistoryOpen}
+          loading={historyLoading}
+          busy={historyBusy || loading}
+          sessions={savedSessions}
+          activeToken={sessionId}
+          rememberPreviousChats={rememberPreviousChats}
+          memoryBusy={memoryBusy}
+          error={historyError}
+          onClose={() => setChatHistoryOpen(false)}
+          onNew={resetChat}
+          onSelect={saved => void switchToSavedSession(saved)}
+          onToggleMemory={enabled => void toggleRememberPreviousChats(enabled)}
+        />
+      )}
       <ServiceDirectory open={serviceDirectoryOpen} onClose={() => setServiceDirectoryOpen(false)} onAsk={handleSuggestion} />
       <GuestAuthModal isOpen={showGuestModal} onClose={() => setShowGuestModal(false)} />
 
