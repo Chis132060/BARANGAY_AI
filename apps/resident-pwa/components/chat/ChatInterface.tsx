@@ -1119,16 +1119,18 @@ export function ChatInterface() {
       {/* Input bar */}
       <form
         ref={formRef}
+        data-chat-composer="true"
         onSubmit={handleSend}
-        className="px-3 py-3 border-t border-gray-100 bg-white flex items-center gap-2 shrink-0"
+        className="flex shrink-0 items-center gap-2 border-t border-gray-100 bg-white px-3 py-3"
       >
-        <div className={`flex-1 flex items-center rounded-2xl border px-3.5 py-2 gap-2 transition-all ${
+        <div className={`flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-2xl border px-3 py-1 transition-all ${
           isListening
             ? "border-red-300 bg-red-50/40"
             : "border-gray-200 bg-gray-50 focus-within:border-blue-300 focus-within:bg-white"
         }`}>
           <input
             type="text"
+            aria-label="Ask Ate Sora a question"
             placeholder={
               isListening
                 ? `Listening in ${ttsLang === "ceb" ? "Cebuano" : ttsLang === "tgl" ? "Tagalog" : "English"}...`
@@ -1138,7 +1140,7 @@ export function ChatInterface() {
             }
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className={`flex-1 bg-transparent text-xs outline-none text-gray-800 placeholder-gray-400 ${
+            className={`min-w-0 w-full flex-1 bg-transparent text-base leading-6 outline-none text-gray-800 placeholder-gray-400 ${
               isListening ? "text-red-700 placeholder-red-400 animate-pulse font-medium" : ""
             }`}
           />
@@ -1150,7 +1152,7 @@ export function ChatInterface() {
                 // Manual microphone input only populates the field; resident confirms sending.
               })}
               title={isListening ? "Listening - click to stop" : "Voice input"}
-              className={`h-7 w-7 rounded-full flex items-center justify-center transition-all shrink-0 ${
+              className={`flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-full transition-all ${
                 isListening
                   ? "bg-red-500 text-white animate-pulse"
                   : "bg-transparent text-gray-400 hover:text-blue-600 hover:bg-blue-50"
@@ -1163,8 +1165,9 @@ export function ChatInterface() {
         {!voiceMode && (
           <button
             type="submit"
+            aria-label="Send message"
             disabled={!input.trim() || loading || historyLoading || historyBusy}
-            className="h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-300 text-white rounded-2xl flex items-center justify-center transition-all shrink-0"
+            className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-2xl bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-300"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
