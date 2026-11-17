@@ -106,6 +106,8 @@ export function ChatInterface() {
         { id: `user-voice-${now}`, sender: "user", text: reply.transcript, timestamp: now },
         { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1, ...detectFormTrigger(reply.transcript, isLoggedIn) },
       ]);
+      if (isLoggedIn) void persistLocalExchange(reply.transcript, reply.answer,
+        detectFormTrigger(reply.transcript, isLoggedIn).formType, reply.citations, sessionId);
     },
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -346,6 +348,11 @@ export function ChatInterface() {
             guestActionTrigger: true, timestamp: Date.now(),
           },
       ]);
+      if (isLoggedIn) {
+        const requestText = `Apply for ${formTitle}`;
+        const responseText = `Narito ang ${formTitle} form. Mula sa verified barangay catalog ang requirements. Walang request na naipapasa hangga't hindi mo pinipindot ang Submit.`;
+        void persistLocalExchange(requestText, responseText, document, [], sessionId);
+      }
     } else if (params.get("services") === "1") {
       setServiceDirectoryOpen(true);
     }
@@ -400,6 +407,12 @@ export function ChatInterface() {
   // A confirmed server receipt closes the inline form and restores normal chat.
   // The reference remains visible in the conversation for the resident to track.
   function handleFormSubmitted(messageId: string, reference: string) {
+    const receiptText = ttsLang === "ceb"
+      ? `Na-submit na ang imong dokumento sa barangay para sa review. Reference: ${reference}. Makita nimo kini sa My Requests. Wala pa'y nakumpirmang bayad o petsa sa pagkuha. Unsa pa akong ikatabang?`
+      : ttsLang === "en"
+        ? `Your document request was submitted to the barangay for review. Reference: ${reference}. Track it in My Requests. No fee or pickup date is confirmed yet. What else can I help you with?`
+        : `Na-submit na ang iyong document request sa barangay para sa review. Reference: ${reference}. Tingnan ang status sa My Requests. Wala pang kumpirmadong bayad o pickup date. Ano pa ang maitutulong ko?`;
+    if (isLoggedIn) void persistLocalMessage("ai", receiptText, sessionId);
     setMessages(previous => {
       if (!previous.some(message => message.id === messageId && message.formType)) return previous;
       return [
@@ -409,11 +422,7 @@ export function ChatInterface() {
         {
           id: `ai-receipt-${uuidv4()}`,
           sender: "ai",
-          text: ttsLang === "ceb"
-            ? `Na-submit na ang imong dokumento sa barangay para sa review. Reference: ${reference}. Makita nimo kini sa My Requests. Wala pa'y nakumpirmang bayad o petsa sa pagkuha. Unsa pa akong ikatabang?`
-            : ttsLang === "en"
-              ? `Your document request was submitted to the barangay for review. Reference: ${reference}. Track it in My Requests. No fee or pickup date is confirmed yet. What else can I help you with?`
-              : `Na-submit na ang iyong document request sa barangay para sa review. Reference: ${reference}. Tingnan ang status sa My Requests. Wala pang kumpirmadong bayad o pickup date. Ano pa ang maitutulong ko?`,
+          text: receiptText,
           isReceipt: true,
           timestamp: Date.now(),
         },
@@ -437,7 +446,7 @@ export function ChatInterface() {
     e.preventDefault();
     const text = overrideText ?? voiceTranscriptRef.current ?? input;
     voiceTranscriptRef.current = null;
-    if (!text.trim() || loading) { voiceRequestInFlightRef.current = false; return; }
+    if (!text.trim() || loading || historyLoading || historyBusy) { voiceRequestInFlightRef.current = false; return; }
 
     const userText = text.trim();
     const userFormRequest = detectFormTrigger(userText, isLoggedIn);
@@ -458,18 +467,18 @@ export function ChatInterface() {
     // server-side authenticated submission; no AI-provided requirements are trusted.
     if (userFormRequest.formType && isDocumentFormId(userFormRequest.formType)) {
       const formTitle = DOCUMENT_FORMS[userFormRequest.formType].title;
+      const formReplyText = ttsLang === "ceb"
+        ? `Ani ang aplikasyon para sa ${formTitle}. Ang mga rekisitos kuhaon gikan sa tinuod nga barangay service catalog. Wala pay napasa nga request.`
+        : ttsLang === "en"
+          ? `Here is your ${formTitle} application. Requirements are loaded from the barangay service catalog. Nothing is submitted until you confirm the form.`
+          : `Narito ang ${formTitle} application. Mula sa barangay service catalog ang requirements. Wala pang request na nasusumite hangga't hindi mo kinukumpirma ang form.`;
       setMessages((prev) => [...prev, {
         id: `ai-form-${uuidv4()}`,
-        sender: "ai",
-        text: ttsLang === "ceb"
-          ? `Ani ang aplikasyon para sa ${formTitle}. Ang mga rekisitos kuhaon gikan sa tinuod nga barangay service catalog. Wala pay napasa nga request.`
-          : ttsLang === "en"
-            ? `Here is your ${formTitle} application. Requirements are loaded from the barangay service catalog. Nothing is submitted until you confirm the form.`
-            : `Narito ang ${formTitle} application. Mula sa barangay service catalog ang requirements. Wala pang request na nasusumite hangga't hindi mo kinukumpirma ang form.`,
-        formType: userFormRequest.formType,
-        formTitle,
+        sender: "ai", text: formReplyText,
+        formType: userFormRequest.formType, formTitle,
         timestamp: Date.now(),
       }]);
+      if (isLoggedIn) void persistLocalExchange(userText, formReplyText, userFormRequest.formType, [], sessionId);
       voiceRequestInFlightRef.current = false;
       return;
     }
@@ -609,7 +618,7 @@ export function ChatInterface() {
       voiceRequestInFlightRef.current = false;
       setLoading(false);
     }
-  }, [input, loading, isLoggedIn, sessionId, supabase, ttsLang]);
+  }, [input, loading, historyLoading, historyBusy, isLoggedIn, sessionId, supabase, ttsLang]);
 
   const handleSuggestion = (query: string) => {
     const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -1017,7 +1026,7 @@ export function ChatInterface() {
         {!voiceMode && (
           <button
             type="submit"
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || historyLoading || historyBusy}
             className="h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-300 text-white rounded-2xl flex items-center justify-center transition-all shrink-0"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
