@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const auditRecorded = await writeFallbackAudit(supabase, {
       userId: user.id, sessionId,
       query: "RESIDENT_CHAT_MEMORY_RECALL", // don't copy private text into audit query
-      answer, citations: [],
+      answer: "[Resident-owned past chat recall returned; content not recorded in audit]", citations: [],
       flagged: false, modelUsed: "resident-chat-history/no-llm",
       tokensPrompt: 0, tokensCompletion: 0,
     });
