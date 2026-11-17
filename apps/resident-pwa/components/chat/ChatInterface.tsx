@@ -80,6 +80,7 @@ export function ChatInterface() {
   const [savedSessions, setSavedSessions] = useState<ResidentChatSession[]>([]);
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyHydrated, setHistoryHydrated] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [rememberPreviousChats, setRememberPreviousChats] = useState(false);
@@ -190,10 +191,12 @@ export function ChatInterface() {
   // back from a document. Never erase it just because the component remounted.
   useEffect(() => {
     if (!authChecked) return;
-    if (!isLoggedIn || !authUserId) {
+    if (!isLoggedIn) {
       setHistoryLoading(false);
+      setHistoryHydrated(true);
       return;
     }
+    if (!authUserId) return;
     const version = ++historyLoadVersionRef.current;
     let cancelled = false;
     async function hydrate() {
@@ -224,7 +227,10 @@ export function ChatInterface() {
       } catch (error) {
         if (!cancelled) setHistoryError(error instanceof Error ? error.message : "Unable to restore chat history.");
       } finally {
-        if (!cancelled) setHistoryLoading(false);
+        if (!cancelled) {
+          setHistoryLoading(false);
+          setHistoryHydrated(true);
+        }
       }
     }
     void hydrate();
@@ -328,7 +334,7 @@ export function ChatInterface() {
   // Resolve sign-in before opening the form so logged-in residents are not
   // accidentally given the guest-only prompt after client navigation.
   useEffect(() => {
-    if (!authChecked || historyLoading || (isLoggedIn && !authUserId) || startupRequestHandledRef.current) return;
+    if (!authChecked || !historyHydrated || historyLoading || (isLoggedIn && !authUserId) || startupRequestHandledRef.current) return;
     startupRequestHandledRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const document = params.get("document");
@@ -356,7 +362,7 @@ export function ChatInterface() {
     } else if (params.get("services") === "1") {
       setServiceDirectoryOpen(true);
     }
-  }, [authChecked, isLoggedIn, authUserId, historyLoading]);
+  }, [authChecked, isLoggedIn, authUserId, historyHydrated, historyLoading]);
 
   useEffect(() => {
     if (!voiceMode || loading) return;
