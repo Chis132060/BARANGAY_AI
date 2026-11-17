@@ -4,6 +4,7 @@ import { runSoraAgent } from "@/lib/ai/sora-agent";
 import { matchServiceFaq, buildServiceFaqAnswer, buildServiceFaqUnavailable } from "@/lib/ai/verified-service-faq";
 import { isPolicyQuestion, getVerifiedPolicyAnswer, isServiceInformationQuestion, getVerifiedServiceAnswer } from "@/lib/ai/verified-policy-grounding";
 import { getVerifiedResidentConcernAnswer, getOfflineConversationReply, isWelfareSupportQuestion } from "@/lib/ai/resident-concern-grounding";
+import { getResidentChatMemory, isChatMemoryQuestion, buildSavedConversationRecall } from "@/lib/ai/sora-chat-memory";
 
 export const runtime = "nodejs";
 
@@ -87,6 +88,28 @@ export async function POST(request: NextRequest) {
       { error: "Too many requests. Please wait a moment before trying again." },
       { status: 429 }
     );
+  }
+
+  // Read ONLY this authenticated resident's own messages. Past-chat context
+  // is opt-in by database preference (never trusted from the request body).
+  // A bounded history supports explicit recall, not fake persistent facts or
+  // memory of every message ever written.
+  const residentMemory = await getResidentChatMemory(supabase, user.id, sessionId);
+  if (isChatMemoryQuestion(message)) {
+    const answer = buildSavedConversationRecall(residentMemory, language, message);
+    const auditRecorded = await writeFallbackAudit(supabase, {
+      userId: user.id, sessionId,
+      query: "RESIDENT_CHAT_MEMORY_RECALL", // don't copy private text into audit query
+      answer, citations: [],
+      flagged: false, modelUsed: "resident-chat-history/no-llm",
+      tokensPrompt: 0, tokensCompletion: 0,
+    });
+    return NextResponse.json({
+      answer, citations: [], context_used: residentMemory.turns.length > 0,
+      auditRecorded, answer_source: "resident_chat_history",
+      model_used: "resident-chat-history/no-llm",
+      tokens_prompt: 0, tokens_completion: 0,
+    });
   }
 
   // Urgent hunger and financial crises must be answered before general service
@@ -247,6 +270,7 @@ export async function POST(request: NextRequest) {
     language,
     apiBaseUrl,
     accessToken: session?.access_token,
+    conversationContext: residentMemory.context,
   });
 
   if (agentResponse) {
