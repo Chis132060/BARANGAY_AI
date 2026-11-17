@@ -81,9 +81,10 @@ export async function getResidentChatMemory(
 }
 
 export function buildSavedConversationRecall(
-  memory: MemoryRead, language: ChatLanguage
+  memory: MemoryRead, language: ChatLanguage, currentQuestion = ""
 ): string {
-  const userTurns = memory.turns.filter(turn => turn.sender === "user").slice(-5);
+  const userTurns = memory.turns.filter(turn => turn.sender === "user" &&
+    turn.message.trim().toLowerCase() !== currentQuestion.trim().toLowerCase()).slice(-5);
   if (!userTurns.length) {
     return language === "en"
       ? "I couldn't find previous saved messages to quote. You can open Chat History to view older conversations. Enable 'Remember previous chats' if you'd like me to use past conversations when answering."
