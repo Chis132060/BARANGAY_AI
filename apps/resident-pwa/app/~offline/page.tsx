@@ -6,10 +6,13 @@ import { loadDocumentDrafts } from "@/lib/offline/document-drafts";
 import { createClient } from "@/lib/supabase/client";
 
 type PublicNotice = { id:string; title:string; description:string };
+type SavedService = { name: string; description: string | null };
 export default function OfflinePage() {
   const [notices,setNotices] = useState<PublicNotice[]>([]);
   const [programs,setPrograms] = useState<Array<{id:string;name:string;description:string|null}>>([]);
   const [organizations,setOrganizations] = useState<Array<{id:string;name:string;description:string|null}>>([]);
+  const [savedServices,setSavedServices] = useState<SavedService[]>([]);
+  const [savedServicesAt,setSavedServicesAt] = useState<number | null>(null);
   const [draftCount,setDraftCount] = useState<number | null>(null);
   const [ticketCount,setTicketCount] = useState<number | null>(null);
   const [lastUpdated,setLastUpdated] = useState<number | null>(null);
@@ -18,10 +21,15 @@ export default function OfflinePage() {
     void (async () => {
       try {
         const snapshot = await loadPublicSnapshot<PublicNotice[]>("announcements");
-        const [programSnapshot, organizationSnapshot] = await Promise.all([
+        const [programSnapshot, organizationSnapshot, serviceSnapshot] = await Promise.all([
           loadPublicSnapshot<Array<{id:string;name:string;description:string|null}>>("barangay-programs"),
           loadPublicSnapshot<Array<{id:string;name:string;description:string|null}>>("barangay-organizations"),
+          loadPublicSnapshot<SavedService[]>("document-types"),
         ]);
+        if (mounted && serviceSnapshot && Array.isArray(serviceSnapshot.data)) {
+          setSavedServices(serviceSnapshot.data.filter(s => s && typeof s.name === "string").slice(0, 40));
+          setSavedServicesAt(serviceSnapshot.cachedAt);
+        }
         if (mounted && programSnapshot) setPrograms(programSnapshot.data.slice(0,5));
         if (mounted && organizationSnapshot) setOrganizations(organizationSnapshot.data.slice(0,5));
         if (mounted && snapshot) {
@@ -50,6 +58,17 @@ export default function OfflinePage() {
       </div>
       {draftCount!==null&&<p className="rounded-xl bg-amber-50 p-3 text-sm">Document drafts on this device: <strong>{draftCount}</strong></p>}
       {ticketCount!==null&&<p className="rounded-xl bg-amber-50 p-3 text-sm">Support tickets waiting to sync: <strong>{ticketCount}</strong></p>}
+      <section className="space-y-2">
+        <h2 className="text-sm font-bold">Saved barangay document services</h2>
+        <p className="text-xs text-slate-600">Offline reference only. Services and descriptions may be outdated; requirements, fees, and submissions need online verification.</p>
+        {savedServicesAt && <p className="text-xs text-slate-500">Last saved: {new Date(savedServicesAt).toLocaleString()}</p>}
+        {savedServices.length ? savedServices.map((s, index) => (
+          <article key={s.name + index} className="rounded-lg border p-3">
+            <h3 className="text-sm font-semibold">{s.name}</h3>
+            {s.description && <p className="mt-1 text-xs text-slate-600">{s.description}</p>}
+          </article>
+        )) : <p className="text-xs text-slate-500">No service catalog saved yet. Open Ate Sora while signed in and online once to prepare the offline guide.</p>}
+      </section>
       <section className="space-y-2">
         <h2 className="text-sm font-bold">Previously saved public announcements</h2>
         {lastUpdated&&<p className="text-xs text-slate-500">Last saved: {new Date(lastUpdated).toLocaleString()}</p>}
