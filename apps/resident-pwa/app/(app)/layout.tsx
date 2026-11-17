@@ -69,12 +69,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return ()=>{active=false;subscription.unsubscribe();};
   }, []);
 
-  if (isLoggedIn === null) {
-    return <div className="relative flex flex-col max-w-md mx-auto bg-white shadow-xl min-h-screen">{children}</div>;
-  }
-
-  if (!isLoggedIn) {
-    return <div className="relative flex flex-col max-w-md mx-auto bg-white min-h-screen">{children}</div>;
+  // Guest chat and the pending-auth view need the same bounded viewport as
+  // the signed-in chat. min-h-screen alone leaves h-full descendants without a
+  // definite height, making the composer float above empty space on phones.
+  if (isLoggedIn === null || !isLoggedIn) {
+    return (
+      <div className={`relative mx-auto flex w-full max-w-md flex-col bg-white ${
+        isChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
+      } ${isLoggedIn === null ? "shadow-xl" : ""}`}>
+        {isChat ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        ) : children}
+      </div>
+    );
   }
 
   return (
