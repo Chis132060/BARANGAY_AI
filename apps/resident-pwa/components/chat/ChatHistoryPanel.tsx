@@ -77,7 +77,7 @@ export function ChatHistoryPanel(props: {
       {props.loading && <div role="status" className="flex gap-2 py-6 text-sm text-gray-500">
         <Loader2 className="h-4 w-4 animate-spin"/> Loading chats...
       </div>}
-      {!props.loading && !props.sessions.length &&
+      {!props.loading && !props.sessions.length && !props.error &&
         <p className="py-6 text-sm text-gray-500">No saved conversations yet. Your first chat will appear here after you send a message.</p>}
       <div className="space-y-2">
         {props.sessions.map(session => (

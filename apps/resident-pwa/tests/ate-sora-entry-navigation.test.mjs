@@ -26,7 +26,9 @@ test("catalog service directory starts forms in the open chat and preserves trac
 
 test("deep-linked service shortcuts wait for authentication and open in-chat form",()=>{
   assert.match(chat,/const \[authChecked, setAuthChecked\] = useState\(false\)/);
-  assert.match(chat,/setIsLoggedIn\(!!user\);\s*setAuthChecked\(true\)/);
+  assert.match(chat,/supabase\.auth\.getSession\(\)/);
+  assert.match(chat,/if \(navigator\.onLine\) \{[\s\S]*?supabase\.auth\.getUser\(\)/);
+  assert.match(chat,/if \(active\) setAuthChecked\(true\)/);
   assert.match(chat,/new URLSearchParams\(window.location.search\)/);
   assert.match(chat,/isDocumentFormId\(document\)/);
   assert.match(chat,/formType: document, formTitle/);
