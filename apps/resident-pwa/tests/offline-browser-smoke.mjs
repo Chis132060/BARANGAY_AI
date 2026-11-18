@@ -48,7 +48,7 @@ try {
     });
     await input.fill("hey");
     await phone.getByRole("button", { name: "Send message" }).click();
-    await phone.getByText(/Kumusta! Ako si Ate Sora/).waitFor({ timeout: 15000 });
+    await phone.getByText(/Maaari kang magtanong tungkol sa barangay services at mga dokumento/).waitFor({ timeout: 15000 });
     await phone.getByText(/Guest Quick Guide · no AI request sent/).waitFor({ timeout: 15000 });
     assert.equal(guestApiCalls.length, 0, "a guest greeting must not call the protected AI route");
     console.log("PASS: guest greeting returns local guidance without a 401 API request");
