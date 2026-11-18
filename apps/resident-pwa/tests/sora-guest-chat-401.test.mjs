@@ -61,5 +61,5 @@ test("the server continues to reject unauthenticated AI calls; expired resident 
   assert.match(chat, /if \(res\.status === 401\)/);
   assert.match(chat, /guestSignInRequired: true/);
   assert.match(chat, /href="\/login"/);
-  assert.doesNotMatch(chat, /getGuestGuideReply\([\s\S]*?\).*fetch\("\/api\/chat"/);
+  assert.match(chat, /voiceRequestInFlightRef\.current = false;\s*return;\s*}\s*setLoading\(true\)/);
 });
