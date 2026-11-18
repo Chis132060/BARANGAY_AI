@@ -19,6 +19,7 @@ import { SoraRealtimeControls } from "./SoraRealtimeControls";
 import { DOCUMENT_FORMS, isDocumentFormId, requestedDocumentForm } from "@/lib/ai/document-forms";
 import { getVerifiedQuestionSuggestions } from "@/lib/ai/policy-knowledge";
 import { matchServiceFaq } from "@/lib/ai/verified-service-faq";
+import { getGuestGuideReply } from "@/lib/ai/sora-guest-guide";
 import { buildOfflineServiceReply, type OfflineDocument, type OfflineDocumentSnapshot } from "@/lib/ai/sora-offline-service-guide";
 import { loadPublicSnapshot, savePublicSnapshot } from "@/lib/offline/public-snapshots";
 import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
@@ -41,6 +42,8 @@ interface Message {
   isError?: boolean;
   isReceipt?: boolean;
   isOfflineGuide?: boolean;
+  isGuestGuide?: boolean;
+  guestSignInRequired?: boolean;
   timestamp?: number;
 }
 
@@ -551,7 +554,7 @@ export function ChatInterface() {
     e.preventDefault();
     const text = overrideText ?? voiceTranscriptRef.current ?? input;
     voiceTranscriptRef.current = null;
-    if (!text.trim() || loading || historyLoading || historyBusy) { voiceRequestInFlightRef.current = false; return; }
+    if (!text.trim() || !authChecked || loading || historyLoading || historyBusy) { voiceRequestInFlightRef.current = false; return; }
 
     const userText = text.trim();
     const userFormRequest = detectFormTrigger(userText, isLoggedIn);
@@ -622,6 +625,22 @@ export function ChatInterface() {
       voiceRequestInFlightRef.current = false;
       return;
     }
+    // Guests can use read-only public navigation, but the server AI endpoint is
+    // authenticated and globally rate-limited. Do not send anonymous requests
+    // that will return 401 or bypass backend permissions/quotas.
+    if (!isLoggedIn) {
+      const guestGuide = getGuestGuideReply(userText, ttsLang);
+      setMessages(previous => [...previous, {
+        id: "ai-guest-guide-" + uuidv4(),
+        sender: "ai",
+        text: guestGuide.text,
+        isGuestGuide: true,
+        guestSignInRequired: guestGuide.needsSignIn,
+        timestamp: Date.now(),
+      }]);
+      voiceRequestInFlightRef.current = false;
+      return;
+    }
     setLoading(true);
 
     // navigator.onLine is only a device hint, not proof that the AI API is unreachable.
@@ -675,6 +694,25 @@ export function ChatInterface() {
         return;
       }
 
+      if (res.status === 401) {
+        // A signed-in UI can still hold an expired/stale session. The API is
+        // authoritative: offer reauthentication; never silently reroute this
+        // request as an anonymous AI call or erase saved conversations.
+        setCachedAuthUnverified(true);
+        setMessages(prev => [...prev, {
+          id: "ai-auth-required-" + uuidv4(),
+          sender: "ai",
+          text: ttsLang === "ceb"
+            ? "Kinahanglan ka mo-sign in pag-usab. Wala madawat sa server ang imong pangutana; wala kini na-submit. Ang daan nga saved chats wala gi-delete."
+            : ttsLang === "en"
+              ? "Please sign in again. The server could not authenticate this question; it was not submitted. Your previous saved chats have not been deleted."
+              : "Kailangan mong mag-sign in muli. Hindi na-authenticate ng server ang tanong na ito at hindi ito na-submit. Hindi nabura ang dati mong saved chats.",
+          isError: true,
+          guestSignInRequired: true,
+          timestamp: Date.now(),
+        }]);
+        return;
+      }
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
@@ -747,7 +785,7 @@ export function ChatInterface() {
       voiceRequestInFlightRef.current = false;
       setLoading(false);
     }
-  }, [input, loading, historyLoading, historyBusy, isLoggedIn, isOnline, sessionId, supabase, ttsLang]);
+  }, [input, authChecked, loading, historyLoading, historyBusy, isLoggedIn, isOnline, sessionId, supabase, ttsLang]);
 
   const handleSuggestion = (query: string) => {
     const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -932,6 +970,7 @@ export function ChatInterface() {
                       : "bg-gray-50 text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100"
                   }`}>
                     {m.isOfflineGuide && <span className="mb-1.5 block text-[10px] font-semibold text-amber-700">Offline Quick Guide · not submitted</span>}
+                    {m.isGuestGuide && <span className="mb-1.5 block text-[10px] font-semibold text-blue-700">Guest Quick Guide · no AI request sent</span>}
                     <p className="whitespace-pre-line">{m.text}</p>
                     {m.isReceipt && <Link href="/requests" className="mt-2 inline-flex min-h-11 items-center font-bold text-blue-700 underline">View My Requests</Link>}
                   </div>
@@ -1000,6 +1039,13 @@ export function ChatInterface() {
                       <InChatFormCard formType={m.formType} title={m.formTitle} sessionId={sessionId} formSchema={m.formSchema}
                          onSubmitted={reference => handleFormSubmitted(m.id, reference)} />
                     </div>
+                  )}
+
+                  {m.guestSignInRequired && (
+                    <Link href="/login"
+                      className="mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
+                      <Lock className="h-3.5 w-3.5" /> Sign in for live AI chat
+                    </Link>
                   )}
 
                   {/* Guest CTA */}
@@ -1166,7 +1212,7 @@ export function ChatInterface() {
           <button
             type="submit"
             aria-label="Send message"
-            disabled={!input.trim() || loading || historyLoading || historyBusy}
+            disabled={!authChecked || !input.trim() || loading || historyLoading || historyBusy}
             className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-2xl bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-300"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
