@@ -39,6 +39,20 @@ try {
     const initialGap = 844 - (initialBox.y + initialBox.height);
     assert.ok(initialGap >= -4 && initialGap <= 34,
       "guest mobile composer must stay anchored near viewport bottom (gap: " + initialGap + "px)");
+    // 401 regression: an unauthenticated visitor must receive local guidance
+    // for ordinary greetings without posting to the protected AI endpoint.
+    const guestApiCalls = [];
+    phone.on("request", request => {
+      if (new URL(request.url()).pathname === "/api/chat")
+        guestApiCalls.push(request.url());
+    });
+    await input.fill("hey");
+    await phone.getByRole("button", { name: "Send message" }).click();
+    await phone.getByText(/Maaari kang magtanong tungkol sa barangay services at mga dokumento/).waitFor({ timeout: 15000 });
+    await phone.getByText(/Guest Quick Guide · no AI request sent/).waitFor({ timeout: 15000 });
+    assert.equal(guestApiCalls.length, 0, "a guest greeting must not call the protected AI route");
+    console.log("PASS: guest greeting returns local guidance without a 401 API request");
+
     const chatInputText = "Paano kumuha ng Certificate of Indigency?";
     await input.fill(chatInputText);
     await phone.waitForFunction(() => {
@@ -52,6 +66,7 @@ try {
     await send.click();
     await phone.getByText(chatInputText, { exact: true }).waitFor({ timeout: 15000 });
     await phone.getByText(/Please sign in with your resident account to access the current application form/).waitFor({ timeout: 15000 });
+    assert.equal(guestApiCalls.length, 0, "guest service navigation must not send requests to /api/chat");
     console.log("PASS: mobile guest composer stays bottom-aligned, accepts typing and submits a chat turn");
   } finally {
     await mobileContext.close();
