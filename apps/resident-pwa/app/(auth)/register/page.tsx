@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-12">
+    <main className="flex min-h-[100dvh] min-w-0 flex-col items-center justify-start bg-white px-4 py-8 min-[375px]:px-6 sm:justify-center sm:py-12">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
           <img src="/logo.png" alt="Smart Barangay Logo" className="h-16 w-auto mb-3 object-contain" />
