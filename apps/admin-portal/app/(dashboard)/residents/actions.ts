@@ -275,6 +275,32 @@ export async function fetchResidentIdPhotoUrl(residentId: string): Promise<strin
   return resolveResidentIdPhotoUrl(supabase, photo);
 }
 
+/** New registration captures use a paired v2 private path, never a public URL. */
+function pairedSelfiePath(idPath: string | null | undefined): string | null {
+  if (!idPath) return null;
+  const match = idPath.match(/^([0-9a-f-]{36})\/id_capture_v2_([0-9a-f-]{36})\.(jpg|png|webp)$/i);
+  return match ? `${match[1]}/selfie_with_id_v2_${match[2]}.${match[3]}` : null;
+}
+
+/** Only staff with resident review access may open a short-lived selfie URL. */
+export async function fetchResidentSelfieWithIdPhotoUrl(residentId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const [canView, canApprove] = await Promise.all([
+    checkUserPermission(user.id, "residents", "canView"),
+    checkUserPermission(user.id, "residents", "canApprove"),
+  ]);
+  if (!canView && !canApprove) throw new Error("Insufficient permissions");
+  const { data: resident, error } = await supabase.from("residents")
+    .select("id_photo_url").eq("id", residentId)
+    .eq("verification_status", "Pending")
+    .not("user_id", "is", null).maybeSingle();
+  if (error) throw new Error(error.message);
+  const path = pairedSelfiePath(resident?.id_photo_url);
+  return path ? resolveResidentIdPhotoUrl(supabase, path) : null;
+}
+
 /** Generate a short-lived signed URL for a verified resident's ID photo. */
 export async function fetchVerifiedResidentPhoto(residentId: string): Promise<string | null> {
   const supabase = createClient();
@@ -294,7 +320,7 @@ export async function fetchVerifiedResidentPhoto(residentId: string): Promise<st
   return resolveResidentIdPhotoUrl(supabase, photo);
 }
 
-export async function approveResident(residentId: string): Promise<{ success: boolean }> {
+export async function approveResident(residentId: string, evidenceReviewed = false): Promise<{ success: boolean }> {
   const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -305,11 +331,19 @@ export async function approveResident(residentId: string): Promise<{ success: bo
 
   const { data: target } = await supabase
     .from("residents")
-    .select("user_id, first_name, last_name, email")
+    .select("user_id, first_name, last_name, email, id_photo_url")
     .eq("id", residentId)
     .maybeSingle();
 
   if (!target || target.user_id === user.id) throw new Error("Cannot review your own account or an unknown resident");
+  const pairedPath = pairedSelfiePath(target.id_photo_url);
+  if (pairedPath) {
+    // v2 signups require both proofs and an explicit staff review before any
+    // state transition. Earlier registrations keep the existing manual path.
+    if (!evidenceReviewed) throw new Error("Review both the ID and selfie-with-ID evidence before approving.");
+    const selfieUrl = await resolveResidentIdPhotoUrl(supabase, pairedPath);
+    if (!selfieUrl) throw new Error("Required selfie-with-ID evidence is missing. Request a new registration capture.");
+  }
 
   const { data: updatedResident, error } = await supabase
     .from("residents")
@@ -343,6 +377,8 @@ export async function approveResident(residentId: string): Promise<{ success: bo
       resident_name: target ? `${target.first_name} ${target.last_name}`.trim() : undefined,
       resident_email: target?.email ?? undefined,
       approved_at: new Date().toISOString(),
+      paired_selfie_required: Boolean(pairedPath),
+      evidence_review_acknowledged: Boolean(pairedPath && evidenceReviewed),
     },
   });
 
