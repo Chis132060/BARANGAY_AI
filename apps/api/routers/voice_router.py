@@ -75,6 +75,10 @@ async def transcribe_voice(request: TranscribeRequest):
 
 class VoiceConversationRequest(TranscribeRequest):
     session_id: str | None = None
+    # For the mobile PWA, return the grounded text as soon as chat finishes.
+    # Browser speech starts immediately, avoiding an extra serial 45–55s TTS call.
+    # Existing API consumers still receive provider speech by default.
+    skip_tts: bool = False
 
 
 @router.post("/voice/converse")
@@ -92,14 +96,16 @@ async def converse_voice(request: VoiceConversationRequest, authorization: Optio
         query=spoken_text, language=request.language, session_id=request.session_id
     ), authorization=authorization)
     answer = chat_result.answer
-    # A text answer is still useful if the speech provider is unavailable.
+    # Never hold the written answer hostage to another slow upstream TTS
+    # request when the PWA can speak it immediately via the device's voice.
     audio = None
     voice_error = None
-    try:
-        speech = await generate_tts(TTSRequest(text=answer[:1500], language=request.language))
-        audio = speech["data"]
-    except HTTPException:
-        voice_error = "Voice playback is temporarily unavailable."
+    if not request.skip_tts:
+        try:
+            speech = await generate_tts(TTSRequest(text=answer[:1500], language=request.language))
+            audio = speech["data"]
+        except HTTPException:
+            voice_error = "Voice playback is temporarily unavailable."
     return {
         "success": True,
         "data": {

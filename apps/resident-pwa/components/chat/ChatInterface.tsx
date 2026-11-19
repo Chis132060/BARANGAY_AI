@@ -26,6 +26,11 @@ import { getAIGreeting, AI_NAME } from "../../lib/ai/config";
 import Link from "next/link";
 
 const SORA_AVATAR = "/ate-sora.jpg";
+const VOICE_GREETING: Record<TTSLanguage, string> = {
+  tgl: "Kumusta! Ako si Ate Sora. Pindutin ang Fast Talk para mabilis akong sumagot, o Record instead kung kailangan.",
+  ceb: "Maayong adlaw! Ako si Ate Sora. I-tap ang Fast Talk para dali akong makatubag, o Record instead.",
+  en: "Hello! I'm Ate Sora. Choose Fast Talk for a quicker spoken reply, or Record instead.",
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,19 +104,26 @@ export function ChatInterface() {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [serviceDirectoryOpen, setServiceDirectoryOpen] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [realtimeSpeaking, setRealtimeSpeaking] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const voiceTranscriptRef = useRef<string | null>(null);
   const voiceRequestInFlightRef = useRef(false);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
-  const { speak, stop: stopSpeaking, speakingId, loadingId } = useTTS();
+  const { speak, stop: stopSpeaking, speakingId, loadingId, playbackError } = useTTS();
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const soraVoice = useSoraVoiceConversation({
     language: ttsLang,
     onReply: (reply) => {
       const now = Date.now();
       const aiId = `ai-voice-${now}`;
-      lastVoiceReplyRef.current = aiId; // voice endpoint already returns spoken audio
+      lastVoiceReplyRef.current = aiId;
+      // Fast push-to-talk replies deliberately omit the slow, serial cloud
+      // audio call. Speak the grounded answer through the device immediately.
+      // Older backends may still include audio; never play two voices at once.
+      if (!reply.audio?.audio_url && voiceModeRef.current) {
+        speak(aiId, reply.answer, reply.language, true);
+      }
       setMessages((prev) => [...prev,
         { id: `user-voice-${now}`, sender: "user", text: reply.transcript, timestamp: now },
         { id: aiId, sender: "ai", text: reply.answer, citations: reply.citations, timestamp: now + 1, ...detectFormTrigger(reply.transcript, isLoggedIn) },
@@ -123,7 +135,8 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
-  const soraIsSpeaking = Boolean(speakingId || loadingId);
+  // Never animate the face while merely fetching or buffering speech.
+  const soraIsSpeaking = Boolean(speakingId || (voiceMode && soraVoice.status === "speaking") || (voiceMode && realtimeSpeaking));
   const voiceModeRef = useRef(false);
   voiceModeRef.current = voiceMode;
 
@@ -471,19 +484,18 @@ export function ChatInterface() {
     const latest = messages[messages.length - 1];
     if (latest?.sender === "ai" && latest.id !== "welcome" && !latest.isError && lastVoiceReplyRef.current !== latest.id) {
       lastVoiceReplyRef.current = latest.id;
-      speak(latest.id, latest.text, ttsLang);
+      speak(latest.id, latest.text, ttsLang, true);
     }
   }, [voiceMode, loading, messages, speak, ttsLang]);
 
+  // Only announce a changed language here. Initial voice greeting is invoked
+  // directly from the user's tap so Safari may start speech with audio unlocked.
   useEffect(() => {
     if (!voiceMode || voiceIntroLanguageRef.current === ttsLang) return;
     voiceIntroLanguageRef.current = ttsLang;
-    const greeting: Record<TTSLanguage, string> = {
-      tgl: "Kumusta! Ako ang Barangay AI. Voice Mode na tayo. Magsalita ka lang pagkatapos ng aking pagbati at awtomatiko kitang sasagutin.",
-      ceb: "Maayong adlaw! Ako ang Barangay AI. Aktibo na ang Voice Mode. Pagsulti lang human sa akong pagtimbaya ug tubagon tika dayon.",
-      en: "Hello! I am Barangay AI. Voice Mode is now active. Speak after my greeting and I will answer you automatically.",
-    };
-    speak("voice-intro", greeting[ttsLang], ttsLang);
+    if (process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true") {
+      speak("voice-intro", VOICE_GREETING[ttsLang], ttsLang, true);
+    }
   }, [voiceMode, ttsLang, speak]);
 
   const selectLanguage = (language: TTSLanguage) => {
@@ -845,10 +857,18 @@ export function ChatInterface() {
           <button
             type="button"
             onClick={() => {
-              setVoiceMode((v) => {
-                if (v) { soraVoice.cancel(); stopListening(); stopSpeaking(); voiceIntroLanguageRef.current = null; }
-                return !v;
-              });
+              if (voiceMode) {
+                soraVoice.cancel(); stopListening(); stopSpeaking();
+                setRealtimeSpeaking(false);
+                voiceIntroLanguageRef.current = null;
+                setVoiceMode(false);
+              } else {
+                setVoiceMode(true);
+                voiceIntroLanguageRef.current = ttsLang;
+                if (process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true") {
+                  speak("voice-intro", VOICE_GREETING[ttsLang], ttsLang, true);
+                }
+              }
             }}
             aria-label="Voice mode"
             className={`h-8 w-8 rounded-full flex items-center justify-center border transition-all ${
@@ -985,7 +1005,7 @@ export function ChatInterface() {
                     <div className="flex items-center gap-1.5 px-1">
                       <button
                         type="button"
-                        onClick={() => speak(m.id, m.text, ttsLang)}
+                        onClick={() => speak(m.id, m.text, ttsLang, voiceMode)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded-full border transition-all ${
                           speakingId === m.id
                             ? "bg-gray-100 text-gray-600 border-gray-200"
@@ -1089,16 +1109,23 @@ export function ChatInterface() {
         </div>
       </div>
 
-      {/* Speaking presence overlay */}
+      {/* Speaking avatar: no false talking animation while TTS is loading.
+          Text-to-speech is audible; this is an expressive animation, not
+          frame-accurate facial/lip synthesis. Keep chat controls accessible. */}
       {soraIsSpeaking && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-[2px]" aria-hidden="true">
-          <div className="relative h-48 w-48">
-            <span className="absolute inset-0 rounded-full bg-blue-300/25 animate-ping" />
-            <span className="absolute -inset-3 rounded-full border border-blue-200/80 animate-pulse" />
-            <div className="relative h-full w-full overflow-hidden rounded-full bg-blue-50 shadow-2xl shadow-slate-950/30 ring-4 ring-white/90">
-              <img src={SORA_AVATAR} alt="Ate Sora is speaking" className="h-full w-full object-cover object-top" />
-              <span className="absolute left-1/2 top-[62%] h-3 w-7 -translate-x-1/2 rounded-full bg-[#9D3E55] shadow-sm animate-pulse" aria-hidden="true" />
+        <div role="status" aria-label="Ate Sora is speaking" className="pointer-events-none absolute left-1/2 top-14 z-40 -translate-x-1/2 rounded-3xl border border-blue-100 bg-white/95 px-5 py-4 text-center shadow-xl backdrop-blur-sm">
+          <div className="relative mx-auto h-36 w-36">
+            <span className="absolute -inset-2 animate-pulse rounded-full border-2 border-blue-200" aria-hidden="true" />
+            <div className="relative h-full w-full overflow-hidden rounded-full bg-blue-50 ring-4 ring-white">
+              <img src={SORA_AVATAR} alt="" className="h-full w-full object-cover object-top" />
+              <span aria-hidden="true" className="sora-speaking-mouth absolute left-1/2 top-[63%] h-1.5 w-5 -translate-x-1/2 rounded-full bg-[#873448]/85 shadow-sm" />
             </div>
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-900">
+            <span className="sora-speaking-bar h-3 w-1 rounded-full bg-blue-600" />
+            <span className="sora-speaking-bar h-5 w-1 rounded-full bg-blue-500 [animation-delay:120ms]" />
+            <span className="sora-speaking-bar h-3 w-1 rounded-full bg-blue-600 [animation-delay:240ms]" />
+            <span className="ml-1 whitespace-nowrap">Ate Sora is speaking</span>
           </div>
         </div>
       )}
@@ -1132,26 +1159,60 @@ export function ChatInterface() {
         <SoraRealtimeControls language={ttsLang} sessionId={sessionId}
           onUserTranscript={(transcript) => setMessages((prev) => [...prev, { id: "user-live-" + Date.now(), sender: "user", text: transcript, timestamp: Date.now() }])}
           onAssistantMessage={(answer) => setMessages((prev) => [...prev, { id: "ai-live-" + Date.now(), sender: "ai", text: answer, timestamp: Date.now() }])}
-          onEnd={() => setVoiceMode(false)} />
+          onSpeakingChange={setRealtimeSpeaking}
+          onEnd={() => { setRealtimeSpeaking(false); setVoiceMode(false); }} />
       )}
 
       {/* Voice mode status bar */}
       {voiceMode && process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true" && (
-        <div className="px-4 py-2.5 bg-blue-50 border-t border-blue-100 flex items-center justify-between shrink-0">
-          <div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-blue-100 bg-blue-50 px-3 py-2.5 min-[375px]:px-4">
+          <div className="min-w-[130px] flex-1">
             <p className="text-xs font-bold text-blue-800">Voice Mode Active</p>
-            <p className="text-[10px] text-blue-600 mt-0.5">
-              Speak in {ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano" : "English"} — AI will respond automatically.
+            <p className="mt-0.5 text-[10px] text-blue-600">
+              {soraVoice.status === "processing" ? "Understanding your question..." : `Tap to Talk in ${ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano" : "English"}, then Stop & Ask.`}
             </p>
           </div>
+          {isLoggedIn && isOnline && isSupported && (
+            <button
+              type="button"
+              aria-label={isListening ? "Stop fast voice recognition" : "Fast talk with Ate Sora"}
+              disabled={loading || soraVoice.status === "recording" || soraVoice.status === "processing"}
+              onClick={() => {
+                if (isListening) {
+                  stopListening();
+                } else {
+                  stopSpeaking();
+                  startListening(ttsLang, transcript => {
+                    if (voiceRequestInFlightRef.current) return;
+                    voiceRequestInFlightRef.current = true;
+                    // Route through the same authenticated, grounded chat
+                    // endpoint; no parallel speech-to-text upload needed.
+                    void handleSend({ preventDefault() {} } as React.FormEvent, transcript);
+                  });
+                }
+              }}
+              className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50 ${isListening ? "bg-red-600" : "bg-blue-600"}`}
+            >
+              {isListening ? "Stop listening" : "Fast Talk"}
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => soraVoice.status === "recording" ? soraVoice.stopRecording() : void soraVoice.startRecording()}
+            onClick={() => {
+              if (soraVoice.status === "recording") {
+                soraVoice.stopRecording();
+              } else {
+                // Prevent Ate Sora's introduction from being recorded as the
+                // resident's microphone question, especially on loud phones.
+                stopSpeaking();
+                void soraVoice.startRecording();
+              }
+            }}
             disabled={soraVoice.status === "processing" || soraVoice.status === "speaking"}
             aria-label={soraVoice.status === "recording" ? "Stop recording and ask Ate Sora" : "Record question for Ate Sora"}
-            className="ml-2 shrink-0 rounded-full bg-blue-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
+            className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-2 text-[10px] font-bold text-blue-700 disabled:opacity-50"
           >
-            {soraVoice.status === "recording" ? "Stop & Ask" : soraVoice.status === "processing" ? "Thinking..." : soraVoice.status === "speaking" ? "Speaking..." : "Tap to Talk"}
+            {soraVoice.status === "recording" ? "Stop & Ask" : soraVoice.status === "processing" ? "Thinking..." : soraVoice.status === "speaking" ? "Speaking..." : "Record instead"}
           </button>
           {isListening && (
             <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 animate-pulse">
@@ -1159,6 +1220,15 @@ export function ChatInterface() {
             </span>
           )}
           {soraVoice.error && <span role="alert" className="text-[10px] text-red-600">{soraVoice.error}</span>}
+          {playbackError && (
+            <div role="alert" className="flex min-w-0 items-center gap-2 text-[10px] text-amber-700">
+              <span>{playbackError}</span>
+              <button type="button" className="shrink-0 rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold" onClick={() => {
+                const latest = [...messages].reverse().find(m => m.sender === "ai" && !m.isError);
+                if (latest) speak(latest.id, latest.text, ttsLang, true);
+              }}>Hear reply</button>
+            </div>
+          )}
         </div>
       )}
 
