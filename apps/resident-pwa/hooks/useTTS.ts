@@ -5,11 +5,13 @@ import { useState, useCallback, useRef } from "react";
 export type TTSLanguage = "tgl" | "ceb" | "en";
 type TTSState = "IDLE" | "LOADING" | "PLAYING" | "ERROR";
 interface UseTTSReturn {
-  speak: (messageId: string, text: string, language?: TTSLanguage, preferFast?: boolean) => void;
+  speak: (messageId: string, text: string, language?: TTSLanguage) => void;
   stop: () => void;
   speakingId: string | null;
   loadingId: string | null;
   playbackError: string | null;
+  playbackNotice: string | null;
+  retryLastSpeech: () => void;
 }
 
 function cleanText(text: string): string {
@@ -23,10 +25,14 @@ export function useTTS(): UseTTSReturn {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
+  // Keep only the latest generated audio in memory for an iPhone tap-to-replay.
+  const cachedNaturalAudioRef = useRef<{ text: string; language: TTSLanguage; url: string } | null>(null);
+  const lastSpeechRef = useRef<{ messageId: string; text: string; language: TTSLanguage } | null>(null);
 
   const stopInternal = useCallback(() => {
     abortRef.current?.abort();
@@ -48,6 +54,7 @@ export function useTTS(): UseTTSReturn {
     setLoadingId(null);
     setTtsState("IDLE");
     setPlaybackError(null);
+    setPlaybackNotice(null);
   }, [stopInternal]);
 
   const playBrowserSpeech = useCallback((text: string, language: TTSLanguage, messageId: string, generation: number) =>
@@ -85,73 +92,115 @@ export function useTTS(): UseTTSReturn {
       window.speechSynthesis.speak(utterance);
     }), []);
 
+  // The cloud provider returns the configured Ate Sora voice. A blocked iOS
+  // autoplay is distinct from a provider failure: preserve the audio for a
+  // direct tap to replay rather than silently switching to a robotic voice.
   const playGeneratedAudio = useCallback((audioUrl: string, messageId: string, generation: number) =>
-    new Promise<boolean>((resolve) => {
-      if (generationRef.current !== generation || !audioUrl.startsWith("data:audio/")) { resolve(false); return; }
+    new Promise<"finished" | "blocked" | "failed">((resolve) => {
+      if (generationRef.current !== generation || !audioUrl.startsWith("data:audio/")) {
+        resolve("failed"); return;
+      }
       const audio = new Audio(audioUrl);
       audio.preload = "auto";
       audioRef.current = audio;
+      let settled = false;
+      const finish = (result: "finished" | "blocked" | "failed") => {
+        if (settled) return;
+        settled = true;
+        audio.onplay = null; audio.onended = null; audio.onerror = null; audio.onpause = null;
+        if (audioRef.current === audio) audioRef.current = null;
+        resolve(result);
+      };
       audio.onplay = () => {
-        if (generationRef.current !== generation) { audio.pause(); resolve(false); return; }
+        if (generationRef.current !== generation) { audio.pause(); finish("failed"); return; }
         setLoadingId(null); setSpeakingId(messageId); setTtsState("PLAYING");
       };
-      audio.onended = () => { audioRef.current = null; resolve(true); };
-      audio.onerror = () => { audioRef.current = null; resolve(false); };
-      audio.play().catch(() => { audioRef.current = null; resolve(false); });
+      audio.onended = () => finish("finished");
+      audio.onerror = () => finish("failed");
+      audio.onpause = () => { if (!audio.ended) finish("failed"); };
+      void audio.play().catch((error: unknown) => {
+        const name = error instanceof Error ? error.name : "";
+        finish(name === "NotAllowedError" ? "blocked" : "failed");
+      });
     }), []);
 
-  const speak = useCallback((messageId: string, text: string, language: TTSLanguage = "tgl", preferFast = false) => {
+  const speak = useCallback((messageId: string, text: string, language: TTSLanguage = "tgl") => {
     if (speakingId === messageId || loadingId === messageId) { stop(); return; }
     const generation = ++generationRef.current;
     stopInternal();
+    const spokenText = cleanText(text);
+    lastSpeechRef.current = { messageId, text, language };
     setSpeakingId(null); setLoadingId(messageId); setTtsState("LOADING");
-    setPlaybackError(null);
+    setPlaybackError(null); setPlaybackNotice(null);
 
-    (async () => {
-      let played = false;
-      // The voice-mode greeting is initiated by a real tap. Speak immediately
-      // using device voices, rather than first waiting up to 55s for cloud TTS.
-      if (preferFast) played = await playBrowserSpeech(text, language, messageId, generation);
-      if (generationRef.current !== generation) return;
-
-      if (!played) {
+    void (async () => {
+      let providerResult: "finished" | "blocked" | "failed" = "failed";
+      // Fast Talk returns the grounded text immediately, but voice quality
+      // should NOT depend on whether the resident used Fast Talk or Record.
+      // Always try the existing configured Gemini/OpenAI Ate Sora voice first.
+      const cached = cachedNaturalAudioRef.current;
+      if (cached?.text === spokenText && cached.language === language) {
+        providerResult = await playGeneratedAudio(cached.url, messageId, generation);
+        if (providerResult === "failed") cachedNaturalAudioRef.current = null;
+      } else if (typeof navigator === "undefined" || navigator.onLine !== false) {
         const controller = new AbortController();
         abortRef.current = controller;
-        const deadline = window.setTimeout(() => controller.abort(), 8500);
+        // Give natural speech enough time to start; the previous 8.5-second
+        // deadline was too short and caused frequent generic device fallback.
+        const deadline = window.setTimeout(() => controller.abort(), 22000);
         try {
           const res = await fetch("/api/tts", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: cleanText(text), language }),
+            body: JSON.stringify({ text: spokenText, language }),
             signal: controller.signal, cache: "no-store",
           });
           if (generationRef.current !== generation) return;
           if (res.ok) {
             const data = await res.json();
-            if (typeof data?.data?.audio_url === "string") {
-              played = await playGeneratedAudio(data.data.audio_url, messageId, generation);
+            const audioUrl = data?.data?.audio_url;
+            if (typeof audioUrl === "string" && audioUrl.startsWith("data:audio/")) {
+              cachedNaturalAudioRef.current = { text: spokenText, language, url: audioUrl };
+              providerResult = await playGeneratedAudio(audioUrl, messageId, generation);
             }
           } else {
-            console.warn("[TTS] Generated voice HTTP", res.status);
+            console.warn("[TTS] Natural voice unavailable, HTTP", res.status);
           }
-        } catch (error) {
+        } catch {
           if (generationRef.current !== generation) return;
-          console.warn("[TTS] Generated voice did not start promptly; using device voice.");
+          console.warn("[TTS] Natural voice timed out or could not be reached.");
         } finally {
           window.clearTimeout(deadline);
           if (abortRef.current === controller) abortRef.current = null;
         }
       }
       if (generationRef.current !== generation) return;
-      if (!played && !preferFast) played = await playBrowserSpeech(text, language, messageId, generation);
+      if (providerResult === "blocked") {
+        // Keep the natural voice cached: the user can now tap to play it
+        // directly from a gesture, even when Safari blocks async autoplay.
+        setPlaybackError("Your phone blocked automatic audio. Tap Hear natural voice to play Ate Sora.");
+        setTtsState("ERROR"); setSpeakingId(null); setLoadingId(null);
+        return;
+      }
+
+      let played = providerResult === "finished";
+      if (!played) {
+        setPlaybackNotice("Natural Ate Sora voice is unavailable. Using your phone's basic voice as backup.");
+        played = await playBrowserSpeech(text, language, messageId, generation);
+      }
       if (generationRef.current !== generation) return;
       if (!played) {
-        setPlaybackError("No audio started. Tap Listen on the reply and check your device volume and sound settings.");
-        console.warn("[TTS] No audible voice playback was available.");
+        setPlaybackError("No audio started. Tap Hear natural voice and check your phone's sound settings.");
+        console.warn("[TTS] Neither natural voice nor device voice could play.");
       }
       setTtsState(played ? "IDLE" : "ERROR");
-      setSpeakingId(null); setLoadingId(null); audioRef.current = null;
+      setSpeakingId(null); setLoadingId(null);
     })();
   }, [speakingId, loadingId, stop, stopInternal, playGeneratedAudio, playBrowserSpeech]);
 
-  return { speak, stop, speakingId, loadingId, playbackError };
+  const retryLastSpeech = useCallback(() => {
+    const last = lastSpeechRef.current;
+    if (last) speak(last.messageId, last.text, last.language);
+  }, [speak]);
+
+  return { speak, stop, speakingId, loadingId, playbackError, playbackNotice, retryLastSpeech };
 }

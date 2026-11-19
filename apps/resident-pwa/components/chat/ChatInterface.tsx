@@ -110,7 +110,7 @@ export function ChatInterface() {
   const voiceRequestInFlightRef = useRef(false);
   const lastVoiceReplyRef = useRef<string | null>(null);
   const voiceIntroLanguageRef = useRef<TTSLanguage | null>(null);
-  const { speak, stop: stopSpeaking, speakingId, loadingId, playbackError } = useTTS();
+  const { speak, stop: stopSpeaking, speakingId, loadingId, playbackError, playbackNotice, retryLastSpeech } = useTTS();
   const { isListening, isSupported, startListening, toggleListening, stopListening } = useSTT();
   const soraVoice = useSoraVoiceConversation({
     language: ttsLang,
@@ -118,11 +118,11 @@ export function ChatInterface() {
       const now = Date.now();
       const aiId = `ai-voice-${now}`;
       lastVoiceReplyRef.current = aiId;
-      // Fast push-to-talk replies deliberately omit the slow, serial cloud
-      // audio call. Speak the grounded answer through the device immediately.
+      // Fast push-to-talk delivers the grounded text without waiting for TTS.
+      // The shared player then prefers Ate Sora's natural provider voice.
       // Older backends may still include audio; never play two voices at once.
       if (!reply.audio?.audio_url && voiceModeRef.current) {
-        speak(aiId, reply.answer, reply.language, true);
+        speak(aiId, reply.answer, reply.language);
       }
       setMessages((prev) => [...prev,
         { id: `user-voice-${now}`, sender: "user", text: reply.transcript, timestamp: now },
@@ -484,7 +484,7 @@ export function ChatInterface() {
     const latest = messages[messages.length - 1];
     if (latest?.sender === "ai" && latest.id !== "welcome" && !latest.isError && lastVoiceReplyRef.current !== latest.id) {
       lastVoiceReplyRef.current = latest.id;
-      speak(latest.id, latest.text, ttsLang, true);
+      speak(latest.id, latest.text, ttsLang);
     }
   }, [voiceMode, loading, messages, speak, ttsLang]);
 
@@ -494,7 +494,7 @@ export function ChatInterface() {
     if (!voiceMode || voiceIntroLanguageRef.current === ttsLang) return;
     voiceIntroLanguageRef.current = ttsLang;
     if (process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true") {
-      speak("voice-intro", VOICE_GREETING[ttsLang], ttsLang, true);
+      speak("voice-intro", VOICE_GREETING[ttsLang], ttsLang);
     }
   }, [voiceMode, ttsLang, speak]);
 
@@ -866,7 +866,7 @@ export function ChatInterface() {
                 setVoiceMode(true);
                 voiceIntroLanguageRef.current = ttsLang;
                 if (process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true") {
-                  speak("voice-intro", VOICE_GREETING[ttsLang], ttsLang, true);
+                  speak("voice-intro", VOICE_GREETING[ttsLang], ttsLang);
                 }
               }
             }}
@@ -1005,7 +1005,7 @@ export function ChatInterface() {
                     <div className="flex items-center gap-1.5 px-1">
                       <button
                         type="button"
-                        onClick={() => speak(m.id, m.text, ttsLang, voiceMode)}
+                        onClick={() => speak(m.id, m.text, ttsLang)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded-full border transition-all ${
                           speakingId === m.id
                             ? "bg-gray-100 text-gray-600 border-gray-200"
@@ -1220,13 +1220,14 @@ export function ChatInterface() {
             </span>
           )}
           {soraVoice.error && <span role="alert" className="text-[10px] text-red-600">{soraVoice.error}</span>}
+          {playbackNotice && (
+            <p role="status" className="min-w-0 text-[10px] text-amber-800">{playbackNotice}</p>
+          )}
           {playbackError && (
             <div role="alert" className="flex min-w-0 items-center gap-2 text-[10px] text-amber-700">
               <span>{playbackError}</span>
-              <button type="button" className="shrink-0 rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold" onClick={() => {
-                const latest = [...messages].reverse().find(m => m.sender === "ai" && !m.isError);
-                if (latest) speak(latest.id, latest.text, ttsLang, true);
-              }}>Hear reply</button>
+              <button type="button" className="shrink-0 rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold"
+                onClick={retryLastSpeech}>Hear natural voice</button>
             </div>
           )}
         </div>

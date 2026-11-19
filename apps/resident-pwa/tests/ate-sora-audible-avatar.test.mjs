@@ -16,20 +16,27 @@ test("voice request returns answer without waiting on sequential server TTS", ()
   assert.match(api, /if not request\.skip_tts:/);
   assert.match(ptt, /onReplyRef\.current\?\.\(reply\)/);
   assert.match(chat, /if \(!reply\.audio\?\.audio_url && voiceModeRef\.current\)/);
-  assert.match(chat, /speak\(aiId, reply\.answer, reply\.language, true\)/);
+  assert.match(chat, /speak\(aiId, reply\.answer, reply\.language\)/);
 });
 
-test("voice greeting starts on tap and native voice is preferred before slow network", () => {
+test("voice greeting starts on tap, with natural provider voice preferred over device speech", () => {
   assert.match(chat, /voiceIntroLanguageRef\.current = ttsLang;/);
-  assert.match(chat, /speak\("voice-intro", VOICE_GREETING\[ttsLang\], ttsLang, true\)/);
-  assert.match(tts, /if \(preferFast\) played = await playBrowserSpeech/);
-  assert.match(tts, /setTimeout\(\(\) => controller\.abort\(\), 8500\)/);
+  assert.match(chat, /speak\("voice-intro", VOICE_GREETING\[ttsLang\], ttsLang\)/);
+  assert.match(tts, /const res = await fetch\("\/api\/tts"/);
+  assert.ok(tts.indexOf('fetch("/api/tts"') < tts.indexOf("played = await playBrowserSpeech"), "provider audio must precede basic browser fallback");
+  assert.doesNotMatch(tts, /if \(preferFast\) played = await playBrowserSpeech/);
+  assert.match(tts, /setTimeout\(\(\) => controller\.abort\(\), 22000\)/);
   assert.match(tts, /const startTimeout = window\.setTimeout/);
   assert.match(tts, /utteranceRef\.current = utterance/);
   assert.match(tts, /setPlaybackError\("No audio started/);
+  assert.match(tts, /providerResult === "blocked"/);
+  assert.match(tts, /cachedNaturalAudioRef\.current = \{ text: spokenText, language, url: audioUrl \}/);
+  assert.match(tts, /const retryLastSpeech = useCallback/);
+  assert.match(tts, /setPlaybackNotice\("Natural Ate Sora voice is unavailable/);
+  assert.match(chat, /onClick=\{retryLastSpeech\}>Hear natural voice/);
   assert.match(chat, /playbackError && \(/);
   assert.match(chat, /<div role="alert"/);
-  assert.match(chat, /Hear reply/);
+  assert.match(chat, /Hear natural voice/);
 });
 
 test("speaking avatar only animates when real playback starts", () => {
@@ -58,6 +65,6 @@ test("fast talk sends on-device final transcripts through authenticated chat, no
   assert.match(chat, /void handleSend\(\{ preventDefault\(\) \{\} \} as React\.FormEvent, transcript\)/);
   assert.match(chat, /Fast Talk/);
   assert.match(chat, /Record instead/);
-  assert.match(chat, /speak\(latest\.id, latest\.text, ttsLang, true\)/);
+  assert.match(chat, /speak\(latest\.id, latest\.text, ttsLang\)/);
   assert.match(chat, /stopSpeaking\(\);\s+startListening/);
 });
