@@ -178,18 +178,18 @@ export function RegisterForm() {
   return (
     <div className="min-w-0 space-y-5">
       {/* Step Indicator */}
-      <div className="grid grid-cols-4 gap-1 border-b pb-3 text-[10px] min-[390px]:text-xs">
-        <span className={`font-bold flex items-center gap-1.5 ${step === 1 ? "text-blue-600" : "text-gray-400"}`}>
+      <div className="grid min-w-0 grid-cols-4 gap-1 border-b pb-3 text-[10px] min-[375px]:text-xs">
+        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 1 ? "text-blue-600" : "text-gray-400"}`}>
           <User className="h-4 w-4" /> 1. Personal
         </span>
-        <span className={`font-bold flex items-center gap-1.5 ${step === 2 ? "text-blue-600" : "text-gray-400"}`}>
+        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 2 ? "text-blue-600" : "text-gray-400"}`}>
           <MapPin className="h-4 w-4" /> 2. Address
         </span>
-        <span className={`font-bold flex items-center gap-1.5 ${step === 3 ? "text-blue-600" : "text-gray-400"}`}>
+        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 3 ? "text-blue-600" : "text-gray-400"}`}>
           <KeyRound className="h-4 w-4" /> 3. Account
         </span>
-        <span className={`font-bold flex items-center gap-1.5 ${step === 4 ? "text-blue-600" : "text-gray-400"}`}>
-          <FileCheck className="h-4 w-4" /> 4. ID Verification
+        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 4 ? "text-blue-600" : "text-gray-400"}`}>
+          <FileCheck className="h-4 w-4" /> 4. ID
         </span>
       </div>
 
@@ -216,7 +216,7 @@ export function RegisterForm() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid min-w-0 grid-cols-1 gap-2 min-[375px]:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Middle Name</label>
               <input
@@ -224,7 +224,7 @@ export function RegisterForm() {
                 placeholder="Santos"
                 value={formData.middleName}
                 onChange={(e) => handleInputChange("middleName", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -235,12 +235,12 @@ export function RegisterForm() {
                 placeholder="Dela Cruz"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange("lastName", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid min-w-0 grid-cols-1 gap-2 min-[375px]:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth *</label>
               <input
@@ -248,7 +248,7 @@ export function RegisterForm() {
                 required
                 value={formData.birthDate}
                 onChange={(e) => handleInputChange("birthDate", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3 py-2 text-base outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -256,7 +256,7 @@ export function RegisterForm() {
               <select
                 value={formData.gender}
                 onChange={(e) => handleInputChange("gender", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -272,7 +272,7 @@ export function RegisterForm() {
               placeholder="09171234567"
               value={formData.contactNumber}
               onChange={(e) => handleInputChange("contactNumber", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -305,7 +305,7 @@ export function RegisterForm() {
             <select
               value={formData.purok}
               onChange={(e) => handleInputChange("purok", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
+              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
             >
               {PUROK_OPTIONS.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -321,7 +321,7 @@ export function RegisterForm() {
               placeholder="Rizal Street"
               value={formData.street}
               onChange={(e) => handleInputChange("street", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -332,7 +332,7 @@ export function RegisterForm() {
               placeholder="House # 123"
               value={formData.houseNumber}
               onChange={(e) => handleInputChange("houseNumber", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -343,7 +343,7 @@ export function RegisterForm() {
               placeholder="Ask your household head or Barangay staff"
               value={formData.householdCode}
               onChange={(e) => handleInputChange("householdCode", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="mt-1 text-[10px] text-gray-500">If staff already added your family record, this helps connect your PWA account to it after your details are verified.</p>
           </div>
@@ -385,7 +385,7 @@ export function RegisterForm() {
                     placeholder="e.g. 5"
                     value={formData.boarderCount}
                     onChange={(e) => handleInputChange("boarderCount", e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                    className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-[10px] text-gray-400 mt-1">Count yourself and all co-boarders individually.</p>
                 </div>
@@ -449,7 +449,7 @@ export function RegisterForm() {
               placeholder="juan@example.com"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 

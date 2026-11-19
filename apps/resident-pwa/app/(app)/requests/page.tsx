@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ClipboardList, Clock, RefreshCw, FileText, CheckCircle2,
-  AlertCircle, DollarSign, Bot, ArrowRight, QrCode, X, Loader2, Eye
+  AlertCircle, DollarSign, ArrowRight, QrCode, X, Loader2, Eye
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import QRScanner from "@/components/payments/QRScanner";
@@ -191,7 +191,7 @@ export default function RequestsPage() {
   };
 
   return (
-    <div className="p-4 space-y-4 pb-24 relative">
+    <div className="resident-screen relative space-y-4 px-3 py-4 pb-7 min-[375px]:px-4">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -218,7 +218,7 @@ export default function RequestsPage() {
             href="/chat"
             className="flex items-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-sm"
           >
-            <Bot className="h-3.5 w-3.5" />
+            <img src="/ate-sora.jpg" alt="" aria-hidden="true" className="h-5 w-5 shrink-0 rounded-full object-cover object-top ring-1 ring-white/70" />
             Ask Ate Sora
           </Link>
         </div>
@@ -290,23 +290,23 @@ export default function RequestsPage() {
             return (
               <div
                 key={req.id}
-                className={`bg-white rounded-2xl border p-4 shadow-2xs space-y-3 transition-all ${
+                className={`min-w-0 space-y-3 rounded-2xl border bg-white p-3 shadow-2xs transition-all min-[375px]:p-4 ${
                   isReadyForPickup
                     ? "border-emerald-300 ring-2 ring-emerald-500/20 bg-gradient-to-br from-white to-emerald-50/30"
                     : "border-gray-100"
                 }`}
               >
                 {/* Title and Status Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-col gap-2 min-[360px]:flex-row min-[360px]:items-start min-[360px]:justify-between">
+                  <div className="flex min-w-0 items-start gap-2.5">
                     <div className={`p-2 rounded-xl ${isReadyForPickup ? "bg-emerald-100 text-emerald-700" : "bg-blue-50 text-blue-600"}`}>
                       <FileText className="h-4 w-4" />
                     </div>
-                    <div>
-                      <span className="font-extrabold text-xs text-gray-900 block">
+                    <div className="min-w-0 flex-1">
+                      <span className="block break-words text-sm font-extrabold leading-snug text-gray-900">
                         {req.document_type?.name || "Barangay Document"}
                       </span>
-                      <p className="mt-1 break-all font-mono text-[10px] text-blue-700" aria-label="Request reference">Ref: {formatRequestReference(req.id)}</p>
+                      <p className="mt-1 break-all font-mono text-[10px] leading-relaxed text-blue-700" aria-label="Request reference">Ref: {formatRequestReference(req.id)}</p>
                       {req.session_id && (
                         <span className="text-[10px] text-gray-400 font-mono">
                           Batch: {req.session_id.slice(0, 10)}
@@ -314,14 +314,14 @@ export default function RequestsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider ${getStatusBadge(req.status)}`}>
+                  <div className="flex shrink-0 items-center justify-between gap-2 min-[360px]:justify-end">
+                    <span className={`max-w-full break-words rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider ${getStatusBadge(req.status)}`}>
                       {req.status}
                     </span>
                     <button
                       onClick={() => setViewingRequest(req)}
-                      className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-                      title="View Details"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200"
+                      title="View Details" aria-label="View request details"
                     >
                       <Eye className="h-4 w-4" />
                     </button>
@@ -348,8 +348,8 @@ export default function RequestsPage() {
                 )}
 
                 {/* Fee and Payment Info */}
-                <div className="flex items-center justify-between bg-gray-50/80 p-2.5 rounded-xl text-xs">
-                  <div className="flex items-center gap-1.5 text-gray-600">
+                <div className="flex min-w-0 flex-col gap-2 rounded-xl bg-gray-50/80 p-3 text-xs min-[390px]:flex-row min-[390px]:items-start min-[390px]:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-gray-600">
                     <DollarSign className="h-3.5 w-3.5 text-gray-400" />
                     <span className="text-[11px]">Payment:</span>
                     <span className={`font-bold text-[11px] ${isFree ? "text-emerald-700" : "text-blue-700"}`}>
@@ -372,7 +372,7 @@ export default function RequestsPage() {
                     {canPay && (
                       <button 
                         onClick={() => setPayingRequest(req)}
-                        className="flex items-center gap-1 bg-gray-900 text-white px-2 py-1 rounded-md text-[10px] font-bold hover:bg-gray-800"
+                        className="flex min-h-11 items-center gap-1 rounded-xl bg-gray-900 px-3 py-2 text-xs font-bold text-white hover:bg-gray-800"
                       >
                         <QrCode className="h-3 w-3" /> Pay GCash
                       </button>
@@ -388,7 +388,7 @@ export default function RequestsPage() {
                 )}
 
                 {/* Metadata Footer */}
-                <div className="flex items-center justify-between text-[10px] text-gray-400 font-mono pt-1 border-t border-gray-50">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-gray-100 pt-2 font-mono text-[10px] text-gray-500">
                   <span>Applied: {new Date(req.requested_date).toLocaleDateString()}</span>
                   <span>ID: {req.id.slice(0, 8)}</span>
                 </div>
@@ -400,8 +400,8 @@ export default function RequestsPage() {
 
       {/* Payment Modal */}
       {payingRequest && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+          <div className="mobile-sheet w-full max-w-sm rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
             {!scannedQR ? (
               <QRScanner
                 onScan={handleScan}
@@ -457,8 +457,8 @@ export default function RequestsPage() {
 
       {/* View Details (Eye) Modal */}
       {viewingRequest && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+          <div className="mobile-sheet w-full max-w-sm space-y-4 rounded-t-3xl bg-white px-4 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl sm:rounded-3xl sm:p-5">
             <div className="flex justify-between items-center border-b pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-600" />
@@ -477,7 +477,7 @@ export default function RequestsPage() {
               <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
                 <p className="text-[10px] uppercase font-bold text-blue-800">Automatic request reference</p>
                 <p className="mt-1 break-all font-mono text-xs text-blue-900">{formatRequestReference(viewingRequest.id)}</p>
-                <button type="button" className="mt-2 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-blue-800" onClick={() => navigator.clipboard?.writeText(formatRequestReference(viewingRequest.id))}>Copy reference</button>
+                <button type="button" className="mt-2 min-h-11 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-blue-800" onClick={() => navigator.clipboard?.writeText(formatRequestReference(viewingRequest.id))}>Copy reference</button>
                 <p className="mt-1 text-[10px] text-blue-800">This is not a payment reference or official receipt.</p>
               </div>
               

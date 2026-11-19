@@ -430,7 +430,7 @@ export default function AnnouncementsPage() {
   const verifiedNews = sourcedArchive.filter(item => item.section === "news");
 
   return (
-    <div className="p-4 space-y-5 pb-20">
+    <div className="resident-screen space-y-5 px-3 py-4 pb-7 min-[375px]:px-4">
       <div className="flex items-center justify-between">
         <div><h1 className="text-xl font-extrabold text-gray-900">Barangay Updates</h1>
           <p className="text-xs text-gray-500">Active barangay updates and sourced historical Butuan/Tandang Sora reports</p></div>
@@ -438,10 +438,10 @@ export default function AnnouncementsPage() {
       </div>
       {errorMessage && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">Unable to load some updates: {errorMessage}</p>}
       {applyMessage && <p role="status" className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">{applyMessage}</p>}
-      <div role="tablist" aria-label="Updates sections" className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 p-1">
-        <button id="updates-programs-tab" type="button" role="tab" aria-selected={activeTab === "programs"} aria-controls="updates-programs-panel" onClick={() => setActiveTab("programs")} className={`rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${activeTab === "programs" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Programs</button>
-        <button id="updates-organizations-tab" type="button" role="tab" aria-selected={activeTab === "organizations"} aria-controls="updates-organizations-panel" onClick={() => setActiveTab("organizations")} className={`rounded-xl px-2 py-3 text-xs font-semibold transition-colors ${activeTab === "organizations" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Organizations</button>
-        <button id="updates-announcements-tab" type="button" role="tab" aria-selected={activeTab === "announcements"} aria-controls="updates-announcements-panel" onClick={() => setActiveTab("announcements")} className={`rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${activeTab === "announcements" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Announcements</button>
+      <div role="tablist" aria-label="Updates sections" className="grid min-w-0 grid-cols-3 gap-1 rounded-2xl bg-gray-100 p-1">
+        <button id="updates-programs-tab" type="button" role="tab" aria-selected={activeTab === "programs"} aria-controls="updates-programs-panel" onClick={() => setActiveTab("programs")} className={`min-w-0 break-words rounded-xl px-1 py-3 text-[11px] font-semibold leading-tight transition-colors min-[375px]:px-2 min-[375px]:text-xs ${activeTab === "programs" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Programs</button>
+        <button id="updates-organizations-tab" type="button" role="tab" aria-selected={activeTab === "organizations"} aria-controls="updates-organizations-panel" onClick={() => setActiveTab("organizations")} className={`min-w-0 break-words rounded-xl px-1 py-3 text-[11px] font-semibold leading-tight transition-colors min-[375px]:px-2 min-[375px]:text-xs ${activeTab === "organizations" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Organizations</button>
+        <button id="updates-announcements-tab" type="button" role="tab" aria-selected={activeTab === "announcements"} aria-controls="updates-announcements-panel" onClick={() => setActiveTab("announcements")} className={`min-w-0 break-words rounded-xl px-1 py-3 text-[11px] font-semibold leading-tight transition-colors min-[375px]:px-2 min-[375px]:text-xs ${activeTab === "announcements" ? "bg-white text-blue-700 shadow-sm" : "text-gray-600"}`}>Announcements</button>
       </div>
       {activeTab === "programs" && <>
       <section className="rounded-2xl border bg-white p-3">
@@ -450,7 +450,7 @@ export default function AnnouncementsPage() {
         {showMyApplications && <div className="mt-3 space-y-2">{applicationDetails.length === 0 ? <p className="text-xs text-gray-500">No applications yet.</p> : applicationDetails.map((a) => <div key={a.program_id} className="rounded-xl bg-gray-50 p-3 text-xs"><p className="font-semibold">{programs.find((p) => p.id === a.program_id)?.name || "Program"}</p><p>Status: {a.status}</p><p>Applied: {new Date(a.created_at).toLocaleDateString()}</p>{a.rejection_reason && <p className="text-red-700">Reason: {a.rejection_reason}</p>}</div>)}</div>}
       </section>
       <section id="updates-programs-panel" role="tabpanel" aria-labelledby="updates-programs-tab" className="space-y-3">
-        <div className="flex items-center justify-between"><h2 className="text-base font-bold">Barangay Programs</h2><span className="text-xs text-gray-500">{programs.length} open · {documentedPrograms.length} documented</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-base font-bold">Barangay Programs</h2><span className="text-xs text-gray-500">{programs.length} open · {documentedPrograms.length} documented</span></div>
         {programs.length > 0 && <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Program categories">{["All", ...Array.from(new Set(programs.map((p) => p.category)))].map((category) => <button key={category} type="button" onClick={() => setCategoryFilter(category)} aria-pressed={categoryFilter === category} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${categoryFilter === category ? "bg-blue-600 text-white" : "bg-white text-gray-600"}`}>{category}</button>)}</div>}
         {loading ? <p className="text-sm text-gray-500">Loading programs...</p> : programs.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-sm text-gray-500">No current programs are open for registration. See documented past activities below for historical information.</p> : programs.filter((p) => categoryFilter === "All" || p.category === categoryFilter).map((p) => (
           <article key={p.id} className="space-y-2 rounded-2xl border bg-white p-4 shadow-sm">

@@ -91,35 +91,60 @@ export function BottomNav() {
   }, [supabase, refresh, pathname]);
 
   return (
-    <nav
-      aria-label="Main navigation"
-      className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-md -translate-x-1/2 items-center justify-around border-t border-slate-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
-      style={{ height: "var(--bottom-nav-height)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    // Classic labeled bottom navigation, with modern spacing and iPhone safe area.
+    // Stays in document flex flow so it never covers chat or scrollable content.
+    <div
+      data-mobile-nav-bar="true"
+      className="relative z-40 w-full shrink-0 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(15,23,42,0.035)]"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingRight: "env(safe-area-inset-right, 0px)",
+      }}
     >
-      {tabs.map(({ href, path, label, icon: Icon }) => {
-        const active = pathname.startsWith(path);
-        const count = path === "/requests" ? counts.requests : path === "/announcements" ? counts.updates : 0;
-        const badgeDescription = path === "/requests" ? "active requests" : "new announcements";
-        return (
-          <Link
-            key={path}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            aria-label={count ? `${label}, ${count} ${badgeDescription}` : label}
-            className={`flex min-h-11 min-w-[56px] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${active ? "text-blue-700" : "text-gray-600 hover:text-blue-700"}`}
-          >
-            <span className="relative">
-              <Icon className={`h-5 w-5 transition-transform ${active ? "scale-110" : ""}`} aria-hidden="true" />
-              {count > 0 && (
-                <span aria-hidden="true" className="absolute -right-3 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
-                  {count > 9 ? "9+" : count}
-                </span>
-              )}
-            </span>
-            <span className={`text-xs font-medium ${active ? "font-semibold" : ""}`}>{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+      <nav
+        aria-label="Main navigation"
+        className="mx-auto grid h-[66px] w-full max-w-md grid-cols-5 items-stretch gap-0.5 px-1 min-[375px]:px-2"
+      >
+        {tabs.map(({ href, path, label, icon: Icon }) => {
+          const active = pathname === path || pathname.startsWith(path + "/");
+          const count = path === "/requests" ? counts.requests : path === "/announcements" ? counts.updates : 0;
+          const badgeDescription = path === "/requests" ? "active requests" : "new announcements";
+          return (
+            <Link
+              key={path}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              aria-label={count ? `${label}, ${count} ${badgeDescription}` : label}
+              title={label}
+              className={`group flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 text-center outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset motion-reduce:transition-none ${
+                active
+                  ? "text-blue-700"
+                  : "text-slate-600 [@media(hover:hover)]:hover:text-blue-700"
+              }`}
+            >
+              <span className={`relative flex h-9 w-10 items-center justify-center rounded-xl transition-colors duration-150 ${
+                active ? "bg-blue-50" : "bg-transparent [@media(hover:hover)]:group-hover:bg-slate-50"
+              }`}>
+                <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.35 : 2} aria-hidden="true" />
+                {count > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-600 px-0.5 text-[10px] font-bold leading-none text-white"
+                  >
+                    {count > 9 ? "9+" : count}
+                  </span>
+                )}
+              </span>
+              <span className={`w-full truncate text-[10px] leading-tight min-[375px]:text-[11px] ${
+                active ? "font-bold" : "font-medium"
+              }`}>
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 }

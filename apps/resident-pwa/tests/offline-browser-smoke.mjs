@@ -10,6 +10,36 @@ try {
   // chat inside a min-height-only shell used to leave a large blank strip
   // under the composer. Test typing, click targets and layout before the
   // service-worker offline assertions.
+  // Representatives of compact Android phones, older iPhones, and large phones.
+  // These are guest-accessible pages; authenticated screens require a separate
+  // resident fixture so this never invents a logged-in test session.
+  for (const width of [320, 360, 390, 430]) {
+    const responsiveContext = await browser.newContext({
+      viewport: { width, height: 740 }, isMobile: true, hasTouch: true,
+      serviceWorkers: "block",
+    });
+    try {
+      const target = await responsiveContext.newPage();
+      for (const route of ["/login", "/register", "/~offline"]) {
+        const navigation = await target.goto(base + route, {
+          waitUntil: "domcontentloaded", timeout: 30000,
+        });
+        assert.equal(navigation?.status(), 200, "public mobile route " + route + " must load");
+        await target.waitForFunction(() => Boolean(document.querySelector("main")), null, { timeout: 12000 });
+        const measured = await target.evaluate(() => ({
+          pageWidth: document.documentElement.scrollWidth,
+          viewport: window.innerWidth,
+          bodyWidth: document.body.scrollWidth,
+        }));
+        assert.ok(measured.pageWidth <= width + 2 && measured.bodyWidth <= width + 2,
+          route + " has horizontal overflow at width " + width + ": " + JSON.stringify(measured));
+      }
+    } finally {
+      await responsiveContext.close();
+    }
+  }
+  console.log("PASS: public mobile routes avoid horizontal overflow at 320/360/390/430px");
+
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,

@@ -157,7 +157,7 @@ export function LoginForm() {
           type="text"
           disabled={loading}
           placeholder="you@example.com or BRY-2026-00001"
-          className="w-full rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 min-h-12 text-base text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
           {...register("username")}
         />
         {errors.username && (
@@ -178,7 +178,7 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             disabled={loading}
             placeholder="••••••••"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/60 pl-4 pr-11 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/60 pl-4 pr-11 py-3 min-h-12 text-base text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:opacity-50"
             {...register("password")}
           />
           <button

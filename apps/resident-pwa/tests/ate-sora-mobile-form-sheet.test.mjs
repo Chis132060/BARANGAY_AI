@@ -13,7 +13,7 @@ test("Ate Sora form stays compact and inline at every viewport width", () => {
   assert.match(component, /min-h-24 w-full resize-y/);
   assert.doesNotMatch(component, /Make form bigger|setExpanded|aria-modal|fixed inset-0 z-\[100\]|h-\[100dvh\]/);
   assert.doesNotMatch(component, /overflow-y-auto/);
-  assert.match(chat, /ref=\{messagesScrollRef\} className="min-h-0 flex-1 overflow-y-auto/);
+  assert.match(chat, /ref=\{messagesScrollRef\} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto/);
   assert.match(chat, /max-w-\[calc\(100%-2\.5rem\)\]/);
 });
 

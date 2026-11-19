@@ -898,7 +898,7 @@ export function ChatInterface() {
       )}
 
       {/* Messages */}
-      <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white no-scrollbar">
+      <div ref={messagesScrollRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-white no-scrollbar">
         <div className="p-4 space-y-4">
 
           {/* Welcome hero — shown only before first user message */}
@@ -971,7 +971,7 @@ export function ChatInterface() {
                   }`}>
                     {m.isOfflineGuide && <span className="mb-1.5 block text-[10px] font-semibold text-amber-700">Offline Quick Guide · not submitted</span>}
                     {m.isGuestGuide && <span className="mb-1.5 block text-[10px] font-semibold text-blue-700">Guest Quick Guide · no AI request sent</span>}
-                    <p className="whitespace-pre-line">{m.text}</p>
+                    <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">{m.text}</p>
                     {m.isReceipt && <Link href="/requests" className="mt-2 inline-flex min-h-11 items-center font-bold text-blue-700 underline">View My Requests</Link>}
                   </div>
 

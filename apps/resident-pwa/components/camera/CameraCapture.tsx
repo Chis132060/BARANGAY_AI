@@ -118,7 +118,7 @@ export default function CameraCapture({ onCapture, onCancel, facingMode = "envir
   };
 
   return (
-    <div className="relative flex h-[min(400px,62dvh)] min-h-[280px] w-full min-w-0 flex-col items-center justify-center space-y-4 overflow-hidden rounded-xl border bg-black p-2 text-white min-[375px]:p-4">
+    <div className="relative flex h-[min(400px,60dvh)] min-h-[280px] w-full min-w-0 flex-col items-center justify-center space-y-4 overflow-hidden rounded-xl border bg-black p-2 text-white min-[375px]:p-4">
       {error ? (
         <div className="text-center p-4">
           <p className="text-red-400 mb-4">{error}</p>

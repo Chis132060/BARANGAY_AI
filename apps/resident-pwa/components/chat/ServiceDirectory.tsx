@@ -103,7 +103,7 @@ export function ServiceDirectory({ open, onClose, onAsk }: {
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
             <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
             <input ref={searchRef} id="service-search" type="search" value={query} onChange={event => setQuery(event.target.value)}
-              placeholder="Search documents and services..." className="h-12 w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500" />
+              placeholder="Search documents and services..." className="h-12 min-w-0 w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-500" />
           </div>
         </div>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 pb-8">
@@ -118,7 +118,7 @@ export function ServiceDirectory({ open, onClose, onAsk }: {
                 <div className="space-y-2">
                   {visibleDocuments.map(doc => (
                     <button key={doc.id} type="button" onClick={() => { onClose(); onAsk(`I want to request ${doc.name}`); }}
-                      className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+                      className="flex min-h-16 w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
                       <span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><FileText className="h-5 w-5" aria-hidden="true" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-slate-900">{doc.name}</span>
@@ -135,7 +135,7 @@ export function ServiceDirectory({ open, onClose, onAsk }: {
             <div className="space-y-2">
               {visibleOther.map(service => (
                 <Link key={service.href} href={service.href} onClick={onClose}
-                  className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+                  className="flex min-h-16 w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
                   <span className="rounded-xl bg-slate-100 p-2.5 text-slate-700"><service.icon className="h-5 w-5" aria-hidden="true" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-slate-900">{service.name}</span>

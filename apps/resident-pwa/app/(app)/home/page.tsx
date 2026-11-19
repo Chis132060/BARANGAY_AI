@@ -3,7 +3,7 @@ import { NotificationOnboarding } from "@/components/onboarding/NotificationOnbo
 
 
 import { useEffect, useState } from "react";
-import { ClipboardList, Megaphone, ChevronRight, FileText, Bot } from "lucide-react";
+import { ClipboardList, Megaphone, ChevronRight, FileText } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
@@ -11,7 +11,7 @@ import { loadPublicSnapshot } from "@/lib/offline/public-snapshots";
 const quickActions = [
   { href: "/chat?services=1", label: "Request a Document", description: "Apply for a certificate or clearance", icon: FileText },
   { href: "/requests", label: "Track My Requests", description: "See progress and pickup details", icon: ClipboardList },
-  { href: "/chat", label: "Ask Ate Sora", description: "Get help with barangay services", icon: Bot },
+  { href: "/chat", label: "Ask Ate Sora", description: "Get help with barangay services", icon: null },
   { href: "/announcements", label: "Barangay Updates", description: "Read official announcements", icon: Megaphone },
 ];
 
@@ -88,11 +88,11 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="p-4 space-y-6 pb-20">
+    <div className="resident-screen space-y-6 px-3 py-4 pb-7 min-[375px]:px-4">
       {/* Greeting Banner */}
       <section className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 text-white shadow-md">
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-200 flex items-center gap-1">
-          <Bot className="h-3 w-3 text-amber-300" /> Smart Barangay Resident Portal
+          <img src="/ate-sora.jpg" alt="" aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full object-cover object-top ring-1 ring-white/60" /> Smart Barangay Resident Portal
         </span>
         <h1 className="text-xl font-extrabold mt-1">Kumusta, {residentName}!</h1>
         <p className="text-sm text-blue-100 mt-1">What would you like to do today?</p>
@@ -104,18 +104,26 @@ export default function HomePage() {
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
           What do you need?
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-2 gap-2 min-[375px]:gap-3">
           {quickActions.map(({ href, label, description, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl border border-blue-100
+              className="flex min-h-[132px] min-w-0 flex-col items-start gap-2 rounded-2xl border border-blue-100
                          bg-blue-50/60 p-4 transition-colors hover:bg-blue-100/70
                          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             >
-              <div className="rounded-xl bg-white p-2.5 text-blue-600">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </div>
+              {Icon ? (
+                <div className="rounded-xl bg-white p-2.5 text-blue-600">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+              ) : (
+                <img
+                  src="/ate-sora.jpg"
+                  alt="Ate Sora"
+                  className="h-10 w-10 shrink-0 rounded-xl border border-white object-cover object-top shadow-sm"
+                />
+              )}
               <span className="text-sm font-bold leading-tight text-gray-900">{label}</span>
               <span className="text-xs leading-snug text-gray-600">{description}</span>
             </Link>
