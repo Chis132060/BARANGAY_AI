@@ -8,7 +8,7 @@
   :root {
     --brand-primary: #2563eb;
     --brand-primary-light: #3b82f6;
-    --bottom-nav-height: calc(68px + env(safe-area-inset-bottom, 0px));
+    --bottom-nav-height: calc(86px + env(safe-area-inset-bottom, 0px));
   }
 
   * {
