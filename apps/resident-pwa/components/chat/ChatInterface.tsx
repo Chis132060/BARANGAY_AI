@@ -27,9 +27,9 @@ import Link from "next/link";
 
 const SORA_AVATAR = "/ate-sora.jpg";
 const VOICE_GREETING: Record<TTSLanguage, string> = {
-  tgl: "Kumusta! Ako si Ate Sora. Magsalita sa mikropono at pindutin ang Stop & Ask para sumagot ako.",
-  ceb: "Maayong adlaw! Ako si Ate Sora. Pagsulti sa mikropono ug i-tap ang Stop & Ask aron makatubag ko.",
-  en: "Hello! I'm Ate Sora. Tap to talk, then Stop & Ask for my spoken answer.",
+  tgl: "Kumusta! Ako si Ate Sora. Pindutin ang Fast Talk para mabilis akong sumagot, o Record instead kung kailangan.",
+  ceb: "Maayong adlaw! Ako si Ate Sora. I-tap ang Fast Talk para dali akong makatubag, o Record instead.",
+  en: "Hello! I'm Ate Sora. Choose Fast Talk for a quicker spoken reply, or Record instead.",
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
