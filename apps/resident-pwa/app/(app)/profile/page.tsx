@@ -169,7 +169,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="p-4 space-y-6 pb-20">
+    <div className="resident-screen space-y-6 px-3 py-4 pb-7 min-[375px]:px-4">
       {savedSuccess && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
           <Check className="h-4 w-4 text-emerald-600" />
@@ -183,8 +183,8 @@ export default function ProfilePage() {
         <div className="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center mb-3 shadow-md text-white font-bold text-2xl uppercase">
           {userName.charAt(0)}
         </div>
-        <h1 className="text-lg font-bold text-gray-900">{loading ? "Loading..." : userName}</h1>
-        <p className="text-sm text-gray-500">{userEmail}</p>
+        <h1 className="max-w-full break-words px-3 text-center text-lg font-bold text-gray-900">{loading ? "Loading..." : userName}</h1>
+        <p className="max-w-full break-all px-3 text-center text-sm text-gray-500">{userEmail}</p>
         <button
           onClick={() => setIsEditing(true)}
           className="mt-3 px-4 py-1.5 rounded-full border border-blue-600 text-blue-600
@@ -265,8 +265,8 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="mobile-sheet w-full max-w-sm space-y-4 rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-bold text-gray-900">Edit Profile</h3>
               <button onClick={() => setIsEditing(false)} className="p-1 hover:bg-gray-100 rounded-full">
@@ -280,7 +280,7 @@ export default function ProfilePage() {
                   type="text"
                   value={fullNameInput}
                   onChange={(e) => setFullNameInput(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-h-12 border border-gray-300 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -315,8 +315,8 @@ export default function ProfilePage() {
 
       {/* Information Modals */}
       {activeModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="mobile-sheet w-full max-w-sm space-y-3 rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between border-b pb-2">
               <h3 className="font-bold text-gray-900">{activeModal}</h3>
               <button onClick={() => setActiveModal(null)} className="p-1 hover:bg-gray-100 rounded-full">
