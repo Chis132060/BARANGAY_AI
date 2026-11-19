@@ -93,8 +93,8 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-md -translate-x-1/2 items-center justify-around border-t border-slate-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
-      style={{ height: "var(--bottom-nav-height)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="relative z-40 flex w-full shrink-0 items-center justify-around gap-0.5 rounded-t-2xl border-t border-slate-200 bg-white/95 px-1 shadow-[0_-6px_22px_rgba(15,23,42,0.07)] backdrop-blur-md"
+      style={{ minHeight: "var(--bottom-nav-height)", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingLeft: "env(safe-area-inset-left, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}
     >
       {tabs.map(({ href, path, label, icon: Icon }) => {
         const active = pathname.startsWith(path);
@@ -106,7 +106,7 @@ export function BottomNav() {
             href={href}
             aria-current={active ? "page" : undefined}
             aria-label={count ? `${label}, ${count} ${badgeDescription}` : label}
-            className={`flex min-h-11 min-w-[56px] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${active ? "text-blue-700" : "text-gray-600 hover:text-blue-700"}`}
+            className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"}`}
           >
             <span className="relative">
               <Icon className={`h-5 w-5 transition-transform ${active ? "scale-110" : ""}`} aria-hidden="true" />
@@ -116,7 +116,7 @@ export function BottomNav() {
                 </span>
               )}
             </span>
-            <span className={`text-xs font-medium ${active ? "font-semibold" : ""}`}>{label}</span>
+            <span className={`text-[10px] leading-tight min-[375px]:text-xs ${active ? "font-bold" : "font-medium"}`}>{label}</span>
           </Link>
         );
       })}
