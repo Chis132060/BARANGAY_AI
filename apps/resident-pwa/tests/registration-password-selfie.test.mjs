@@ -67,7 +67,7 @@ test("selfie and ID previews are separate and revoked when replaced", () => {
   assert.match(form, /URL\.revokeObjectURL\(url\)/);
   assert.match(form, /facingMode="environment"/);
   assert.match(form, /facingMode="user"/);
-  assert.match(form, /idPhotoConfirmed &&/); // source can use disabled proof gates
+  assert.match(form, /!idPhotoConfirmed \|\| !selfiePhotoConfirmed \|\| !privacyAcknowledged/);
   assert.match(form, /privacyAcknowledged/);
   assert.match(camera, /streamRef\.current\?\.getTracks\(\)\.forEach/);
   assert.match(camera, /if \(!activeRef\.current\)/);
