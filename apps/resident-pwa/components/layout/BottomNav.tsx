@@ -91,35 +91,59 @@ export function BottomNav() {
   }, [supabase, refresh, pathname]);
 
   return (
-    <nav
-      aria-label="Main navigation"
-      className="relative z-40 flex w-full shrink-0 items-center justify-around gap-0.5 rounded-t-2xl border-t border-slate-200 bg-white/95 px-1 shadow-[0_-6px_22px_rgba(15,23,42,0.07)] backdrop-blur-md"
-      style={{ minHeight: "var(--bottom-nav-height)", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingLeft: "env(safe-area-inset-left, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}
+    // An in-flow dock means the page and Ate Sora composer never hide behind it.
+    // The safe area is owned by the outer gutter, not doubled inside the pill.
+    <div
+      data-mobile-nav-dock="true"
+      className="relative z-40 w-full shrink-0 bg-gradient-to-t from-slate-100/95 via-slate-50/90 to-transparent pt-2"
+      style={{
+        paddingBottom: "max(10px, env(safe-area-inset-bottom, 0px))",
+        paddingLeft: "max(12px, env(safe-area-inset-left, 0px))",
+        paddingRight: "max(12px, env(safe-area-inset-right, 0px))",
+      }}
     >
-      {tabs.map(({ href, path, label, icon: Icon }) => {
-        const active = pathname.startsWith(path);
-        const count = path === "/requests" ? counts.requests : path === "/announcements" ? counts.updates : 0;
-        const badgeDescription = path === "/requests" ? "active requests" : "new announcements";
-        return (
-          <Link
-            key={path}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            aria-label={count ? `${label}, ${count} ${badgeDescription}` : label}
-            className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"}`}
-          >
-            <span className="relative">
-              <Icon className={`h-5 w-5 transition-transform ${active ? "scale-110" : ""}`} aria-hidden="true" />
-              {count > 0 && (
-                <span aria-hidden="true" className="absolute -right-3 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
-                  {count > 9 ? "9+" : count}
-                </span>
-              )}
-            </span>
-            <span className={`text-[10px] leading-tight min-[375px]:text-xs ${active ? "font-bold" : "font-medium"}`}>{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+      <nav
+        aria-label="Main navigation"
+        className="mx-auto grid h-[68px] w-full max-w-md grid-cols-5 items-center gap-0.5 rounded-full border border-slate-200/95 bg-white px-1.5 shadow-[0_8px_32px_rgba(15,23,42,0.13),0_2px_6px_rgba(15,23,42,0.05)] min-[375px]:px-2"
+      >
+        {tabs.map(({ href, path, label, icon: Icon }) => {
+          const active = pathname.startsWith(path);
+          const count = path === "/requests" ? counts.requests : path === "/announcements" ? counts.updates : 0;
+          const badgeDescription = path === "/requests" ? "active requests" : "new announcements";
+          return (
+            <Link
+              key={path}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              aria-label={count ? `${label}, ${count} ${badgeDescription}` : label}
+              title={label}
+              className={`group relative flex h-[54px] min-h-11 min-w-0 w-full touch-manipulation items-center justify-center rounded-full outline-none transition-[background-color,color,transform] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 active:scale-95 motion-reduce:transition-none ${
+                active
+                  ? "bg-[#dfeeff] text-[#1765ed]"
+                  : "text-slate-900 hover:bg-slate-100 hover:text-blue-700"
+              }`}
+            >
+              <span className="relative flex items-center justify-center">
+                <Icon
+                  className={`h-6 w-6 min-[375px]:h-7 min-[375px]:w-7 ${
+                    active ? "drop-shadow-[0_2px_4px_rgba(37,99,235,0.15)]" : ""
+                  }`}
+                  strokeWidth={active ? 2.65 : 2.2}
+                  aria-hidden="true"
+                />
+                {count > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-3.5 -top-3 flex h-[19px] min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-red-600 px-0.5 text-[10px] font-extrabold leading-none text-white shadow-sm"
+                  >
+                    {count > 9 ? "9+" : count}
+                  </span>
+                )}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
