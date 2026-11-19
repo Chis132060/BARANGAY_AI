@@ -88,7 +88,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="p-4 space-y-6 pb-20">
+    <div className="resident-screen space-y-6 px-3 py-4 pb-7 min-[375px]:px-4">
       {/* Greeting Banner */}
       <section className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 text-white shadow-md">
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-200 flex items-center gap-1">
@@ -104,12 +104,12 @@ export default function HomePage() {
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
           What do you need?
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-2 gap-2 min-[375px]:gap-3">
           {quickActions.map(({ href, label, description, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className="flex min-h-[132px] flex-col items-start gap-2 rounded-2xl border border-blue-100
+              className="flex min-h-[132px] min-w-0 flex-col items-start gap-2 rounded-2xl border border-blue-100
                          bg-blue-50/60 p-4 transition-colors hover:bg-blue-100/70
                          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             >
