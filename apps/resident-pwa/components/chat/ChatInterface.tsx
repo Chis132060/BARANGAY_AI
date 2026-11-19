@@ -484,7 +484,7 @@ export function ChatInterface() {
     const latest = messages[messages.length - 1];
     if (latest?.sender === "ai" && latest.id !== "welcome" && !latest.isError && lastVoiceReplyRef.current !== latest.id) {
       lastVoiceReplyRef.current = latest.id;
-      speak(latest.id, latest.text, ttsLang);
+      speak(latest.id, latest.text, ttsLang, true);
     }
   }, [voiceMode, loading, messages, speak, ttsLang]);
 
@@ -1165,13 +1165,37 @@ export function ChatInterface() {
 
       {/* Voice mode status bar */}
       {voiceMode && process.env.NEXT_PUBLIC_SORA_REALTIME_ENABLED !== "true" && (
-        <div className="px-4 py-2.5 bg-blue-50 border-t border-blue-100 flex items-center justify-between shrink-0">
-          <div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-blue-100 bg-blue-50 px-3 py-2.5 min-[375px]:px-4">
+          <div className="min-w-[130px] flex-1">
             <p className="text-xs font-bold text-blue-800">Voice Mode Active</p>
-            <p className="text-[10px] text-blue-600 mt-0.5">
+            <p className="mt-0.5 text-[10px] text-blue-600">
               {soraVoice.status === "processing" ? "Understanding your question..." : `Tap to Talk in ${ttsLang === "tgl" ? "Tagalog" : ttsLang === "ceb" ? "Cebuano" : "English"}, then Stop & Ask.`}
             </p>
           </div>
+          {isLoggedIn && isOnline && isSupported && (
+            <button
+              type="button"
+              aria-label={isListening ? "Stop fast voice recognition" : "Fast talk with Ate Sora"}
+              disabled={loading || soraVoice.status === "recording" || soraVoice.status === "processing"}
+              onClick={() => {
+                if (isListening) {
+                  stopListening();
+                } else {
+                  stopSpeaking();
+                  startListening(ttsLang, transcript => {
+                    if (voiceRequestInFlightRef.current) return;
+                    voiceRequestInFlightRef.current = true;
+                    // Route through the same authenticated, grounded chat
+                    // endpoint; no parallel speech-to-text upload needed.
+                    void handleSend({ preventDefault() {} } as React.FormEvent, transcript);
+                  });
+                }
+              }}
+              className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50 ${isListening ? "bg-red-600" : "bg-blue-600"}`}
+            >
+              {isListening ? "Stop listening" : "Fast Talk"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -1186,9 +1210,9 @@ export function ChatInterface() {
             }}
             disabled={soraVoice.status === "processing" || soraVoice.status === "speaking"}
             aria-label={soraVoice.status === "recording" ? "Stop recording and ask Ate Sora" : "Record question for Ate Sora"}
-            className="ml-2 shrink-0 rounded-full bg-blue-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
+            className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-2 text-[10px] font-bold text-blue-700 disabled:opacity-50"
           >
-            {soraVoice.status === "recording" ? "Stop & Ask" : soraVoice.status === "processing" ? "Thinking..." : soraVoice.status === "speaking" ? "Speaking..." : "Tap to Talk"}
+            {soraVoice.status === "recording" ? "Stop & Ask" : soraVoice.status === "processing" ? "Thinking..." : soraVoice.status === "speaking" ? "Speaking..." : "Record instead"}
           </button>
           {isListening && (
             <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 animate-pulse">
