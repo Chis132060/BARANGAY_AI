@@ -72,6 +72,45 @@ try {
     await mobileContext.close();
   }
 
+  // Registration regression: a weak or mismatched password must never
+  // navigate from Step 3 to sensitive ID/selfie collection. Synthetic data
+  // remains in this isolated browser; no registration is submitted.
+  const signupContext = await browser.newContext({
+    viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true,
+    serviceWorkers: "block",
+  });
+  try {
+    const signup = await signupContext.newPage();
+    const response = await signup.goto(base + "/register", { waitUntil: "domcontentloaded", timeout: 30000 });
+    assert.equal(response?.status(), 200, "registration page must load");
+    await signup.getByPlaceholder("Juan").fill("Sample");
+    await signup.getByPlaceholder("Dela Cruz").fill("Resident");
+    await signup.locator('input[type="date"]').fill("1990-01-01");
+    await signup.getByPlaceholder("09171234567").fill("09171234567");
+    await signup.getByRole("button", { name: /Next: Residency Address/ }).click();
+    await signup.getByPlaceholder("Rizal Street").fill("Test Street");
+    await signup.getByRole("button", { name: /Next: Account Info/ }).click();
+    await signup.getByPlaceholder("juan@example.com").fill("synthetic@example.invalid");
+    const password = signup.locator("#registration-password");
+    const confirm = signup.locator("#registration-confirm-password");
+    const next = signup.getByRole("button", { name: /Next: ID & Selfie Verification/ });
+    await password.fill("sixsix");
+    await confirm.fill("sixsix");
+    assert.equal(await next.isDisabled(), true, "six-character passwords must not proceed");
+    await password.fill("LongExamplePassword-2026");
+    await confirm.fill("WrongExamplePassword-2026");
+    assert.equal(await next.isDisabled(), true, "mismatched confirmation must not proceed");
+    await confirm.fill("LongExamplePassword-2026");
+    assert.equal(await next.isEnabled(), true, "matching 12+ character passwords may proceed");
+    await next.click();
+    await signup.getByText("1. Capture your identification document").waitFor({ timeout: 10000 });
+    assert.equal(await signup.getByRole("button", { name: /Submit Registration/ }).isDisabled(), true,
+      "registration must block submission before independent ID and selfie capture");
+    console.log("PASS: mobile registration password Step 3 and two-proof Step 4 guards");
+  } finally {
+    await signupContext.close();
+  }
+
   const response = await page.goto(base + "/~offline", { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.equal(response?.status(), 200, "offline fallback page must load while connected");
   assert.equal(new URL(page.url()).pathname, "/~offline", "offline fallback must remain public and must not redirect to login");
