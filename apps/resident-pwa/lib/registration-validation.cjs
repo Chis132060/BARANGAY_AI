@@ -1,7 +1,7 @@
 'use strict';
 const MAX_ID_BYTES=5*1024*1024;
 const TYPES=new Set(['image/jpeg','image/png','image/webp']);
-const ID_TYPES=new Set(['Philippine Identification (PhilID / ePhilID)',"Voter's ID / Voter's Certification","Driver's License",'UMID / SSS / GSIS Card','Postal ID','Barangay Clearance / Proof of Residency']);
+const ID_TYPES=new Set(['Philippine Identification (PhilID / ePhilID)',"Voter's ID / Voter's Certification","Driver's License",'UMID / SSS / GSIS Card','Postal ID','Barangay ID','Barangay Clearance / Proof of Residency']);
 function validateRegistrationInput(input){
  const errors=[];
  const text=k=>typeof input[k]==='string'?input[k].trim():'';
