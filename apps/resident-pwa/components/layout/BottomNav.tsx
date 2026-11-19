@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Megaphone, MessageCircleMore, CircleUserRound } from "lucide-react";
+import { Home, ClipboardList, Megaphone, MessageCircle, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { NAV_BADGES_CHANGED, countActiveRequests, countUnseenAnnouncements, readSeenAnnouncements } from "@/lib/navigation/nav-badges";
 
@@ -11,8 +11,8 @@ const tabs = [
   { href: "/home", path: "/home", label: "Home", icon: Home },
   { href: "/requests", path: "/requests", label: "Requests", icon: ClipboardList },
   { href: "/announcements?tab=announcements", path: "/announcements", label: "Updates", icon: Megaphone },
-  { href: "/chat", path: "/chat", label: "Ate Sora", icon: MessageCircleMore },
-  { href: "/profile", path: "/profile", label: "Profile", icon: CircleUserRound },
+  { href: "/chat", path: "/chat", label: "Ate Sora", icon: MessageCircle },
+  { href: "/profile", path: "/profile", label: "Profile", icon: User },
 ] as const;
 
 export function BottomNav() {
@@ -91,20 +91,20 @@ export function BottomNav() {
   }, [supabase, refresh, pathname]);
 
   return (
-    // An in-flow dock means the page and Ate Sora composer never hide behind it.
-    // The safe area is owned by the outer gutter, not doubled inside the pill.
+    // Classic labeled bottom navigation, with modern spacing and iPhone safe area.
+    // Stays in document flex flow so it never covers chat or scrollable content.
     <div
-      data-mobile-nav-dock="true"
-      className="relative z-40 w-full shrink-0 bg-white pt-1.5"
+      data-mobile-nav-bar="true"
+      className="relative z-40 w-full shrink-0 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(15,23,42,0.035)]"
       style={{
-        paddingBottom: "max(8px, env(safe-area-inset-bottom, 0px))",
-        paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
-        paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingRight: "env(safe-area-inset-right, 0px)",
       }}
     >
       <nav
         aria-label="Main navigation"
-        className="mx-auto grid h-[64px] w-full max-w-md grid-cols-5 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 shadow-[0_3px_18px_rgba(15,23,42,0.09)] min-[375px]:px-2.5"
+        className="mx-auto grid h-[66px] w-full max-w-md grid-cols-5 items-stretch gap-0.5 px-1 min-[375px]:px-2"
       >
         {tabs.map(({ href, path, label, icon: Icon }) => {
           const active = pathname === path || pathname.startsWith(path + "/");
@@ -117,26 +117,29 @@ export function BottomNav() {
               aria-current={active ? "page" : undefined}
               aria-label={count ? `${label}, ${count} ${badgeDescription}` : label}
               title={label}
-              className={`group relative flex h-[50px] min-h-11 min-w-0 w-full touch-manipulation items-center justify-center rounded-full outline-none transition-[background-color,color] duration-150 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 motion-reduce:transition-none ${
+              className={`group flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 text-center outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset motion-reduce:transition-none ${
                 active
-                  ? "bg-[#e5f1ff] text-[#1765ed]"
-                  : "bg-transparent text-slate-950 [@media(hover:hover)]:hover:bg-slate-50"
+                  ? "text-blue-700"
+                  : "text-slate-600 [@media(hover:hover)]:hover:text-blue-700"
               }`}
             >
-              <span className="relative flex items-center justify-center">
-                <Icon
-                  className="h-[27px] w-[27px] min-[375px]:h-[29px] min-[375px]:w-[29px]"
-                  strokeWidth={active ? 2.55 : 2.4}
-                  aria-hidden="true"
-                />
+              <span className={`relative flex h-9 w-10 items-center justify-center rounded-xl transition-colors duration-150 ${
+                active ? "bg-blue-50" : "bg-transparent [@media(hover:hover)]:group-hover:bg-slate-50"
+              }`}>
+                <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.35 : 2} aria-hidden="true" />
                 {count > 0 && (
                   <span
                     aria-hidden="true"
-                    className="absolute -right-3 -top-2.5 flex h-[19px] min-w-[19px] items-center justify-center rounded-full border-2 border-white bg-red-600 px-0.5 text-[10px] font-bold leading-none text-white"
+                    className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-600 px-0.5 text-[10px] font-bold leading-none text-white"
                   >
                     {count > 9 ? "9+" : count}
                   </span>
                 )}
+              </span>
+              <span className={`w-full truncate text-[10px] leading-tight min-[375px]:text-[11px] ${
+                active ? "font-bold" : "font-medium"
+              }`}>
+                {label}
               </span>
             </Link>
           );
