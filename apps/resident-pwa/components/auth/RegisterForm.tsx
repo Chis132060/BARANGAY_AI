@@ -212,7 +212,7 @@ export function RegisterForm() {
               placeholder="Juan"
               value={formData.firstName}
               onChange={(e) => handleInputChange("firstName", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-h-12 w-full min-w-0 border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -224,7 +224,7 @@ export function RegisterForm() {
                 placeholder="Santos"
                 value={formData.middleName}
                 onChange={(e) => handleInputChange("middleName", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -235,7 +235,7 @@ export function RegisterForm() {
                 placeholder="Dela Cruz"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange("lastName", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -248,7 +248,7 @@ export function RegisterForm() {
                 required
                 value={formData.birthDate}
                 onChange={(e) => handleInputChange("birthDate", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-base outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -256,7 +256,7 @@ export function RegisterForm() {
               <select
                 value={formData.gender}
                 onChange={(e) => handleInputChange("gender", e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -272,7 +272,7 @@ export function RegisterForm() {
               placeholder="09171234567"
               value={formData.contactNumber}
               onChange={(e) => handleInputChange("contactNumber", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -305,7 +305,7 @@ export function RegisterForm() {
             <select
               value={formData.purok}
               onChange={(e) => handleInputChange("purok", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
             >
               {PUROK_OPTIONS.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -321,7 +321,7 @@ export function RegisterForm() {
               placeholder="Rizal Street"
               value={formData.street}
               onChange={(e) => handleInputChange("street", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -332,7 +332,7 @@ export function RegisterForm() {
               placeholder="House # 123"
               value={formData.houseNumber}
               onChange={(e) => handleInputChange("houseNumber", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -343,7 +343,7 @@ export function RegisterForm() {
               placeholder="Ask your household head or Barangay staff"
               value={formData.householdCode}
               onChange={(e) => handleInputChange("householdCode", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="mt-1 text-[10px] text-gray-500">If staff already added your family record, this helps connect your PWA account to it after your details are verified.</p>
           </div>
@@ -385,7 +385,7 @@ export function RegisterForm() {
                     placeholder="e.g. 5"
                     value={formData.boarderCount}
                     onChange={(e) => handleInputChange("boarderCount", e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-[10px] text-gray-400 mt-1">Count yourself and all co-boarders individually.</p>
                 </div>
@@ -449,7 +449,7 @@ export function RegisterForm() {
               placeholder="juan@example.com"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
