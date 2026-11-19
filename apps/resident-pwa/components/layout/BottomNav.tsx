@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { House, ClipboardList, Megaphone, MessageCircleMore, CircleUserRound } from "lucide-react";
+import { Home, ClipboardList, Megaphone, MessageCircleMore, CircleUserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { NAV_BADGES_CHANGED, countActiveRequests, countUnseenAnnouncements, readSeenAnnouncements } from "@/lib/navigation/nav-badges";
 
 const tabs = [
-  { href: "/home", path: "/home", label: "Home", icon: House },
+  { href: "/home", path: "/home", label: "Home", icon: Home },
   { href: "/requests", path: "/requests", label: "Requests", icon: ClipboardList },
   { href: "/announcements?tab=announcements", path: "/announcements", label: "Updates", icon: Megaphone },
   { href: "/chat", path: "/chat", label: "Ate Sora", icon: MessageCircleMore },
