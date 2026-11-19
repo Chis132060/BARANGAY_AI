@@ -75,7 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (isLoggedIn === null || !isLoggedIn) {
     return (
       <div className={`relative mx-auto flex w-full max-w-md flex-col bg-white ${
-        isChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
+        isChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-[100dvh]"
       } ${isLoggedIn === null ? "shadow-xl" : ""}`}>
         {isChat ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
@@ -85,13 +85,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`relative mx-auto flex max-w-md flex-col bg-white shadow-xl ${isChat ? "h-[100dvh] overflow-hidden" : "h-full min-h-screen"}`}>
+    <div className={`relative mx-auto flex h-[100dvh] min-h-0 w-full max-w-md flex-col overflow-hidden bg-white shadow-xl`}>
       <TopBar />
       <ConnectionBanner />
       <OfflineSyncRunner />
       <main
-        className={`flex-1 min-h-0 ${isChat ? "flex flex-col overflow-hidden" : "overflow-y-auto"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
-        style={{ paddingBottom: "var(--bottom-nav-height)" }}
+        className={`resident-screen min-h-0 min-w-0 flex-1 ${isChat ? "flex flex-col overflow-hidden" : "overflow-x-hidden overflow-y-auto overscroll-contain"}${hideMainScrollbar ? " no-scrollbar" : ""}`}
       >
         {children}
       </main>
