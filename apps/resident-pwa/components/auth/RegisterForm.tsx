@@ -77,6 +77,7 @@ export function RegisterForm() {
   }, [selfieWithIdBlob]);
 
   const handleInputChange = (field: string, value: string) => {
+    setErrorMsg(null);
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -453,18 +454,48 @@ export function RegisterForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Password *</label>
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => handleInputChange("password", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-[10px] text-gray-400 mt-1">Minimum 6 characters</p>
+            <label htmlFor="registration-password" className="mb-1 block text-sm font-semibold text-gray-700">Create password *</label>
+            <div className="relative">
+              <input id="registration-password" type={showPassword ? "text" : "password"}
+                autoComplete="new-password" minLength={12} maxLength={128} required
+                aria-invalid={formData.password.length > 0 && !passwordValid}
+                value={formData.password}
+                onChange={e => handleInputChange("password", e.target.value)}
+                className="min-h-12 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 pr-12 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="At least 12 characters" />
+              <button type="button" aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword(value => !value)}
+                className="absolute inset-y-0 right-0 flex min-h-11 w-12 items-center justify-center text-gray-600">
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            <p role="status" className={`mt-1 text-xs ${passwordValid ? "text-emerald-700" : "text-slate-600"}`}>
+              {passwordValid ? "✓ Password length is valid (12–128 characters)." : `Use 12–128 characters. Current length: ${formData.password.length}.`}
+            </p>
           </div>
-
+          <div>
+            <label htmlFor="registration-confirm-password" className="mb-1 block text-sm font-semibold text-gray-700">Confirm password *</label>
+            <div className="relative">
+              <input id="registration-confirm-password" type={showConfirmPassword ? "text" : "password"}
+                autoComplete="new-password" minLength={12} maxLength={128} required
+                aria-invalid={formData.confirmPassword.length > 0 && !passwordMatches}
+                value={formData.confirmPassword}
+                onChange={e => handleInputChange("confirmPassword", e.target.value)}
+                className="min-h-12 w-full rounded-xl border border-gray-300 px-3.5 py-2.5 pr-12 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Type the same password again" />
+              <button type="button" aria-label={showConfirmPassword ? "Hide confirmation" : "Show confirmation"}
+                onClick={() => setShowConfirmPassword(value => !value)}
+                className="absolute inset-y-0 right-0 flex min-h-11 w-12 items-center justify-center text-gray-600">
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {formData.confirmPassword && (
+              <p role="status" className={`mt-1 text-xs ${passwordMatches ? "text-emerald-700" : "text-red-700"}`}>
+                {passwordMatches ? "✓ Passwords match." : "Passwords must match before continuing."}
+              </p>
+            )}
+          </div>
+          {!emailValid && formData.email.length > 0 && <p role="alert" className="text-xs text-red-700">Enter a valid email address.</p>}
           <div className="flex items-center gap-2 pt-3">
             <button
               type="button"
@@ -475,11 +506,11 @@ export function RegisterForm() {
             </button>
             <button
               type="button"
-              disabled={!formData.email || formData.password.length < 6}
+              disabled={!credentialsValid}
               onClick={() => setStep(4)}
               className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50 transition-all"
             >
-              Next: Upload Valid ID <ArrowRight className="h-4 w-4" />
+              Next: ID & Selfie Verification <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -490,49 +521,76 @@ export function RegisterForm() {
         <form onSubmit={handleRegisterSubmit} className="space-y-3.5 animate-in fade-in duration-200">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Barangay Resident Verification</h3>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Select Government ID Type *</label>
-            <select
-              value={formData.idType}
-              onChange={(e) => handleInputChange("idType", e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              {ID_TYPE_OPTIONS.map((id) => (
-                <option key={id} value={id}>{id}</option>
-              ))}
-            </select>
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-950">
+            Your ID photo and a separate selfie holding the same ID are used for manual barangay review. A photo upload is not automatic identity approval.
           </div>
-
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Capture Valid ID *</label>
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center hover:border-blue-500 transition-colors bg-gray-50 overflow-hidden">
+            <label htmlFor="registration-id-type" className="mb-1 block text-sm font-semibold text-gray-700">Select ID or residency document type *</label>
+            <select id="registration-id-type" value={formData.idType}
+              onChange={e => { handleInputChange("idType", e.target.value); setIdPhotoConfirmed(false); }}
+              className="min-h-12 w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500">
+              {ID_TYPE_OPTIONS.map(id => <option key={id} value={id}>{id}</option>)}
+            </select>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">Accepted for preliminary review: National ID (card/paper/digital), driver's license, voter ID/certification, Postal ID, SSS/GSIS/UMID, Barangay ID or local barangay clearance. All documents require staff verification.</p>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">1. Capture your identification document *</label>
+            <div className="min-w-0 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-2 text-center min-[375px]:p-3">
               {isCapturing ? (
-                <CameraCapture onCapture={handleCapture} onCancel={handleCaptureCancel} />
-              ) : capturedBlob ? (
+                <CameraCapture key="id-proof" facingMode="environment"
+                  instruction="Fill the frame with the full ID or official document. Keep all text readable."
+                  onCapture={handleCapture} onCancel={handleCaptureCancel} />
+              ) : capturedBlob && idPreviewUrl ? (
                 <div className="space-y-2">
-                  <img src={URL.createObjectURL(capturedBlob)} alt="ID Preview" className="h-32 object-cover rounded-lg mx-auto shadow-sm" />
-                  <button 
-                    type="button" 
-                    onClick={handleCaptureStart} 
-                    className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer block w-full text-center"
-                  >
-                    Retake ID Photo
-                  </button>
+                  <img src={idPreviewUrl} alt="ID photo preview before submission" className="mx-auto max-h-40 w-auto max-w-full rounded-lg object-contain" />
+                  <button type="button" onClick={handleCaptureStart}
+                    className="min-h-11 rounded-xl px-3 text-sm font-semibold text-blue-700">Retake ID photo</button>
                 </div>
               ) : (
-                <button 
-                  type="button" 
-                  onClick={handleCaptureStart} 
-                  className="w-full h-full cursor-pointer block space-y-2 py-6 outline-none"
-                >
-                  <Camera className="h-8 w-8 text-gray-400 mx-auto" />
-                  <p className="text-xs font-semibold text-gray-600">Tap to Start Camera</p>
-                  <p className="text-[10px] text-gray-400">Position ID clearly in frame</p>
+                <button type="button" onClick={handleCaptureStart} className="flex min-h-24 w-full flex-col items-center justify-center gap-2">
+                  <Camera className="h-7 w-7 text-blue-700" aria-hidden="true" />
+                  <span className="text-sm font-semibold">Open rear camera to photograph ID</span>
                 </button>
               )}
             </div>
+            {capturedBlob && <label className="mt-2 flex items-start gap-2 text-sm leading-relaxed text-slate-700">
+              <input type="checkbox" checked={idPhotoConfirmed} onChange={e => setIdPhotoConfirmed(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
+              I confirm this is my selected valid ID or barangay document, fully visible and readable. I understand staff will review it.
+            </label>}
           </div>
-
+          {capturedBlob && <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">2. Take a selfie while holding the same ID *</label>
+            <p className="mb-2 text-xs leading-relaxed text-slate-600">Use your front camera. Keep your face and the ID visible and readable together, with no filters or other people. Take a new photo; do not reuse the ID-only image.</p>
+            <div className="min-w-0 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-2 text-center min-[375px]:p-3">
+              {isTakingSelfie ? (
+                <CameraCapture key="selfie-proof" facingMode="user"
+                  instruction="Show your face and hold your ID beside it, both in the same frame."
+                  imageAlt="Selfie holding identification document"
+                  onCapture={handleSelfieCapture} onCancel={() => setIsTakingSelfie(false)} />
+              ) : selfieWithIdBlob && selfiePreviewUrl ? (
+                <div className="space-y-2">
+                  <img src={selfiePreviewUrl} alt="Selfie with ID preview before submission" className="mx-auto max-h-48 w-auto max-w-full rounded-lg object-contain" />
+                  <button type="button" onClick={() => setIsTakingSelfie(true)}
+                    className="min-h-11 rounded-xl px-3 text-sm font-semibold text-blue-700">Retake selfie with ID</button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setIsTakingSelfie(true)}
+                  className="flex min-h-24 w-full flex-col items-center justify-center gap-2">
+                  <Camera className="h-7 w-7 text-blue-700" aria-hidden="true" />
+                  <span className="text-sm font-semibold">Open front camera: selfie + ID</span>
+                </button>
+              )}
+            </div>
+            {selfieWithIdBlob && <label className="mt-2 flex items-start gap-2 text-sm leading-relaxed text-slate-700">
+              <input type="checkbox" checked={selfiePhotoConfirmed} onChange={e => setSelfiePhotoConfirmed(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
+              My own face and the same ID are visible in this selfie. This proof will be checked by authorized barangay staff.
+            </label>}
+          </div>}
+          <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
+            <input type="checkbox" checked={privacyAcknowledged} onChange={e => setPrivacyAcknowledged(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0" />
+            I acknowledge that my ID and selfie photos will be stored in a private verification bucket and reviewed by authorized staff to assess my resident account. This is not automatic face matching. I may contact barangay support about privacy, access and retention.
+          </label>
           <div className="flex items-center gap-2 pt-3">
             <button
               type="button"
@@ -544,7 +602,7 @@ export function RegisterForm() {
             </button>
             <button
               type="submit"
-              disabled={loading || !capturedBlob}
+              disabled={loading || !credentialsValid || !capturedBlob || !selfieWithIdBlob || !idPhotoConfirmed || !selfiePhotoConfirmed || !privacyAcknowledged}
               className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50 transition-all"
             >
               {loading ? (
