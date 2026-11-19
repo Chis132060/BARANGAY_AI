@@ -6,6 +6,7 @@ interface Props {
   onUserTranscript: (value: string) => void;
   onAssistantMessage: (value: string) => void;
   onEnd: () => void;
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 export function SoraRealtimeControls(props: Props) {
   const voice = useSoraRealtimeVoice({
@@ -14,6 +15,10 @@ export function SoraRealtimeControls(props: Props) {
     onAssistantMessage: props.onAssistantMessage,
   });
   useEffect(() => { void voice.start(); return () => voice.stop(); }, [voice.start, voice.stop]);
+  useEffect(() => {
+    props.onSpeakingChange?.(voice.status === "speaking");
+    return () => props.onSpeakingChange?.(false);
+  }, [voice.status, props.onSpeakingChange]);
   const message = voice.status === "connecting" ? "Connecting securely..." :
     voice.status === "listening" ? "Listening — speak naturally" :
     voice.status === "thinking" ? "Thinking..." : voice.status === "speaking" ? "Speaking..." :
