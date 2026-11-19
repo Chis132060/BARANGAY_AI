@@ -114,7 +114,8 @@ test("chat fits its app-shell viewport and input remains above bottom nav", () =
   assert.match(shell, /mx-auto flex h-\[100dvh\] min-h-0 w-full max-w-md flex-col overflow-hidden/);
   assert.match(shell, /resident-screen min-h-0 min-w-0 flex-1/);
   assert.doesNotMatch(shell, /paddingBottom: "var\(--bottom-nav-height\)"/);
-  assert.match(nav, /relative z-40 flex w-full shrink-0/);
+  assert.match(nav, /data-mobile-nav-dock="true"/);
+  assert.match(nav, /grid h-\[68px\] w-full max-w-md grid-cols-5/);
   assert.match(nav, /env\(safe-area-inset-bottom, 0px\)/);
   assert.match(chat, /flex h-full min-h-0 max-w-lg/);
   assert.match(read("../app/(app)/chat/page.tsx"), /h-full min-h-0 w-full/);
@@ -128,11 +129,34 @@ test("mobile viewport supports iOS zoom, safe area and nonoverlaying navigation"
   const register = read("../app/(auth)/register/page.tsx");
   assert.match(root, /viewportFit: "cover"/);
   assert.doesNotMatch(root, /userScalable: false/);
-  assert.match(css, /--bottom-nav-height: calc\(68px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+  assert.match(css, /--bottom-nav-height: calc\(86px \+ env\(safe-area-inset-bottom, 0px\)\)/);
   assert.doesNotMatch(css, /body \{\s*padding-bottom: env\(safe-area-inset-bottom\)/);
   assert.match(requestPage, /mobile-sheet/);
   assert.match(requestPage, /break-all font-mono/);
   assert.match(profile, /mobile-sheet/);
   assert.match(register, /min-h-\[100dvh\]/);
   assert.match(directory, /text-base text-slate-900 outline-none/);
+});
+
+test("chosen premium floating dock has 5 routes, icon-only visuals, full touch targets, and badges", () => {
+  const nav = read("../components/layout/BottomNav.tsx");
+  const shell = read("../app/(app)/layout.tsx");
+  for (const path of ["/home", "/requests", "/announcements", "/chat", "/profile"]) {
+    assert.ok(nav.includes('path: "' + path + '"'), path + " route must be preserved");
+  }
+  assert.match(nav, /data-mobile-nav-dock="true"/);
+  assert.match(nav, /grid h-\[68px\] w-full max-w-md grid-cols-5/);
+  assert.match(nav, /rounded-full border border-slate-200\/95 bg-white/);
+  assert.match(nav, /bg-\[#dfeeff\] text-\[#1765ed\]/);
+  assert.match(nav, /h-\[54px\] min-h-11 min-w-0 w-full touch-manipulation/);
+  assert.match(nav, /aria-current=\{active \? "page" : undefined\}/);
+  assert.match(nav, /title=\{label\}/);
+  assert.match(nav, /aria-label=\{count \?/);
+  assert.match(nav, /count > 9 \? "9\+" : count/);
+  assert.match(nav, /env\(safe-area-inset-bottom, 0px\)/);
+  assert.match(nav, /env\(safe-area-inset-left, 0px\)/);
+  assert.match(nav, /env\(safe-area-inset-right, 0px\)/);
+  assert.doesNotMatch(nav, /className="fixed bottom-0/);
+  assert.match(shell, /<BottomNav \/>/);
+  assert.doesNotMatch(shell, /paddingBottom: "var\(--bottom-nav-height\)"/);
 });
