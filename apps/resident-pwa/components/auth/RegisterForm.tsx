@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock, Camera, Home, AlertTriangle, Users, Paperclip } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock, Camera, Home, AlertTriangle, Users, Paperclip, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { registerResidentAction } from "@/app/(auth)/register/actions";
 import CameraCapture from "../camera/CameraCapture";
@@ -13,12 +13,15 @@ const ID_TYPE_OPTIONS = [
   "Driver's License",
   "UMID / SSS / GSIS Card",
   "Postal ID",
+  "Barangay ID",
   "Barangay Clearance / Proof of Residency",
 ];
 
 export function RegisterForm() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -37,14 +40,41 @@ export function RegisterForm() {
     householdCode: "",
     email: "",
     password: "",
+    confirmPassword: "",
     idType: ID_TYPE_OPTIONS[0],
     isBoarder: false,
     boarderCount: "",
   });
 
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+  const [selfieWithIdBlob, setSelfieWithIdBlob] = useState<Blob | null>(null);
+  const [idPreviewUrl, setIdPreviewUrl] = useState<string | null>(null);
+  const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isTakingSelfie, setIsTakingSelfie] = useState(false);
+  const [idPhotoConfirmed, setIdPhotoConfirmed] = useState(false);
+  const [selfiePhotoConfirmed, setSelfiePhotoConfirmed] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [rbiFile, setRbiFile] = useState<File | null>(null);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) && formData.email.length <= 254;
+  const passwordValid = formData.password.length >= 12 && formData.password.length <= 128;
+  const passwordMatches = formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword;
+  const credentialsValid = emailValid && passwordValid && passwordMatches;
+
+  // These previews contain sensitive photos. Revoke temporary URLs on retake
+  // and unmount instead of creating a new URL on each render.
+  useEffect(() => {
+    if (!capturedBlob) { setIdPreviewUrl(null); return; }
+    const url = URL.createObjectURL(capturedBlob);
+    setIdPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [capturedBlob]);
+  useEffect(() => {
+    if (!selfieWithIdBlob) { setSelfiePreviewUrl(null); return; }
+    const url = URL.createObjectURL(selfieWithIdBlob);
+    setSelfiePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selfieWithIdBlob]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -54,13 +84,30 @@ export function RegisterForm() {
   const handleCaptureCancel = () => setIsCapturing(false);
   const handleCapture = (blob: Blob) => {
     setCapturedBlob(blob);
+    setIdPhotoConfirmed(false);
+    setSelfieWithIdBlob(null);
+    setSelfiePhotoConfirmed(false);
     setIsCapturing(false);
+  };
+  const handleSelfieCapture = (blob: Blob) => {
+    setSelfieWithIdBlob(blob);
+    setSelfiePhotoConfirmed(false);
+    setIsTakingSelfie(false);
   };
 
   const supabase = createClient();
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!credentialsValid) {
+      setStep(3);
+      setErrorMsg("Enter a valid email and a matching password of 12–128 characters before ID verification.");
+      return;
+    }
+    if (!capturedBlob || !selfieWithIdBlob || !idPhotoConfirmed || !selfiePhotoConfirmed || !privacyAcknowledged) {
+      setErrorMsg("Capture your valid ID and a separate selfie holding the same ID, then confirm both photos and the privacy notice.");
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
 
@@ -69,9 +116,11 @@ export function RegisterForm() {
       Object.entries(formData).forEach(([key, value]) => {
         payload.append(key, String(value));
       });
-      if (capturedBlob) {
-        payload.append("idBlob", capturedBlob, "id_capture.jpg");
-      }
+      if (capturedBlob) payload.append("idBlob", capturedBlob, "id_capture.jpg");
+      if (selfieWithIdBlob) payload.append("selfieWithIdBlob", selfieWithIdBlob, "selfie_with_id.jpg");
+      payload.append("privacyAcknowledged", String(privacyAcknowledged));
+      payload.append("idPhotoConfirmed", String(idPhotoConfirmed));
+      payload.append("selfiePhotoConfirmed", String(selfiePhotoConfirmed));
       if (rbiFile) {
         payload.append("rbiFile", rbiFile, rbiFile.name);
       }
@@ -126,9 +175,9 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       {/* Step Indicator */}
-      <div className="flex items-center justify-between border-b pb-3 text-xs">
+      <div className="grid grid-cols-4 gap-1 border-b pb-3 text-[10px] min-[390px]:text-xs">
         <span className={`font-bold flex items-center gap-1.5 ${step === 1 ? "text-blue-600" : "text-gray-400"}`}>
           <User className="h-4 w-4" /> 1. Personal
         </span>
