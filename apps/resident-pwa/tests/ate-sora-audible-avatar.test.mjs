@@ -27,7 +27,9 @@ test("voice greeting starts on tap and native voice is preferred before slow net
   assert.match(tts, /const startTimeout = window\.setTimeout/);
   assert.match(tts, /utteranceRef\.current = utterance/);
   assert.match(tts, /setPlaybackError\("No audio started/);
-  assert.match(chat, /playbackError && <span role="alert"/);
+  assert.match(chat, /playbackError && \(/);
+  assert.match(chat, /<div role="alert"/);
+  assert.match(chat, /Hear reply/);
 });
 
 test("speaking avatar only animates when real playback starts", () => {
