@@ -6,7 +6,7 @@ import { PreAuthWelcome } from "@/components/auth/PreAuthWelcome";
 export default function LoginPage() {
   return (
     <PreAuthWelcome>
-      <main className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-12">
+      <main className="flex min-h-[100dvh] min-w-0 flex-col items-center justify-start bg-white px-4 py-8 min-[375px]:px-6 sm:justify-center sm:py-12">
         <div className="w-full max-w-sm">
           {/* Logo area */}
           <div className="flex flex-col items-center mb-8 text-center">
@@ -44,7 +44,7 @@ export default function LoginPage() {
             />
             <span className="min-w-0">
               <span className="block text-sm font-bold text-gray-800">Continue as Guest</span>
-              <span className="mt-0.5 block text-[11px] font-medium text-gray-500">Chat with Ate Sora · AI Chat Only</span>
+              <span className="mt-0.5 block text-[11px] font-medium text-gray-500">Public barangay guide · sign in for full AI</span>
             </span>
           </Link>
         </div>

@@ -27,7 +27,7 @@ test("known document requests open the catalog-backed in-chat form without relyi
 
 test("in-chat form is scrolled to its header and never scrolls the entire page", () => {
   assert.match(chat, /const messagesScrollRef = useRef<HTMLDivElement>\(null\)/);
-  assert.match(chat, /ref=\{messagesScrollRef\} className="min-h-0 flex-1 overflow-y-auto/);
+  assert.match(chat, /ref=\{messagesScrollRef\} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto/);
   assert.match(chat, /data-ate-sora-form-message=\{m\.formType/);
   assert.match(chat, /viewport\.querySelectorAll<HTMLElement>\("\[data-ate-sora-form-message\]"\)/);
   assert.match(chat, /viewport\.scrollTo\(\{ top: Math\.max\(0, top - 8\)/);
