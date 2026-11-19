@@ -92,6 +92,7 @@ export function useSoraVoiceConversation(options: {
   }, [cleanupRecording, stopAudio]);
 
   const sendRecording = useCallback(async (blob: Blob) => {
+    setError(null);
     if (blob.size === 0 || blob.size > MAX_AUDIO_BYTES) {
       setError("Recording must be under 4 MB. Please try a shorter question.");
       setStatus("error");
@@ -114,9 +115,19 @@ export function useSoraVoiceConversation(options: {
           mime_type: blob.type.split(";")[0] || "audio/webm",
           language,
           session_id: sessionId || null,
+          // The UI speaks the grounded reply immediately: don't wait for
+          // the separate server-side voice generation round-trip.
+          skip_tts: true,
         }),
       });
-      if (!response.ok) throw new Error(`Voice request failed (HTTP ${response.status}).`);
+      if (!response.ok) {
+        const info = await response.json().catch(() => ({}));
+        const detail = typeof info?.detail === "string" ? info.detail : "";
+        if (response.status === 401) throw new Error("Please sign in again to use Ate Sora voice.");
+        if (response.status === 429) throw new Error("Voice limit reached. Please try again shortly.");
+        if (response.status === 422) throw new Error(detail || "Hindi ko narinig nang malinaw. Subukan ulit.");
+        throw new Error(response.status >= 500 ? "Voice service is temporarily unavailable." : `Voice request failed (HTTP ${response.status}).`);
+      }
       const result = await response.json();
       const reply = result.data as VoiceReply;
       if (!reply?.answer) throw new Error("Ate Sora returned an empty answer.");
