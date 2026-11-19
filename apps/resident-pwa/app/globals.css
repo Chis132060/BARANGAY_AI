@@ -74,3 +74,20 @@
     scrollbar-width: none;  /* Firefox */
   }
 }
+
+
+/* The portrait only animates while the corresponding audio player reports
+   actual playback. This is expressive motion, not biometric lip-sync. */
+@keyframes sora-speaking-mouth {
+  0%, 100% { transform: translateX(-50%) scaleY(0.75); border-radius: 999px; }
+  48% { transform: translateX(-50%) scaleY(2.35); border-radius: 45% 45% 55% 55%; }
+}
+@keyframes sora-speaking-bar {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1.25); }
+}
+.sora-speaking-mouth { transform-origin: center; animation: sora-speaking-mouth 240ms ease-in-out infinite; }
+.sora-speaking-bar { transform-origin: center; animation: sora-speaking-bar 420ms ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sora-speaking-mouth, .sora-speaking-bar { animation: none; }
+}
