@@ -114,8 +114,8 @@ test("chat fits its app-shell viewport and input remains above bottom nav", () =
   assert.match(shell, /mx-auto flex h-\[100dvh\] min-h-0 w-full max-w-md flex-col overflow-hidden/);
   assert.match(shell, /resident-screen min-h-0 min-w-0 flex-1/);
   assert.doesNotMatch(shell, /paddingBottom: "var\(--bottom-nav-height\)"/);
-  assert.match(nav, /data-mobile-nav-dock="true"/);
-  assert.match(nav, /grid h-\[64px\] w-full max-w-md grid-cols-5/);
+  assert.match(nav, /data-mobile-nav-bar="true"/);
+  assert.match(nav, /grid h-\[66px\] w-full max-w-md grid-cols-5/);
   assert.match(nav, /env\(safe-area-inset-bottom, 0px\)/);
   assert.match(chat, /flex h-full min-h-0 max-w-lg/);
   assert.match(read("../app/(app)/chat/page.tsx"), /h-full min-h-0 w-full/);
@@ -129,7 +129,7 @@ test("mobile viewport supports iOS zoom, safe area and nonoverlaying navigation"
   const register = read("../app/(auth)/register/page.tsx");
   assert.match(root, /viewportFit: "cover"/);
   assert.doesNotMatch(root, /userScalable: false/);
-  assert.match(css, /--bottom-nav-height: calc\(78px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+  assert.match(css, /--bottom-nav-height: calc\(66px \+ env\(safe-area-inset-bottom, 0px\)\)/);
   assert.doesNotMatch(css, /body \{\s*padding-bottom: env\(safe-area-inset-bottom\)/);
   assert.match(requestPage, /mobile-sheet/);
   assert.match(requestPage, /break-all font-mono/);
@@ -138,19 +138,26 @@ test("mobile viewport supports iOS zoom, safe area and nonoverlaying navigation"
   assert.match(directory, /text-base text-slate-900 outline-none/);
 });
 
-test("chosen premium floating dock has 5 routes, icon-only visuals, full touch targets, and badges", () => {
+test("classic labeled navigation is clean, responsive, accessible, and safe-area aware", () => {
   const nav = read("../components/layout/BottomNav.tsx");
   const shell = read("../app/(app)/layout.tsx");
   for (const path of ["/home", "/requests", "/announcements", "/chat", "/profile"]) {
-    assert.ok(nav.includes('path: "' + path + '"'), path + " route must be preserved");
+    assert.ok(nav.includes('path: "' + path + '"'), path + " route must remain unchanged");
   }
-  assert.match(nav, /data-mobile-nav-dock="true"/);
-  assert.match(nav, /grid h-\[64px\] w-full max-w-md grid-cols-5/);
-  assert.match(nav, /rounded-full border border-slate-200 bg-white/);
-  assert.match(nav, /bg-\[#e5f1ff\] text-\[#1765ed\]/);
-  assert.match(nav, /h-\[50px\] min-h-11 min-w-0 w-full touch-manipulation/);
+  for (const label of ["Home", "Requests", "Updates", "Ate Sora", "Profile"]) {
+    assert.ok(nav.includes('label: "' + label + '"'), label + " label should be shown");
+  }
+  assert.match(nav, /data-mobile-nav-bar="true"/);
+  assert.match(nav, /grid h-\[66px\] w-full max-w-md grid-cols-5/);
+  assert.match(nav, /border-t border-slate-200 bg-white/);
+  assert.ok(nav.includes('w-full truncate text-[10px]'));
+  assert.match(nav, /<Icon className="h-\[22px\] w-\[22px\]"/);
+  assert.match(nav, /active \? "bg-blue-50" : "bg-transparent/);
+  assert.match(nav, /pathname === path \|\| pathname\.startsWith\(path \+ "\/"\)/);
+  assert.match(nav, /\[@media\(hover:hover\)\]:hover:text-blue-700/);
+  assert.doesNotMatch(nav, /rounded-full border border-slate-200 bg-white/);
+  assert.doesNotMatch(nav, /bg-\[#e5f1ff\]/);
   assert.match(nav, /aria-current=\{active \? "page" : undefined\}/);
-  assert.match(nav, /title=\{label\}/);
   assert.match(nav, /aria-label=\{count \?/);
   assert.match(nav, /count > 9 \? "9\+" : count/);
   assert.match(nav, /env\(safe-area-inset-bottom, 0px\)/);
@@ -159,18 +166,6 @@ test("chosen premium floating dock has 5 routes, icon-only visuals, full touch t
   assert.doesNotMatch(nav, /className="fixed bottom-0/);
   assert.match(shell, /<BottomNav \/>/);
   assert.doesNotMatch(shell, /paddingBottom: "var\(--bottom-nav-height\)"/);
-});
-
-test("floating dock prevents phantom second active tab after touch on mobile Safari", () => {
-  const nav = read("../components/layout/BottomNav.tsx");
-  assert.match(nav, /pathname === path \|\| pathname\.startsWith\(path \+ "\/"\)/);
-  assert.match(nav, /active\s*\?\s*"bg-\[#e5f1ff\] text-\[#1765ed\]"\s*:\s*"bg-transparent/);
-  assert.match(nav, /\[@media\(hover:hover\)\]:hover:bg-slate-50/);
-  assert.doesNotMatch(nav, /hover:bg-slate-100 hover:text-blue-700/);
-  assert.match(nav, /h-\[27px\] w-\[27px\]/);
-  assert.match(nav, /bg-white pt-1\.5/);
-  assert.match(nav, /CircleUserRound/);
-  assert.match(nav, /MessageCircleMore/);
 });
 
 test("registration fits compact 320px phones without stretching four-step indicator", () => {
