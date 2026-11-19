@@ -118,7 +118,10 @@ export function useTTS(): UseTTSReturn {
       audio.onended = () => finish("finished");
       audio.onerror = () => finish("failed");
       audio.onpause = () => { if (!audio.ended) finish("failed"); };
-      void audio.play().catch(() => finish("blocked"));
+      void audio.play().catch((error: unknown) => {
+        const name = error instanceof Error ? error.name : "";
+        finish(name === "NotAllowedError" ? "blocked" : "failed");
+      });
     }), []);
 
   const speak = useCallback((messageId: string, text: string, language: TTSLanguage = "tgl") => {
