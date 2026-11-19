@@ -51,3 +51,13 @@ test("voice remains a deliberate push-to-talk action and retains official ground
   assert.match(api, /from routers\.rag_router import ChatRequest, chat/);
   assert.doesNotMatch(ptt, /OPENAI_API_KEY/);
 });
+
+test("fast talk sends on-device final transcripts through authenticated chat, not a second cloud STT upload", () => {
+  assert.match(chat, /isLoggedIn && isOnline && isSupported/);
+  assert.match(chat, /startListening\(ttsLang, transcript =>/);
+  assert.match(chat, /void handleSend\(\{ preventDefault\(\) \{\} \} as React\.FormEvent, transcript\)/);
+  assert.match(chat, /Fast Talk/);
+  assert.match(chat, /Record instead/);
+  assert.match(chat, /speak\(latest\.id, latest\.text, ttsLang, true\)/);
+  assert.match(chat, /stopSpeaking\(\);\s+startListening/);
+});
