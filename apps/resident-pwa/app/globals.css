@@ -8,7 +8,7 @@
   :root {
     --brand-primary: #2563eb;
     --brand-primary-light: #3b82f6;
-    --bottom-nav-height: 64px;
+    --bottom-nav-height: calc(68px + env(safe-area-inset-bottom, 0px));
   }
 
   * {
@@ -27,9 +27,25 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Respect notched phones */
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
+  /* Safe areas belong to the individual app chrome, not the whole body.
+     A second body inset created empty space below the in-app navigation. */
+  html, body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* Reusable mobile protection for cards, flex columns and long receipts. */
+  .resident-screen {
+    min-width: 0;
+    width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .mobile-sheet {
+    max-height: min(90dvh, 100%);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
