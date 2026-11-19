@@ -172,3 +172,12 @@ test("floating dock prevents phantom second active tab after touch on mobile Saf
   assert.match(nav, /CircleUserRound/);
   assert.match(nav, /MessageCircleMore/);
 });
+
+test("registration fits compact 320px phones without stretching four-step indicator", () => {
+  const form = read("../components/auth/RegisterForm.tsx");
+  assert.match(form, /grid min-w-0 grid-cols-4 gap-1 border-b/);
+  assert.match(form, /grid min-w-0 grid-cols-1 gap-2 min-\[375px\]:grid-cols-2/);
+  assert.match(form, /min-w-0 flex-col items-center justify-start gap-1 break-words/);
+  assert.match(form, /4\. ID/);
+  assert.doesNotMatch(form, /4\. ID Verification/);
+});
