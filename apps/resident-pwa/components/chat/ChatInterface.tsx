@@ -1005,7 +1005,7 @@ export function ChatInterface() {
                     <div className="flex items-center gap-1.5 px-1">
                       <button
                         type="button"
-                        onClick={() => speak(m.id, m.text, ttsLang)}
+                        onClick={() => speak(m.id, m.text, ttsLang, voiceMode)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded-full border transition-all ${
                           speakingId === m.id
                             ? "bg-gray-100 text-gray-600 border-gray-200"
@@ -1174,7 +1174,16 @@ export function ChatInterface() {
           </div>
           <button
             type="button"
-            onClick={() => soraVoice.status === "recording" ? soraVoice.stopRecording() : void soraVoice.startRecording()}
+            onClick={() => {
+              if (soraVoice.status === "recording") {
+                soraVoice.stopRecording();
+              } else {
+                // Prevent Ate Sora's introduction from being recorded as the
+                // resident's microphone question, especially on loud phones.
+                stopSpeaking();
+                void soraVoice.startRecording();
+              }
+            }
             disabled={soraVoice.status === "processing" || soraVoice.status === "speaking"}
             aria-label={soraVoice.status === "recording" ? "Stop recording and ask Ate Sora" : "Record question for Ate Sora"}
             className="ml-2 shrink-0 rounded-full bg-blue-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
@@ -1187,7 +1196,15 @@ export function ChatInterface() {
             </span>
           )}
           {soraVoice.error && <span role="alert" className="text-[10px] text-red-600">{soraVoice.error}</span>}
-          {playbackError && <span role="alert" className="block text-[10px] text-amber-700">{playbackError}</span>}
+          {playbackError && (
+            <div role="alert" className="flex min-w-0 items-center gap-2 text-[10px] text-amber-700">
+              <span>{playbackError}</span>
+              <button type="button" className="shrink-0 rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold" onClick={() => {
+                const latest = [...messages].reverse().find(m => m.sender === "ai" && !m.isError);
+                if (latest) speak(latest.id, latest.text, ttsLang, true);
+              }}>Hear reply</button>
+            </div>
+          )}
         </div>
       )}
 
