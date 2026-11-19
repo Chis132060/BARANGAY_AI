@@ -15,7 +15,7 @@ import {
   MapPin,
   Phone,
 } from "lucide-react";
-import { approveResident, rejectResident, fetchPendingVerifications, fetchResidentIdPhotoUrl } from "../../actions";
+import { approveResident, rejectResident, fetchPendingVerifications, fetchResidentIdPhotoUrl, fetchResidentSelfieWithIdPhotoUrl } from "../../actions";
 import type { PendingResident } from "../../actions";
 import { useAuth } from "@/components/auth-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -33,6 +33,10 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   const [selectedResident, setSelectedResident] = useState<PendingResident | null>(null);
   const [idPhotoUrl, setIdPhotoUrl] = useState<string | null>(null);
   const [idPhotoLoading, setIdPhotoLoading] = useState(false);
+  const [selfiePhotoUrl, setSelfiePhotoUrl] = useState<string | null>(null);
+  const [reviewedId, setReviewedId] = useState(false);
+  const [reviewedSelfie, setReviewedSelfie] = useState(false);
+  const requiresSelfieReview = /\/id_capture_v2_/.test(selectedResident?.id_photo_url || "");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -42,12 +46,20 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
   useEffect(() => {
     let cancelled = false;
     setIdPhotoUrl(null);
+    setSelfiePhotoUrl(null);
+    setReviewedId(false);
+    setReviewedSelfie(false);
     setIdPhotoLoading(false);
     if (!selectedResident?.id_photo_url) return;
     setIdPhotoLoading(true);
-    fetchResidentIdPhotoUrl(selectedResident.id)
-      .then((url) => { if (!cancelled) setIdPhotoUrl(url); })
-      .catch(() => { if (!cancelled) setIdPhotoUrl(null); })
+    Promise.all([
+      fetchResidentIdPhotoUrl(selectedResident.id),
+      fetchResidentSelfieWithIdPhotoUrl(selectedResident.id),
+    ])
+      .then(([idPhoto, selfiePhoto]) => {
+        if (!cancelled) { setIdPhotoUrl(idPhoto); setSelfiePhotoUrl(selfiePhoto); }
+      })
+      .catch(() => { if (!cancelled) { setIdPhotoUrl(null); setSelfiePhotoUrl(null); } })
       .finally(() => { if (!cancelled) setIdPhotoLoading(false); });
     return () => { cancelled = true; };
   }, [selectedResident?.id]);
@@ -96,7 +108,10 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
     setProcessingId(id);
     setError(null);
     try {
-      await approveResident(id);
+      if (requiresSelfieReview && (!reviewedId || !reviewedSelfie || !idPhotoUrl || !selfiePhotoUrl)) {
+        throw new Error("Review the ID and selfie-with-ID evidence before approving.");
+      }
+      await approveResident(id, Boolean(requiresSelfieReview && reviewedId && reviewedSelfie));
       // This page is a pending-only queue. Remove the approved record so it
       // cannot continue appearing as pending if realtime delivery is delayed.
       setResidents((prev) => prev.filter((r) => r.id !== id));
@@ -319,10 +334,32 @@ export function VerificationQueueClient({ initialResidents, error: initialError 
               </div>
             )}
 
+            {requiresSelfieReview && (
+              <div className="mt-5 space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-bold text-blue-950">Required selfie-with-ID verification</p>
+                {selfiePhotoUrl
+                  ? <button type="button" className="block w-full" onClick={() => setSelectedId(selfiePhotoUrl)} aria-label="View full selfie with ID">
+                      <img src={selfiePhotoUrl} alt="Submitted selfie showing resident holding ID" className="max-h-72 w-full rounded-xl bg-white object-contain" />
+                    </button>
+                  : <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
+                      {idPhotoLoading ? "Loading private selfie evidence..." : "Selfie-with-ID proof is missing. Approval is blocked until a new complete submission is provided."}
+                    </p>}
+                <p className="text-xs leading-relaxed text-blue-900">Compare the document type, printed details, and the face holding the SAME ID with the resident's application. Neither an ID-shaped photo nor a selfie automatically proves authenticity. Do not approve suspicious or unreadable evidence.</p>
+                <label className="flex items-start gap-2 text-sm text-slate-800">
+                  <input type="checkbox" checked={reviewedId} disabled={!idPhotoUrl} onChange={event => setReviewedId(event.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
+                  I personally inspected the document and its details.
+                </label>
+                <label className="flex items-start gap-2 text-sm text-slate-800">
+                  <input type="checkbox" checked={reviewedSelfie} disabled={!selfiePhotoUrl} onChange={event => setReviewedSelfie(event.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
+                  I personally compared the selfie, the ID, and the applicant details.
+                </label>
+              </div>
+            )}
+
             {canApprove && (
               <div className="mt-6 flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-end">
                 <button type="button" onClick={() => setRejectModalId(selectedResident.id)} disabled={processingId === selectedResident.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-5 py-3 text-sm font-bold text-destructive hover:bg-destructive/20 disabled:opacity-50"><UserX className="h-4 w-4" /> Reject</button>
-                <button type="button" onClick={() => handleApprove(selectedResident.id)} disabled={processingId === selectedResident.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-50">
+                <button type="button" onClick={() => handleApprove(selectedResident.id)} disabled={processingId === selectedResident.id || (requiresSelfieReview && (!idPhotoUrl || !selfiePhotoUrl || !reviewedId || !reviewedSelfie))} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-50">
                   {processingId === selectedResident.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
                   Approve & verify resident
                 </button>
