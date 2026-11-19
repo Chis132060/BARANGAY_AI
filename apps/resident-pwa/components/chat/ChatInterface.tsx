@@ -1183,7 +1183,7 @@ export function ChatInterface() {
                 stopSpeaking();
                 void soraVoice.startRecording();
               }
-            }
+            }}
             disabled={soraVoice.status === "processing" || soraVoice.status === "speaking"}
             aria-label={soraVoice.status === "recording" ? "Stop recording and ask Ate Sora" : "Record question for Ate Sora"}
             className="ml-2 shrink-0 rounded-full bg-blue-600 px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50"
