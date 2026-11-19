@@ -9,23 +9,25 @@ const { assessCapture } = require("../../lib/capture-quality.cjs");
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
   onCancel: () => void;
+  facingMode?: "environment" | "user";
+  instruction?: string;
+  imageAlt?: string;
 }
 
-export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
+export default function CameraCapture({ onCapture, onCancel, facingMode = "environment", instruction = "Position your ID clearly in frame", imageAlt = "Captured ID" }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const activeRef = useRef(true);
   const [error, setError] = useState<string>("");
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
 
   const startCamera = async () => {
     stopCamera();
@@ -38,13 +40,15 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
     }
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { facingMode },
         audio: false,
       });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+      if (!activeRef.current) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        return;
       }
+      streamRef.current = mediaStream;
+      if (videoRef.current) videoRef.current.srcObject = mediaStream;
     } catch (err: any) {
       console.error("Error accessing camera:", err);
       if (err.name === "NotAllowedError") {
@@ -56,13 +60,13 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   };
 
   useEffect(() => {
-    startCamera();
+    activeRef.current = true;
+    void startCamera();
     return () => {
+      activeRef.current = false;
       stopCamera();
-      if (capturedUrl) {
-        URL.revokeObjectURL(capturedUrl);
-      }
     };
+    // Capture is remounted with a separate key for selfie mode.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -98,7 +102,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   };
 
   const handleRetake = () => {
-    startCamera();
+    void startCamera();
   };
 
   const handleConfirm = () => {
@@ -108,7 +112,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   };
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 p-4 border rounded-lg bg-black text-white relative w-full h-[400px] overflow-hidden">
+    <div className="relative flex h-[min(400px,62dvh)] min-h-[280px] w-full min-w-0 flex-col items-center justify-center space-y-4 overflow-hidden rounded-xl border bg-black p-2 text-white min-[375px]:p-4">
       {error ? (
         <div className="text-center p-4">
           <p className="text-red-400 mb-4">{error}</p>
@@ -133,7 +137,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
         <div className="flex flex-col items-center justify-center w-full h-full">
           <img
             src={capturedUrl}
-            alt="Captured ID"
+            alt={imageAlt}
             className="w-full h-full object-cover rounded-md"
           />
           {qualityWarnings.length > 0 && <div role="alert" className="absolute top-3 left-3 right-3 bg-amber-950/90 text-amber-100 text-xs rounded-lg p-2">{qualityWarnings.join(" ")}</div>}
@@ -188,7 +192,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
           
           <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
             <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white shadow-sm border border-white/10">
-              Position your ID clearly in frame
+              {instruction}
             </div>
           </div>
         </div>
