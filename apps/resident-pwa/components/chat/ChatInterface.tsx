@@ -1,5 +1,7 @@
 "use client";
 
+import { getUrgentSafetyReply } from "@/lib/ai/urgent-safety";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -569,6 +571,7 @@ export function ChatInterface() {
     if (!text.trim() || !authChecked || loading || historyLoading || historyBusy) { voiceRequestInFlightRef.current = false; return; }
 
     const userText = text.trim();
+    const urgentSafety = getUrgentSafetyReply(userText, ttsLang);
     const userFormRequest = detectFormTrigger(userText, isLoggedIn);
     setInput("");
     setRateLimited(false);
@@ -580,6 +583,19 @@ export function ChatInterface() {
       timestamp: Date.now(),
     };
     setMessages((prev) => [...prev, userMsg]);
+
+    // Safety guidance is local and immediate even when offline or signed out.
+    // Do not save sensitive incident descriptions as routine chat history.
+    if (urgentSafety) {
+      setMessages(previous => [...previous, {
+        id: "ai-safety-" + uuidv4(),
+        sender: "ai",
+        text: urgentSafety,
+        timestamp: Date.now(),
+      }]);
+      voiceRequestInFlightRef.current = false;
+      return;
+    }
 
     // Local-only, read-only service answers while the device reports offline.
     // No LLM, browser API, chat-history write or document submission occurs.

@@ -17,12 +17,11 @@ class HybridRetriever:
 
     async def _vector_search(self, query: str, limit: int = 20, threshold: float = 0.3) -> List[Dict[str, Any]]:
         """Perform dense semantic search using pgvector."""
-        provider = embedding_manager.get_primary_provider()
-        if not provider:
-            logger.warning("No active embedding provider. Skipping vector search.")
-            return []
-            
         try:
+            provider = embedding_manager.get_primary_provider()
+            if not provider:
+                logger.warning("No active embedding provider. Skipping vector search.")
+                return []
             # Embed query in the active vector space
             response = embedding_manager.embed_for_space([query], provider.space_id)
             query_embedding = response.embeddings[0]

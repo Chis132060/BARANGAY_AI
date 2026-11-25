@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUrgentSafetyReply } from "@/lib/ai/urgent-safety";
 import { createClient } from "@/lib/supabase/server";
 import { runSoraAgent } from "@/lib/ai/sora-agent";
 import { matchServiceFaq, buildServiceFaqAnswer, buildServiceFaqUnavailable } from "@/lib/ai/verified-service-faq";
@@ -79,6 +80,10 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Sign in to use the AI assistant." }, { status: 401 });
   }
+
+  // Immediate non-billable safety guidance must not depend on retrieval, model quota, or chat history.
+  const urgentSafety = getUrgentSafetyReply(message, language);
+  if (urgentSafety) return NextResponse.json({ answer: urgentSafety, citations: [], context_used: false, flagged: false, auditRecorded: false, answer_source: "immediate_safety_guidance", model_used: "local-safety/no-llm" });
 
   // Rate limiting
   // Forwarded IP headers are client-controllable unless normalized by trusted infrastructure.
@@ -268,7 +273,7 @@ export async function POST(request: NextRequest) {
     console.warn("Published incident lookup unavailable; continuing to authenticated AI backend.");
   }
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  const apiBaseUrl = (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
   const agentResponse = await runSoraAgent({
     message,
@@ -291,7 +296,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // Allow grounded retrieval and generation to complete.
 
     const fastApiRes = await fetch(`${apiBaseUrl}/api/v1/chat`, {
       method: "POST",
@@ -314,6 +319,7 @@ export async function POST(request: NextRequest) {
         auditRecorded: data.audit_recorded === true,
       });
     }
+    console.warn("[/api/chat] Grounded backend returned HTTP", fastApiRes.status);
   } catch (err) {
     console.warn("[/api/chat] API backend offline or timed out; checking current active DB policies.");
   }
