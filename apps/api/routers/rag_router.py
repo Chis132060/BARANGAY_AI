@@ -2,6 +2,8 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from uuid import UUID
+import logging
+from services.urgent_safety import urgent_safety_reply
 
 from core.auth import require_chat_access, require_document_manager, require_user
 from services.orchestrator import rag_service
@@ -10,6 +12,7 @@ from services.ai.usage_tracking import begin_usage_tracking, finish_usage_tracki
 from services.supabase_service import get_supabase_client
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # â”€â”€ Request / Response Models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -67,6 +70,9 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
     try:
         user = await require_chat_access(authorization)
         user_id = user["id"]
+        safety = urgent_safety_reply(request.query, request.language)
+        if safety:
+            return ChatResponse(answer=safety, citations=[], context_used=False, flagged=False, latency_ms=0, audit_recorded=False, model_used="local-safety/no-llm")
         session_id = None
         if user_id and request.session_id:
             try:
@@ -74,10 +80,11 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid session id")
             db = get_supabase_client()
-            existing = db.table("ai_sessions").select("id,user_id").eq("id", session_id).maybe_single().execute()
-            if existing.data and existing.data.get("user_id") != user_id:
+            existing = db.table("ai_sessions").select("id,user_id").eq("id", session_id).limit(1).execute()
+            rows = existing.data or []
+            if rows and rows[0].get("user_id") != user_id:
                 raise HTTPException(status_code=404, detail="Session not found")
-            if not existing.data:
+            if not rows:
                 db.table("ai_sessions").insert({"id": session_id, "user_id": user_id, "title": "Resident chat"}).execute()
 
         usage_token = begin_usage_tracking()
@@ -122,7 +129,8 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(defau
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Grounded chat failed: %s", type(e).__name__)
+        raise HTTPException(status_code=503, detail="Grounded chat temporarily unavailable.") from e
 
 
 @router.delete("/memory/{session_id}")
