@@ -20,6 +20,10 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
   try {
     const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
     const password = formData.get("password") as string;
+    const confirmation = formData.get("confirmPassword") as string;
+    const privacyAcknowledged = formData.get("privacyAcknowledged") === "true";
+    const idPhotoConfirmed = formData.get("idPhotoConfirmed") === "true";
+    const selfiePhotoConfirmed = formData.get("selfiePhotoConfirmed") === "true";
     const firstName = formData.get("firstName") as string;
     const middleName = formData.get("middleName") as string;
     const lastName = formData.get("lastName") as string;
@@ -32,9 +36,14 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     const householdCode = String(formData.get("householdCode") || "").trim();
     const idType = formData.get("idType") as string;
     const idBlob = formData.get("idBlob") as Blob | null;
+    const selfieWithIdBlob = formData.get("selfieWithIdBlob") as Blob | null;
 
-    if (!email || !password || !firstName || !lastName || !birthDate || !idBlob) {
-      return { error: "Missing required fields." };
+    if (!email || !password || !firstName || !lastName || !birthDate || !idBlob || !selfieWithIdBlob) {
+      return { error: "Provide both the identification photo and a separate selfie holding the same ID." };
+    }
+    if (password !== confirmation) return { error: "Password confirmation does not match." };
+    if (!privacyAcknowledged || !idPhotoConfirmed || !selfiePhotoConfirmed) {
+      return { error: "Confirm both verification photos and the privacy notice before submitting." };
     }
 
     const inputErrors = validateRegistrationInput({ email, password, firstName, lastName, birthDate, contactNumber, street, purok, idType });
@@ -42,6 +51,8 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     if (householdCode.length > 80) return { error: "Household code is too long." };
     const fileErrors = validateIdFile({ type: idBlob.type, size: idBlob.size });
     if (fileErrors.length) return { error: fileErrors[0] };
+    const selfieErrors = validateIdFile({ type: selfieWithIdBlob.type, size: selfieWithIdBlob.size });
+    if (selfieErrors.length) return { error: "Invalid selfie-with-ID photo: " + selfieErrors[0] };
 
     if (!ALLOWED_MIME_TYPES.includes(idBlob.type)) {
       return { error: "Invalid image format. Only JPEG, PNG, and WEBP are allowed." };
@@ -52,16 +63,29 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     }
 
     const idBytes = Buffer.from(await idBlob.arrayBuffer());
+    const selfieBytes = Buffer.from(await selfieWithIdBlob.arrayBuffer());
     try {
       inspectImage(idBytes, idBlob.type);
+      inspectImage(selfieBytes, selfieWithIdBlob.type);
     } catch (imageError) {
-      return { error: imageError instanceof Error ? imageError.message : "Invalid identification image." };
+      return { error: imageError instanceof Error ? imageError.message : "Invalid identification or selfie image." };
+    }
+    if (idBytes.equals(selfieBytes)) {
+      return { error: "Your selfie must be a separate new photo showing your face holding the same ID. Do not reuse the ID-only photo." };
     }
     const extension = detectedImageExtension(idBytes);
     const expectedExtension = idBlob.type === "image/jpeg" ? "jpg" : idBlob.type === "image/png" ? "png" : "webp";
     if (extension !== expectedExtension) {
       return { error: "Identification image content does not match its file format." };
     }
+    const selfieExtension = detectedImageExtension(selfieBytes);
+    const expectedSelfieExtension = selfieWithIdBlob.type === "image/jpeg" ? "jpg" : selfieWithIdBlob.type === "image/png" ? "png" : "webp";
+    if (selfieExtension !== expectedSelfieExtension) {
+      return { error: "Selfie image content does not match its file format." };
+    }
+    // The reviewer's paired private URL is derived only from the v2 ID path.
+    // Require the two captures to use the same format so the mapping is exact.
+    if (selfieExtension !== extension) return { error: "Capture both ID and selfie using the same camera image format." };
 
     const supabase = createAdminClient();
     let requestedHouseholdId: string | null = null;
@@ -116,15 +140,21 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
 
     // Every resource below belongs to this newly-created auth user.
     // Compensate for partial failures so registration can be safely retried.
-    let uploadedPath: string | null = null;
+    const uploadedPaths: string[] = [];
     try {
-      const fileName = `id_capture_${uuidv4()}.${extension}`;
-      const storagePath = `${authUserId}/${fileName}`;
+      const proofId = uuidv4();
+      const storagePath = `${authUserId}/id_capture_v2_${proofId}.${extension}`;
+      const selfieStoragePath = `${authUserId}/selfie_with_id_v2_${proofId}.${extension}`;
       const { error: uploadError } = await supabase.storage
         .from("resident-ids")
-        .upload(storagePath, idBytes, { contentType: idBlob.type, upsert: false });
+        .upload(storagePath, idBytes, { contentType: idBlob.type, cacheControl: "60", upsert: false });
       if (uploadError) throw new Error("Unable to upload identification document.");
-      uploadedPath = storagePath;
+      uploadedPaths.push(storagePath);
+      const { error: selfieUploadError } = await supabase.storage
+        .from("resident-ids")
+        .upload(selfieStoragePath, selfieBytes, { contentType: selfieWithIdBlob.type, cacheControl: "60", upsert: false });
+      if (selfieUploadError) throw new Error("Unable to upload selfie-with-ID proof.");
+      uploadedPaths.push(selfieStoragePath);
 
       const { data: residentRole, error: roleError } = await supabase
         .from("roles").select("id").eq("name", "Resident").single();
@@ -197,8 +227,8 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
         if (linkError || !linkedResident) throw new Error("That family record was linked by another registration. Please contact Barangay staff.");
       }
     } catch (registrationError) {
-      if (uploadedPath) {
-        await supabase.storage.from("resident-ids").remove([uploadedPath]);
+      if (uploadedPaths.length) {
+        await supabase.storage.from("resident-ids").remove(uploadedPaths);
       }
       // residents.user_id is ON DELETE CASCADE; deleting the new auth identity
       // rolls back dependent profiles in schemas with cascading foreign keys.
