@@ -15,7 +15,7 @@ export default function ForgotPasswordPage(){
    const supabase=createClient();
    const callback=window.location.origin+"/auth/callback?next="+(mode==="reset"?"/reset-password":"/home");
    const result=mode==="reset"?await supabase.auth.resetPasswordForEmail(address,{redirectTo:callback}):await supabase.auth.resend({type:"signup",email:address,options:{emailRedirectTo:callback}});
-   if(result.error && (result.error.status===429 || result.error.status>=500)){setError("Email service is temporarily unavailable or rate limited. Try again later.");return;}
+   if(result.error && (result.error.status===429 || (result.error.status??0)>=500)){setError("Email service is temporarily unavailable or rate limited. Try again later.");return;}
    setMessage("If an eligible account exists, check your inbox and spam folder for the email. Open the link in this browser.");
   }catch{setError("Unable to reach the email service. Check your connection and try again.");}
   finally{lock.current=false;setBusy(false);}
