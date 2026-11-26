@@ -1,11 +1,15 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
+import { runFormRegression } from "./form-upload-browser-regression.mjs";
+import { runHttpMethodRegression } from "./http-method-browser-regression.mjs";
 
 const base = process.env.PWA_TEST_BASE_URL || "http://localhost:5173";
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ serviceWorkers: "allow" });
 const page = await context.newPage();
 try {
+  await runFormRegression(browser);
+  await runHttpMethodRegression(base);
   // Reproduce the reported phone screenshot in the *guest* chat. A 100%-high
   // chat inside a min-height-only shell used to leave a large blank strip
   // under the composer. Test typing, click targets and layout before the
