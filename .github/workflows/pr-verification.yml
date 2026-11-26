@@ -112,3 +112,34 @@ jobs:
       - name: Show server logs if failed
         if: failure()
         run: tail -n 120 /tmp/resident-pwa.log || true
+
+  public-http-contract:
+    name: Live public HTTP contracts (no resident mutations)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright API request runner
+        run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - name: Check live public Resident PWA, Admin Portal and Railway API
+        env:
+          BARANGAY_API_TEST_URL: 'https://barangayai-production-de7aa4c0.up.railway.app'
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { request } from 'playwright';
+          import { runHttpMethodRegression } from './apps/resident-pwa/tests/http-method-browser-regression.mjs';
+          await runHttpMethodRegression('https://barangay-resident-pwa.vercel.app');
+          const admin = await request.newContext({baseURL:'https://barangay-admin-portal.vercel.app',timeout:15000});
+          try {
+            const login = await admin.get('/login');
+            assert.equal(login.status(),200);
+            const head = await admin.head('/login');
+            assert.equal(head.status(),200);
+            assert.equal((await head.body()).length,0);
+            console.log('PASS: live Admin Portal GET/HEAD login');
+          } finally { await admin.dispose(); }
+          JS
