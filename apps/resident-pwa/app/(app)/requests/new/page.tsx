@@ -162,8 +162,8 @@ export default function NewRequestPage() {
     }
     
     // Client-side validation
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg(`File for "${requirement}" exceeds 5MB limit.`);
+    if (file.size === 0 || file.size > 4_000_000) {
+      setErrorMsg(`File for "${requirement}" must be non-empty and no larger than 4 MB.`);
       return;
     }
     const ext = file.name.split('.').pop()?.toLowerCase();
@@ -195,6 +195,11 @@ export default function NewRequestPage() {
       return;
     }
 
+    const totalBytes = (selectedType.requirements_json || []).reduce((sum, req) => sum + (reuseIdRequirements.includes(req) || reuseProfileRequirements.includes(req) ? 0 : files[req]?.size ?? 0), 0);
+    if (totalBytes > 4_000_000) {
+      setErrorMsg("Combined attachments must be 4 MB or less. Compress images or PDFs and try again.");
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
 
@@ -415,7 +420,7 @@ export default function NewRequestPage() {
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                         Step 3: Documents and requirements
                       </p>
-                      <p className="text-[10px] text-gray-500 mb-2">Your verified registration ID and resident profile may be used for staff review. Upload a new file only when needed. PDF, JPG, PNG · 5 MB maximum.</p>
+                      <p className="text-[10px] text-gray-500 mb-2">Your verified registration ID and resident profile may be used for staff review. Upload a new file only when needed. PDF, JPG, PNG · 4 MB combined maximum.</p>
                       
                       {selectedType.requirements_json.map((req) => (
                         <div key={req} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl space-y-3">
