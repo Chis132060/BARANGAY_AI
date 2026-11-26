@@ -80,6 +80,9 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([
     { id: "welcome", sender: "ai", text: welcomeByLanguage["tgl"], timestamp: Date.now() },
   ]);
+  const currentMessagesRef = useRef(messages);
+  currentMessagesRef.current = messages;
+  const hydratedOwnerRef = useRef<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -295,11 +298,19 @@ export function ChatInterface() {
   useEffect(() => {
     if (!authChecked) return;
     if (!isLoggedIn) {
+      hydratedOwnerRef.current = null;
       setHistoryLoading(false);
       setHistoryHydrated(true);
       return;
     }
     if (!authUserId) return;
+    // A reconnect is not a request to replace the current conversation.
+    // Keep the live form component (and its in-memory File objects) mounted.
+    if (hydratedOwnerRef.current === authUserId && currentMessagesRef.current.some(m => m.formType)) {
+      setHistoryLoading(false);
+      setHistoryHydrated(true);
+      return;
+    }
     if (!isOnline) {
       // Cloud history has not been copied to this device. Never show an empty
       // result as proof that a resident's saved conversations were deleted.
@@ -333,6 +344,7 @@ export function ChatInterface() {
           .order("created_at", { ascending: true }).limit(500);
         if (messagesError) throw new Error("Unable to load saved messages: " + messagesError.message);
         if (cancelled || historyLoadVersionRef.current !== version) return;
+        if (hydratedOwnerRef.current === authUserId && currentMessagesRef.current.some(m => m.formType)) return;
         setSessionId(target.session_token);
         setMessages(fromSavedRows(rows ?? []));
         window.localStorage.setItem(memoryKey(authUserId!), target.session_token);
@@ -340,6 +352,7 @@ export function ChatInterface() {
         if (!cancelled) setHistoryError(error instanceof Error ? error.message : "Unable to restore chat history.");
       } finally {
         if (!cancelled) {
+          hydratedOwnerRef.current = authUserId;
           setHistoryLoading(false);
           setHistoryHydrated(true);
         }
