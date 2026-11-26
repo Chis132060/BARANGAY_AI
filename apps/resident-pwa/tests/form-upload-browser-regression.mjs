@@ -1,7 +1,7 @@
 // Real Chromium interaction with the actual form component. External auth,
 // catalog and action are isolated synthetic adapters, never production writes.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import ts from "typescript";
@@ -14,8 +14,11 @@ const reactPath = join(dirname(require.resolve("react/package.json")), "umd/reac
 const domPath = join(dirname(require.resolve("react-dom/package.json")), "umd/react-dom.development.js");
 
 export async function runFormRegression(browser) {
+  const evidence = process.env.QA_EVIDENCE_DIR || "qa-evidence";
+  mkdirSync(evidence, {recursive:true});
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
   try {
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
     const page = await context.newPage();
     await page.route("http://localhost:8765/**", route => route.fulfill({ contentType: "text/html", body: '<!doctype html><div id="root"></div>' }));
     await page.goto("http://localhost:8765/");
@@ -64,24 +67,28 @@ export async function runFormRegression(browser) {
     const input = form.locator('input[type="file"]');
     await input.setInputFiles({name:"sample.jpg",mimeType:"image/jpeg",buffer:jpeg});
     await form.getByText("sample.jpg",{exact:true}).waitFor();
+    await page.screenshot({path:join(evidence,"01-jpeg-selected.png"),fullPage:true});
     await page.evaluate(()=>{window.dispatchEvent(new Event("offline"));window.dispatchEvent(new Event("online"));});
     assert.equal(await form.locator("textarea").inputValue(),"Synthetic defense test only");
     await form.getByText("sample.jpg",{exact:true}).waitFor();
     await input.setInputFiles({name:"too-big.jpg",mimeType:"image/jpeg",buffer:Buffer.alloc(4_000_001)});
     await form.getByRole("alert").waitFor();
+    await page.screenshot({path:join(evidence,"02-oversize-rejected.png"),fullPage:true});
     await form.getByText("sample.jpg",{exact:true}).waitFor();
     await form.getByRole("button",{name:"Submit Document Request"}).click();
     await form.getByText("Synthetic network failure",{exact:false}).waitFor();
+    await page.screenshot({path:join(evidence,"03-failure-retains-form.png"),fullPage:true});
     await form.getByText("sample.jpg",{exact:true}).waitFor();
     assert.equal(await form.locator("textarea").inputValue(),"Synthetic defense test only");
     await page.evaluate(()=>{window.fixtureReceipt=true});
     await form.getByRole("button",{name:"Submit Document Request"}).click();
     await page.getByText("TEST-ONLY-001",{exact:true}).waitFor();
+    await page.screenshot({path:join(evidence,"04-mocked-receipt.png"),fullPage:true});
     const calls=await page.evaluate(()=>window.fixtureCalls);
     assert.equal(calls.length,2);
     assert.equal(calls[0].id,calls[1].id,"retry must preserve idempotency key");
     assert.equal(calls[1].name,"sample.jpg");
     assert.equal(calls[1].size,jpeg.length);
     console.log("PASS: real Chromium form component: JPEG selection, reconnect, invalid replacement, failure, idempotent retry, receipt (mocked server)");
-  } finally { await context.close(); }
+  } finally { await context.tracing.stop({path:join(evidence,"form-trace.zip")}); await context.close(); }
 }
