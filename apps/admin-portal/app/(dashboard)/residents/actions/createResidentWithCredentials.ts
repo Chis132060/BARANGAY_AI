@@ -13,7 +13,7 @@ function generateResidentCode(sequenceNumber: number): string {
   return `BRY-${year}-${padded}`;
 }
 
-function generatePassword(length = 10): string {
+function generatePassword(length = 16): string {
   const chars =
     "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
   const values = new Uint32Array(length);
@@ -137,6 +137,8 @@ export async function createResidentWithCredentials(
     await supabaseAdmin.auth.admin.createUser({
       email: authEmail,
       password,
+      app_metadata: { role: "Resident" },
+      user_metadata: { full_name: [input.first_name,input.middle_name,input.last_name].filter(Boolean).join(" ") },
       email_confirm: true, // skip email confirmation â€” admin-created account
     });
 
@@ -145,6 +147,11 @@ export async function createResidentWithCredentials(
   }
 
   const authUserId = authData.user.id;
+
+  const {data: residentRole, error: roleError}=await supabaseAdmin.from("roles").select("id").eq("name","Resident").single();
+  if(roleError||!residentRole){await supabaseAdmin.auth.admin.deleteUser(authUserId);return {success:false,residentCode,emailSent:false,error:"Resident role is not configured."};}
+  const {error: profileError}=await supabaseAdmin.from("users").insert({id:authUserId,name:[input.first_name,input.middle_name,input.last_name].filter(Boolean).join(" "),email:authEmail,role_id:residentRole.id});
+  if(profileError){await supabaseAdmin.auth.admin.deleteUser(authUserId);return {success:false,residentCode,emailSent:false,error:"Unable to create resident login profile."};}
 
   // 2. Insert resident record
   const { data: resData, error: resError } = await supabaseAdmin
