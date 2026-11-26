@@ -14,39 +14,40 @@ interface CameraCaptureProps {
 export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const generation = useRef(0);
+  const previewRef = useRef<string | null>(null);
   const [error, setError] = useState<string>("");
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
+    streamRef.current?.getTracks().forEach(track=>track.stop());
+    streamRef.current=null;
+  }, []);
 
   const startCamera = async () => {
+    const attempt=++generation.current;
     stopCamera();
     setError("");
     setCapturedBlob(null);
     setQualityWarnings([]);
-    if (capturedUrl) {
-      URL.revokeObjectURL(capturedUrl);
-      setCapturedUrl(null);
-    }
+    if(previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current=null;
+    setCapturedUrl(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
       });
-      setStream(mediaStream);
+      if(attempt!==generation.current){mediaStream.getTracks().forEach(track=>track.stop());return;}
+      streamRef.current=mediaStream;
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err: any) {
-      console.error("Error accessing camera:", err);
+      if(attempt!==generation.current)return;
       if (err.name === "NotAllowedError") {
         setError("Camera permission denied. Please allow camera access in your browser settings.");
       } else {
@@ -58,10 +59,10 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
   useEffect(() => {
     startCamera();
     return () => {
+      generation.current++;
       stopCamera();
-      if (capturedUrl) {
-        URL.revokeObjectURL(capturedUrl);
-      }
+      if(previewRef.current) URL.revokeObjectURL(previewRef.current);
+      previewRef.current=null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -80,11 +81,15 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
           const sample = ctx.getImageData(0, 0, canvas.width, canvas.height);
           setQualityWarnings(assessCapture({ width: canvas.width, height: canvas.height, pixels: sample.data }).warnings);
         } catch { setQualityWarnings(["Could not assess image quality. Check that all ID text is readable."]); }
+        const attempt=generation.current;
         canvas.toBlob(
           (blob) => {
+            if(attempt!==generation.current)return;
             if (blob) {
               setCapturedBlob(blob);
-              setCapturedUrl(URL.createObjectURL(blob));
+              if(previewRef.current) URL.revokeObjectURL(previewRef.current);
+              previewRef.current=URL.createObjectURL(blob);
+              setCapturedUrl(previewRef.current);
               stopCamera();
             } else {
               setError("Failed to capture image.");
