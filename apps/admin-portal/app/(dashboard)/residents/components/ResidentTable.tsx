@@ -55,7 +55,7 @@ export function ResidentTable({ residents }: ResidentTableProps) {
               <th className="px-6 py-3.5">Gender / Age</th>
               <th className="px-6 py-3.5">Address & Purok</th>
               <th className="px-6 py-3.5">Classifications</th>
-              <th className="px-6 py-3.5">Contact Number</th>
+              <th className="px-6 py-3.5">Contact / Email</th>
               <th className="px-6 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
@@ -71,9 +71,10 @@ export function ResidentTable({ residents }: ResidentTableProps) {
               </tr>
             ) : (
               residents.map((res) => {
-                const age = new Date().getFullYear() - new Date(res.birth_date).getFullYear();
+                const birth = new Date(res.birth_date); const now = new Date();
+                const age = now.getFullYear()-birth.getFullYear()-(now.getMonth()<birth.getMonth() || (now.getMonth()===birth.getMonth() && now.getDate()<birth.getDate()) ? 1 : 0);
                 const addressStr = res.address
-                  ? `${res.address.house_number || ""} ${res.address.street || ""}, Purok ${res.address.purok || ""}`
+                  ? [res.address.house_number, res.address.street, res.address.purok].filter(Boolean).join(", ")
                   : "—";
 
                 return (
@@ -130,13 +131,14 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                       ) : (
                         "—"
                       )}
+                      {res.email && <span className="mt-1 block break-all font-sans text-xs">{res.email}</span>}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
                         onClick={() => setSelectedResident(res)}
                         aria-label={`View profile of ${res.first_name} ${res.last_name}`}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors opacity-100"
                         title={`View ${res.first_name} ${res.last_name}'s profile`}
                       >
                         <Eye className="h-4 w-4" />
@@ -220,6 +222,11 @@ export function ResidentTable({ residents }: ResidentTableProps) {
                 ["Date of birth", selectedResident.birth_date],
                 ["Civil status", selectedResident.civil_status],
                 ["Contact number", selectedResident.contact_number || "—"],
+                ["Email address", selectedResident.email || "Not provided"],
+                ["PWA account", selectedResident.user_id ? "Linked (email confirmation may be required)" : "No login account linked"],
+                ["Resident code", selectedResident.resident_code || "—"],
+                ["ID type", selectedResident.id_type || "—"],
+                ["Registered", selectedResident.created_at ? new Date(selectedResident.created_at).toLocaleDateString("en-PH") : "—"],
                 ["House number", selectedResident.address?.house_number || "—"],
                 ["Street", selectedResident.address?.street || "—"],
                 ["Purok", selectedResident.address?.purok || "—"],
