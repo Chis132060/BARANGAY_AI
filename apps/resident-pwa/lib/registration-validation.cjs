@@ -28,7 +28,10 @@ function registrationFieldErrors(input, step=0){
  }
  return errors;
 }
-function validateRegistrationInput(input){return Object.values(registrationFieldErrors(input));}
+function validateRegistrationInput(input){
+ const legacy={firstName:'Invalid first name',lastName:'Invalid last name',email:'Invalid email',contactNumber:'Invalid Philippine mobile number',birthDate:'Invalid birth date',purok:'Invalid purok',street:'Invalid street',idType:'Invalid ID type'};
+ return Object.entries(registrationFieldErrors(input)).map(([key,value])=>legacy[key]||value);
+}
 function validateIdFile({type,size}={}) {
  const errors=[];
  if(!TYPES.has(type))errors.push('Unsupported ID image type');
