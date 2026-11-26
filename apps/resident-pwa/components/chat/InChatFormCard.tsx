@@ -337,7 +337,7 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
                           <span className="block text-base font-semibold text-blue-800">{file ? "Change file" : "Tap to upload"}</span>
                           <span className="block break-all text-sm text-slate-600">{file ? file.name : "PDF, JPG or PNG · 4 MB combined"}</span>
                         </span>
-                        <input id={inputId} type="file" required accept=".pdf,.jpg,.jpeg,.png"
+                        <input id={inputId} type="file" required={!file} accept=".pdf,.jpg,.jpeg,.png"
                           className="sr-only"
                           onChange={event => {
                             const selected = event.target.files?.[0];
