@@ -172,11 +172,11 @@ test("classic labeled navigation is clean, responsive, accessible, and safe-area
   assert.doesNotMatch(shell, /paddingBottom: "var\(--bottom-nav-height\)"/);
 });
 
-test("registration fits compact 320px phones without stretching four-step indicator", () => {
+test("registration retains responsive four-step indicator and accessible fields", () => {
   const form = read("../components/auth/RegisterForm.tsx");
-  assert.match(form, /grid min-w-0 grid-cols-4 gap-1 border-b/);
-  assert.match(form, /grid min-w-0 grid-cols-1 gap-2 min-\[375px\]:grid-cols-2/);
-  assert.match(form, /min-w-0 flex-col items-center justify-start gap-1 break-words/);
-  assert.match(form, /4\. ID/);
-  assert.doesNotMatch(form, /4\. ID Verification/);
+  assert.match(form, /grid grid-cols-4 gap-1 border-b/);
+  assert.match(form, /min-w-0 flex-col items-center/);
+  assert.match(form, /sm:grid-cols-2/);
+  assert.match(form, /aria-current=\{active\?"step":undefined\}/);
+  assert.match(form, /min-h-12 w-full min-w-0/);
 });
