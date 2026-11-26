@@ -76,6 +76,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 
 const nextConfig = {
   reactStrictMode: true,
+  // Keep below Vercel function request-body limit, including multipart overhead.
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },
