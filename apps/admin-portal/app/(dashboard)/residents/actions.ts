@@ -12,6 +12,11 @@ export interface ResidentListItem {
   gender: string;
   civil_status: string;
   contact_number?: string;
+  email?: string | null;
+  user_id?: string | null;
+  resident_code?: string | null;
+  created_at?: string;
+  updated_at?: string;
   senior_status: boolean;
   pwd_status: boolean;
   four_ps_status: boolean;
@@ -42,6 +47,11 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
       gender,
       civil_status,
       contact_number,
+      email,
+      user_id,
+      resident_code,
+      created_at,
+      updated_at,
       senior_status,
       pwd_status,
       four_ps_status,
@@ -77,7 +87,7 @@ export async function fetchResidents(search = "", filter = "All"): Promise<Resid
   });
 
   // Cast address relation response object safely
-  return filtered.map((res: any) => ({
+  return filtered.sort((a: any,b: any) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")) || String(b.created_at || "").localeCompare(String(a.created_at || "")) || String(a.id).localeCompare(String(b.id))).map((res: any) => ({
     ...res,
     address: Array.isArray(res.address) ? res.address[0] : res.address,
   })) as ResidentListItem[];
@@ -220,7 +230,7 @@ export async function fetchPendingVerifications(): Promise<PendingResident[]> {
     `)
     .eq("verification_status", "Pending")
     .not("user_id", "is", null)
-    .order("created_at", { ascending: true });
+    .order("updated_at", { ascending: false }).order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
 
