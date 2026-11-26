@@ -1,514 +1,178 @@
 "use client";
 
-import { useState } from "react";
-import { User, MapPin, KeyRound, FileCheck, Upload, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Clock, Camera, Home, AlertTriangle, Users, Paperclip } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type InputHTMLAttributes } from "react";
+import { User, MapPin, KeyRound, FileCheck, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Camera, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { registerResidentAction } from "@/app/(auth)/register/actions";
 import CameraCapture from "../camera/CameraCapture";
 
+const { registrationFieldErrors, validateIdFile, PASSWORD_MIN, PASSWORD_MAX } = require("../../lib/registration-validation.cjs") as {
+  registrationFieldErrors: (data: Record<string, unknown>, step?: number) => Record<string, string>;
+  validateIdFile: (file: {type:string;size:number}) => string[];
+  PASSWORD_MIN: number; PASSWORD_MAX: number;
+};
 const PUROK_OPTIONS = ["Purok 1", "Purok 2", "Purok 3", "Purok 4", "Purok 5", "Purok 6", "Purok 7"];
 const ID_TYPE_OPTIONS = [
-  "Philippine Identification (PhilID / ePhilID)",
-  "Voter's ID / Voter's Certification",
-  "Driver's License",
-  "UMID / SSS / GSIS Card",
-  "Postal ID",
-  "Barangay Clearance / Proof of Residency",
+  "Philippine Identification (PhilID / ePhilID)", "Voter's ID / Voter's Certification", "Driver's License",
+  "UMID / SSS / GSIS Card", "Postal ID", "Barangay Clearance / Proof of Residency",
 ];
+const initial = { firstName:"", middleName:"", lastName:"", birthDate:"", gender:"Male", contactNumber:"",
+  houseNumber:"", street:"", purok:"Purok 1", householdCode:"", email:"", password:"", idType:ID_TYPE_OPTIONS[0] };
+type FieldName = keyof typeof initial;
+const steps = [
+  {label:"Personal", title:"Personal information", description:"Enter your details as shown on your identification.", icon:User},
+  {label:"Address", title:"Residency address", description:"Tell us where you live in the barangay.", icon:MapPin},
+  {label:"Account", title:"Account information", description:"Create the credentials you will use to sign in.", icon:KeyRound},
+  {label:"Identification", title:"Identification", description:"Capture a clear photo of your identification for staff review.", icon:FileCheck},
+];
+const control = "min-h-12 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base font-normal text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 disabled:opacity-60";
+const primary = "flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:opacity-50";
+function Field({name,label,error,hint,children}: {name:string;label:string;error?:string;hint?:string;children:ReactNode}){
+  return <div className="min-w-0 space-y-1.5"><label htmlFor={name} className="block text-sm font-semibold text-slate-800">{label}</label>{children}
+    {hint && <p id={name+"-hint"} className="text-sm leading-relaxed text-slate-600">{hint}</p>}
+    {error && <p id={name+"-error"} role="alert" className="text-sm font-medium text-red-700">{error}</p>}</div>;
+}
 
 export function RegisterForm() {
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [emailWarning, setEmailWarning] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    birthDate: "",
-    gender: "Male",
-    contactNumber: "",
-    houseNumber: "",
-    street: "",
-    purok: "Purok 1",
-    householdCode: "",
-    email: "",
-    password: "",
-    idType: ID_TYPE_OPTIONS[0],
-    isBoarder: false,
-    boarderCount: "",
-  });
-
-  const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [rbiFile, setRbiFile] = useState<File | null>(null);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleCaptureStart = () => setIsCapturing(true);
-  const handleCaptureCancel = () => setIsCapturing(false);
-  const handleCapture = (blob: Blob) => {
-    setCapturedBlob(blob);
-    setIsCapturing(false);
-  };
-
-  const supabase = createClient();
-
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const payload = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        payload.append(key, String(value));
-      });
-      if (capturedBlob) {
-        payload.append("idBlob", capturedBlob, "id_capture.jpg");
-      }
-      if (rbiFile) {
-        payload.append("rbiFile", rbiFile, rbiFile.name);
-      }
-
-      const res = await registerResidentAction(payload);
-
-      if (res.error) {
-        throw new Error(res.error);
-      }
-
-      setSubmitted(true);
-      if (res.emailWarning) {
-        setEmailWarning(res.emailWarning);
-      } else {
-        window.location.href = "/pending-approval";
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (submitted) {
-    return (
-      <div className="text-center space-y-4 py-6 animate-in fade-in duration-300">
-        <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
-          <CheckCircle2 className="h-10 w-10" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-900">Registration Submitted!</h2>
-        {emailWarning && <p role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">{emailWarning}</p>}
-        <p className="text-xs text-gray-600 leading-relaxed max-w-xs mx-auto">
-          Your resident account registration for <strong className="text-gray-900">{formData.firstName} {formData.lastName}</strong> has been submitted.
-        </p>
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-left text-xs text-amber-800 space-y-1">
-          <p className="font-bold flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            <span>Status: Pending Barangay Verification</span>
-          </p>
-          <p className="text-[11px] leading-normal text-amber-700">
-            Barangay Admin officials will verify your submitted ID against barangay records. Full resident access unlocks after approval.
-          </p>
-        </div>
-        <button
-          onClick={() => (window.location.href = "/pending-approval")}
-          className="w-full py-3 bg-blue-600 text-white font-bold text-xs rounded-xl shadow hover:bg-blue-700 transition-colors mt-2"
-        >
-          View Approval Status
-        </button>
-      </div>
-    );
+  const [step,setStep]=useState(1);
+  const [formData,setFormData]=useState(initial);
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const [errorMsg,setErrorMsg]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [submitted,setSubmitted]=useState(false);
+  const [emailWarning,setEmailWarning]=useState("");
+  const [showPassword,setShowPassword]=useState(false);
+  const [capturedBlob,setCapturedBlob]=useState<Blob|null>(null);
+  const [preview,setPreview]=useState("");
+  const [isCapturing,setIsCapturing]=useState(false);
+  const locked=useRef(false);
+  const heading=useRef<HTMLHeadingElement>(null);
+  const firstRender=useRef(true);
+  const dirty=Object.keys(initial).some(k=>formData[k as FieldName]!==initial[k as FieldName]) || Boolean(capturedBlob);
+  useEffect(()=>{
+    if(firstRender.current){firstRender.current=false;return;}
+    heading.current?.focus();
+  },[step]);
+  useEffect(()=>{
+    if(!capturedBlob){setPreview("");return;}
+    const url=URL.createObjectURL(capturedBlob);setPreview(url);
+    return ()=>URL.revokeObjectURL(url);
+  },[capturedBlob]);
+  useEffect(()=>{
+    if(!dirty||submitted)return;
+    const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue="";};
+    window.addEventListener("beforeunload",warn);
+    return ()=>window.removeEventListener("beforeunload",warn);
+  },[dirty,submitted]);
+  function change(name:FieldName,value:string){
+    setFormData(prev=>({...prev,[name]:value}));
+    setErrors(prev=>{const next={...prev};delete next[name];return next;});
+    setErrorMsg("");
   }
-
-  return (
-    <div className="min-w-0 space-y-5">
-      {/* Step Indicator */}
-      <div className="grid min-w-0 grid-cols-4 gap-1 border-b pb-3 text-[10px] min-[375px]:text-xs">
-        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 1 ? "text-blue-600" : "text-gray-400"}`}>
-          <User className="h-4 w-4" /> 1. Personal
-        </span>
-        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 2 ? "text-blue-600" : "text-gray-400"}`}>
-          <MapPin className="h-4 w-4" /> 2. Address
-        </span>
-        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 3 ? "text-blue-600" : "text-gray-400"}`}>
-          <KeyRound className="h-4 w-4" /> 3. Account
-        </span>
-        <span className={`flex min-w-0 flex-col items-center justify-start gap-1 break-words text-center font-bold leading-tight ${step === 4 ? "text-blue-600" : "text-gray-400"}`}>
-          <FileCheck className="h-4 w-4" /> 4. ID
-        </span>
+  function input(name:FieldName,label:string,props:InputHTMLAttributes<HTMLInputElement>={},hint?:string){
+    return <Field name={name} label={label} error={errors[name]} hint={hint}>
+      <input {...props} id={name} name={name} value={formData[name]} onChange={e=>change(name,e.target.value)}
+        aria-invalid={Boolean(errors[name])} aria-describedby={[hint?name+"-hint":"",errors[name]?name+"-error":""].filter(Boolean).join(" ")||undefined}
+        className={control+(errors[name]?" border-red-600":"")} />
+    </Field>;
+  }
+  function select(name:FieldName,label:string,options:string[]){
+    return <Field name={name} label={label} error={errors[name]}><select id={name} name={name} value={formData[name]} onChange={e=>change(name,e.target.value)} aria-invalid={Boolean(errors[name])} aria-describedby={errors[name]?name+"-error":undefined} className={control}>{options.map(v=><option key={v} value={v}>{v}</option>)}</select></Field>;
+  }
+  function validate(n:number){
+    const result=registrationFieldErrors(formData,n);
+    if(n===4){
+      if(!capturedBlob)result.idBlob="Capture your identification photo before submitting.";
+      else if(validateIdFile(capturedBlob).length)result.idBlob="Capture a JPEG, PNG or WEBP image of up to 4 MB.";
+    }
+    return result;
+  }
+  function reveal(n:number,issues:Record<string,string>){
+    setStep(n);setErrors(issues);
+    requestAnimationFrame(()=>document.getElementById(Object.keys(issues)[0])?.focus());
+  }
+  async function handleRegisterSubmit(e:FormEvent<HTMLFormElement>){
+    e.preventDefault();
+    if(locked.current||submitted)return;
+    setErrorMsg("");
+    if(step<4){
+      const issues=validate(step);
+      if(Object.keys(issues).length){reveal(step,issues);return;}
+      setErrors({});setStep(step+1);return;
+    }
+    for(let n=1;n<=4;n++){const issues=validate(n);if(Object.keys(issues).length){reveal(n,issues);return;}}
+    if(!capturedBlob)return;
+    locked.current=true;setLoading(true);
+    try{
+      const payload=new FormData();
+      Object.entries(formData).forEach(([key,value])=>payload.append(key,value));
+      payload.append("idBlob",capturedBlob,"id_capture.jpg");
+      const res=await registerResidentAction(payload);
+      if(res.fieldErrors){
+        for(let n=1;n<=4;n++){
+          const keys=Object.keys(registrationFieldErrors({...initial,password:"",idType:""},n));
+          const matches=Object.fromEntries(Object.entries(res.fieldErrors).filter(([key])=>keys.includes(key)|| (n===4&&key==="idBlob") || (n===2&&key==="householdCode")));
+          if(Object.keys(matches).length){reveal(n,matches);return;}
+        }
+      }
+      if(!res.success){setErrorMsg(res.error||"Registration could not be completed. Please try again.");return;}
+      setEmailWarning(res.emailWarning||"");setFormData(prev=>({...prev,password:""}));setCapturedBlob(null);setSubmitted(true);
+    }catch{setErrorMsg("Unable to submit registration. Your information is still here. Check your connection and retry.");}
+    finally{locked.current=false;setLoading(false);}
+  }
+  if(submitted)return <section className="space-y-4 text-center" aria-live="polite">
+    <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600"/>
+    <h2 className="text-2xl font-bold text-slate-900">Registration submitted</h2>
+    <p className="text-sm leading-relaxed text-slate-600">Your application for {formData.firstName} {formData.lastName} is pending barangay verification. Confirm your email before signing in to check your status.</p>
+    {emailWarning&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{emailWarning}</p>}
+    <a href="/login" className={primary}>Go to sign in <ArrowRight className="h-4 w-4"/></a>
+  </section>;
+  return <div className="min-w-0 space-y-6" data-registration-step={step}>
+    <ol aria-label="Registration progress" className="grid grid-cols-4 gap-1 border-b border-slate-200 pb-5 sm:gap-3">
+      {steps.map((item,i)=>{const Icon=item.icon;const active=step===i+1;return <li key={item.label} aria-current={active?"step":undefined} className="flex min-w-0 flex-col items-center gap-2 text-center">
+        <span className={"flex h-10 w-10 items-center justify-center rounded-full border "+(active?"border-blue-600 bg-blue-600 text-white":step>i+1?"border-blue-200 bg-blue-50 text-blue-700":"border-slate-200 bg-slate-50 text-slate-500")}>{step>i+1?<CheckCircle2 className="h-5 w-5"/>:<Icon className="h-5 w-5"/>}</span>
+        <span className={"text-xs font-semibold leading-tight sm:text-sm "+(active?"text-blue-700":"text-slate-600")}>{i+1}. {item.label}</span>
+      </li>})}
+    </ol>
+    <form noValidate onSubmit={handleRegisterSubmit} className="space-y-5">
+      <div className="space-y-1"><p className="text-sm font-semibold text-blue-700">Step {step} of 4</p><h2 ref={heading} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none sm:text-2xl">{steps[step-1].title}</h2><p className="text-sm leading-relaxed text-slate-600">{steps[step-1].description}</p><p className="text-sm text-slate-600">* Required fields</p></div>
+      {errorMsg&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{errorMsg}</p>}
+      {step===1&&<div className="space-y-4">
+        {input("firstName","First name *",{required:true,autoComplete:"given-name",maxLength:80})}
+        <div className="grid gap-4 sm:grid-cols-2">{input("middleName","Middle name",{autoComplete:"additional-name",maxLength:80})}{input("lastName","Last name *",{required:true,autoComplete:"family-name",maxLength:80})}</div>
+        <div className="grid gap-4 sm:grid-cols-2">{input("birthDate","Date of birth *",{type:"date",required:true,autoComplete:"bday",min:"1900-01-01",max:new Date().toISOString().slice(0,10)})}{select("gender","Gender",["Male","Female"])}</div>
+        {input("contactNumber","Mobile number *",{type:"tel",required:true,autoComplete:"tel",maxLength:11,placeholder:"09XXXXXXXXX"},"11-digit Philippine mobile number.")}
+      </div>}
+      {step===2&&<div className="space-y-4">
+        <p className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm leading-relaxed text-blue-900">Residency requirement: at least six months in the barangay, subject to staff verification.</p>
+        {select("purok","Purok / Zone *",PUROK_OPTIONS)}
+        {input("street","Street name *",{required:true,autoComplete:"address-line1",maxLength:150})}
+        {input("houseNumber","House / Lot number",{autoComplete:"address-line2",maxLength:80})}
+        {input("householdCode","Household code (optional)",{maxLength:80},"Ask your household head or barangay staff if you already have a family record.")}
+        <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">Boarders and renters: arrange RBI profiling with barangay staff. This online form does not save RBI files or boarder counts.</p>
+      </div>}
+      {step===3&&<div className="space-y-4">
+        {input("email","Email address *",{type:"email",required:true,autoComplete:"email",maxLength:254,placeholder:"you@example.com"},"Use an email you can access for confirmation and password recovery.")}
+        <Field name="password" label="Password *" error={errors.password} hint="Use 12–128 characters. Choose a unique password or passphrase.">
+          <div className="relative"><input id="password" name="password" type={showPassword?"text":"password"} required autoComplete="new-password" minLength={PASSWORD_MIN} maxLength={PASSWORD_MAX} value={formData.password} onChange={e=>change("password",e.target.value)} aria-invalid={Boolean(errors.password)} aria-describedby={"password-hint"+(errors.password?" password-error":"")} className={control+" pr-14"}/><button type="button" aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-600">{showPassword?<EyeOff className="h-5 w-5"/>:<Eye className="h-5 w-5"/>}</button></div>
+        </Field>
+      </div>}
+      {step===4&&<div className="space-y-4">
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"><ShieldCheck className="h-5 w-5 shrink-0"/><div><p className="font-semibold">Account information completed</p><p className="break-all">{formData.email}</p><p>Password retained securely for this submission.</p></div></div>
+        {select("idType","Identification type *",ID_TYPE_OPTIONS)}
+        <Field name="idBlob" label="Identification photo *" error={errors.idBlob} hint="Use a clear, readable photo. Maximum 4 MB.">
+          <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+            {isCapturing?<CameraCapture onCapture={blob=>{const issues=validateIdFile(blob);if(issues.length){setErrors(prev=>({...prev,idBlob:"Capture an image of up to 4 MB."}));setIsCapturing(false);return;}setCapturedBlob(blob);setIsCapturing(false);setErrors(prev=>{const next={...prev};delete next.idBlob;return next;});}} onCancel={()=>setIsCapturing(false)}/>:<>
+              {preview&&<img src={preview} alt="ID Preview" className="mx-auto max-h-56 w-full rounded-lg object-contain"/>}
+              <button id="idBlob" type="button" disabled={loading} onClick={()=>setIsCapturing(true)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Camera className="h-5 w-5"/>{preview?"Retake ID Photo":"Start Camera"}</button>
+            </>}
+          </div>
+        </Field>
+        <p className="text-sm leading-relaxed text-slate-600">Your application remains pending until reviewed. Do not refresh this page: for privacy, identification images and passwords are not stored as browser drafts.</p>
+      </div>}
+      <div className="flex gap-3 border-t border-slate-200 pt-5">
+        {step>1&&<button type="button" disabled={loading} onClick={()=>{setIsCapturing(false);setStep(step-1);setErrors({});setErrorMsg("");}} className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><ArrowLeft className="h-4 w-4"/>Back</button>}
+        <button type="submit" disabled={loading||isCapturing} className={primary}>{loading?<><Loader2 className="h-4 w-4 animate-spin"/>Submitting…</>:step===4?"Submit Registration":<>{["Next: Residency Address","Next: Account Info","Next: Upload Valid ID"][step-1]}<ArrowRight className="h-4 w-4"/></>}</button>
       </div>
-
-      {errorMsg && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
-          {errorMsg}
-        </div>
-      )}
-
-      {/* Step 1: Personal Identification */}
-      {step === 1 && (
-        <div className="space-y-3.5 animate-in fade-in duration-200">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Personal Information</h3>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">First Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="Juan"
-              value={formData.firstName}
-              onChange={(e) => handleInputChange("firstName", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="grid min-w-0 grid-cols-1 gap-2 min-[375px]:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Middle Name</label>
-              <input
-                type="text"
-                placeholder="Santos"
-                value={formData.middleName}
-                onChange={(e) => handleInputChange("middleName", e.target.value)}
-                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Last Name *</label>
-              <input
-                type="text"
-                required
-                placeholder="Dela Cruz"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange("lastName", e.target.value)}
-                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid min-w-0 grid-cols-1 gap-2 min-[375px]:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth *</label>
-              <input
-                type="date"
-                required
-                value={formData.birthDate}
-                onChange={(e) => handleInputChange("birthDate", e.target.value)}
-                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3 py-2 text-base outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Gender</label>
-              <select
-                value={formData.gender}
-                onChange={(e) => handleInputChange("gender", e.target.value)}
-                className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Mobile / Contact Number *</label>
-            <input
-              type="tel"
-              required
-              placeholder="09171234567"
-              value={formData.contactNumber}
-              onChange={(e) => handleInputChange("contactNumber", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            type="button"
-            disabled={!formData.firstName || !formData.lastName || !formData.birthDate || !formData.contactNumber}
-            onClick={() => setStep(2)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50 transition-all mt-4"
-          >
-            Next: Residency Address <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Step 2: Residency Address */}
-      {step === 2 && (
-        <div className="space-y-3.5 animate-in fade-in duration-200">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Barangay Address</h3>
-
-          {/* 6-month residency notice */}
-          <div className="flex items-start gap-2.5 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-            <AlertTriangle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-blue-700 leading-relaxed">
-              <span className="font-bold">Residency Requirement:</span> You must have resided in this barangay for at least <strong>6 months</strong> to be eligible for resident registration. Your submitted ID and profiling information will be verified by the Barangay.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Purok / Zone *</label>
-            <select
-              value={formData.purok}
-              onChange={(e) => handleInputChange("purok", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
-            >
-              {PUROK_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Street Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="Rizal Street"
-              value={formData.street}
-              onChange={(e) => handleInputChange("street", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">House / Lot Number</label>
-            <input
-              type="text"
-              placeholder="House # 123"
-              value={formData.houseNumber}
-              onChange={(e) => handleInputChange("houseNumber", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Household code (optional)</label>
-            <input
-              type="text"
-              placeholder="Ask your household head or Barangay staff"
-              value={formData.householdCode}
-              onChange={(e) => handleInputChange("householdCode", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-[10px] text-gray-500">If staff already added your family record, this helps connect your PWA account to it after your details are verified.</p>
-          </div>
-
-          {/* Boarder Profiling */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isBoarder}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    isBoarder: e.target.checked,
-                  }))
-                }
-                className="h-4 w-4 rounded accent-blue-600"
-              />
-              <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                <Home className="h-3.5 w-3.5 text-gray-500" /> I am a boarder / renter in this barangay
-              </span>
-            </label>
-
-            {formData.isBoarder ? (
-              <div className="space-y-3 pt-1 animate-in fade-in duration-200">
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-[11px] text-amber-700 leading-relaxed">
-                    <span className="font-bold">Boarder Profiling Required:</span> The barangay requires a profiling of all individuals residing in a boarding house. Please provide the total number of boarders and attach your RBI (Record of Barangay Inhabitants).
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" /> Total Boarders in Boarding House *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 5"
-                    value={formData.boarderCount}
-                    onChange={(e) => handleInputChange("boarderCount", e.target.value)}
-                    className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1">Count yourself and all co-boarders individually.</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
-                    <Paperclip className="h-3.5 w-3.5" /> Attach RBI (Record of Barangay Inhabitants) *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept=".pdf,image/jpeg,image/png"
-                      onChange={(e) => setRbiFile(e.target.files?.[0] || null)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div className={`flex items-center gap-2 p-2.5 rounded-xl border border-dashed transition-colors ${
-                      rbiFile ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-blue-400 bg-white'
-                    }`}>
-                      <Paperclip className={`h-4 w-4 shrink-0 ${rbiFile ? 'text-emerald-600' : 'text-gray-400'}`} />
-                      <span className={`text-[11px] truncate flex-1 ${rbiFile ? 'text-emerald-700 font-medium' : 'text-gray-500'}`}>
-                        {rbiFile ? rbiFile.name : "Tap to attach RBI document…"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Accepted: PDF, JPG, PNG. Max 5MB.</p>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex items-center gap-2 pt-3">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="px-4 py-3 border border-gray-300 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              disabled={!formData.street}
-              onClick={() => setStep(3)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50 transition-all"
-            >
-              Next: Account Info <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Account Credentials */}
-      {step === 3 && (
-        <div className="space-y-3.5 animate-in fade-in duration-200">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Account Credentials</h3>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address *</label>
-            <input
-              type="email"
-              required
-              placeholder="juan@example.com"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Password *</label>
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => handleInputChange("password", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-[10px] text-gray-400 mt-1">Minimum 6 characters</p>
-          </div>
-
-          <div className="flex items-center gap-2 pt-3">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="px-4 py-3 border border-gray-300 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              disabled={!formData.email || formData.password.length < 6}
-              onClick={() => setStep(4)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50 transition-all"
-            >
-              Next: Upload Valid ID <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 4: Verification Proof & ID Upload */}
-      {step === 4 && (
-        <form onSubmit={handleRegisterSubmit} className="space-y-3.5 animate-in fade-in duration-200">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Barangay Resident Verification</h3>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Select Government ID Type *</label>
-            <select
-              value={formData.idType}
-              onChange={(e) => handleInputChange("idType", e.target.value)}
-              className="min-h-11 min-w-0 w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-base outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              {ID_TYPE_OPTIONS.map((id) => (
-                <option key={id} value={id}>{id}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Capture Valid ID *</label>
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center hover:border-blue-500 transition-colors bg-gray-50 overflow-hidden">
-              {isCapturing ? (
-                <CameraCapture onCapture={handleCapture} onCancel={handleCaptureCancel} />
-              ) : capturedBlob ? (
-                <div className="space-y-2">
-                  <img src={URL.createObjectURL(capturedBlob)} alt="ID Preview" className="h-32 object-cover rounded-lg mx-auto shadow-sm" />
-                  <button 
-                    type="button" 
-                    onClick={handleCaptureStart} 
-                    className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer block w-full text-center"
-                  >
-                    Retake ID Photo
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  type="button" 
-                  onClick={handleCaptureStart} 
-                  className="w-full h-full cursor-pointer block space-y-2 py-6 outline-none"
-                >
-                  <Camera className="h-8 w-8 text-gray-400 mx-auto" />
-                  <p className="text-xs font-semibold text-gray-600">Tap to Start Camera</p>
-                  <p className="text-[10px] text-gray-400">Position ID clearly in frame</p>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-3">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => setStep(3)}
-              className="px-4 py-3 border border-gray-300 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !capturedBlob}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50 transition-all"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Submitting...
-                </>
-              ) : (
-                "Submit Registration"
-              )}
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
+    </form>
+  </div>;
 }
