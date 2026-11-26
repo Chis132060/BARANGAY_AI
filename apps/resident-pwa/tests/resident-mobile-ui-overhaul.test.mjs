@@ -92,9 +92,13 @@ test("all services directory includes live catalog, search, and existing routed 
 
 test("in-chat application has accessible upload cards and real submission confirmations", () => {
   assert.match(chatForm, /submitDocumentRequest\(payload\)/);
-  assert.match(chatForm, /type="file" required accept=/);
+  assert.match(chatForm, /type="file" required\=\{!file\} accept=/);
   assert.match(chatForm, /className="sr-only"/);
-  assert.match(chatForm, /selected\.size > 5 \* 1024 \* 1024/);
+  assert.match(chatForm, /selected\.size > 4_000_000/);
+  assert.match(chatForm, /totalBytes > 4_000_000/);
+  assert.match(chatForm, /const instanceId = useId\(\)/);
+  assert.match(chat, /hydratedOwnerRef\.current === authUserId && currentMessagesRef\.current\.some/);
+  assert.match(read("../next.config.js"), /reloadOnOnline: false/);
   assert.match(chatForm, /No payment is collected in this form/);
   assert.match(chatForm, /setSubmitted\(true\)/);
   assert.match(chatForm, /window\.dispatchEvent\(new Event\(NAV_BADGES_CHANGED\)\)/);
