@@ -93,6 +93,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       email,
       password,
       email_confirm: false,
+      app_metadata: { role: "Resident" },
       user_metadata: {
         role: "Resident",
         full_name: `${firstName} ${lastName}`.trim(),
