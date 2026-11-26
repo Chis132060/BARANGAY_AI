@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, FileText, Loader2, AlertCircle, Send, UploadCloud, ShieldCheck, WifiOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -32,6 +32,7 @@ interface CatalogDocument {
  * after a failed file upload. Never use AI-proposed form schemas or fees.
  */
 export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardProps) {
+  const instanceId = useId();
   const supabase = useMemo(() => createClient(), []);
   const service = isDocumentFormId(formType) ? DOCUMENT_FORMS[formType] : null;
   const [catalog, setCatalog] = useState<CatalogDocument | null>(null);
@@ -119,6 +120,7 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    event.stopPropagation();
     if (submissionInFlight.current || !catalog) return;
     const normalizedPurpose = purpose.trim();
     if (!normalizedPurpose) {
@@ -136,6 +138,14 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
         setSubmitError("Please attach the current required file: " + requirement);
         return;
       }
+    }
+    // The hosted Vercel function caps the complete multipart request at 4.5 MB.
+    // Keep 0.5 MB headroom for multipart fields and server-action framing.
+    const totalBytes = catalog.requirements_json.reduce((sum, requirement) =>
+      sum + (reuseIdRequirements.includes(requirement) || reuseProfileRequirements.includes(requirement) ? 0 : files[requirement]?.size ?? 0), 0);
+    if (totalBytes > 4_000_000) {
+      setSubmitError("Combined attachments must be 4 MB or less for online submission. Compress images or PDFs and try again.");
+      return;
     }
     submissionInFlight.current = true;
     setSubmitting(true);
@@ -254,11 +264,11 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
           <form onSubmit={submit} className="space-y-5">
             {catalog.description && <p className="rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{catalog.description}</p>}
             <div>
-              <label htmlFor={`chat-purpose-${catalog.id}`} className="mb-2 block text-base font-bold text-slate-900">
+              <label htmlFor={`chat-purpose-${instanceId}-${catalog.id}`} className="mb-2 block text-base font-bold text-slate-900">
                 <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-800">1</span>
                 Purpose / Layunin <span className="text-red-600">*</span>
               </label>
-              <textarea id={`chat-purpose-${catalog.id}`} required rows={3} maxLength={2000}
+              <textarea id={`chat-purpose-${instanceId}-${catalog.id}`} required rows={3} maxLength={2000}
                 value={purpose} onChange={event => setPurpose(event.target.value)}
                 className="block min-h-24 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-4 text-base leading-relaxed text-slate-900 outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 placeholder="Why do you need this document?" />
@@ -271,7 +281,7 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
                 Requirements and documents
               </legend>
               <p className="mb-3 text-sm leading-relaxed text-slate-600">
-                Reuse an ID or your verified resident profile already on file, if available. Staff will review evidence. Additional uploads: PDF/JPG/PNG, 5 MB max.
+                Reuse an ID or your verified resident profile already on file, if available. Staff will review evidence. Additional uploads: PDF/JPG/PNG, 4 MB combined maximum.
               </p>
               {catalog.requirements_json.length === 0 && (
                 <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">No attachments are listed for this document.</p>
@@ -279,7 +289,7 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
               <div className="space-y-3">
                 {catalog.requirements_json.map((requirement, index) => {
                   const file = files[requirement];
-                  const inputId = `chat-attachment-${catalog.id}-${index}`;
+                  const inputId = `chat-attachment-${instanceId}-${catalog.id}-${index}`;
                   return (
                     <div key={requirement} className={`rounded-2xl border p-4 ${file ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
                       <div className="mb-2 flex items-start justify-between gap-2">
@@ -325,15 +335,15 @@ export function InChatFormCard({ formType, title, onSubmitted }: InChatFormCardP
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-base font-semibold text-blue-800">{file ? "Change file" : "Tap to upload"}</span>
-                          <span className="block break-all text-sm text-slate-600">{file ? file.name : "PDF, JPG or PNG · 5 MB max"}</span>
+                          <span className="block break-all text-sm text-slate-600">{file ? file.name : "PDF, JPG or PNG · 4 MB combined"}</span>
                         </span>
-                        <input id={inputId} type="file" required accept=".pdf,.jpg,.jpeg,.png"
+                        <input id={inputId} type="file" required={!file} accept=".pdf,.jpg,.jpeg,.png"
                           className="sr-only"
                           onChange={event => {
                             const selected = event.target.files?.[0];
-                            if (selected && (selected.size === 0 || selected.size > 5 * 1024 * 1024 ||
+                            if (selected && (selected.size === 0 || selected.size > 4_000_000 ||
                                 !["application/pdf", "image/jpeg", "image/png"].includes(selected.type))) {
-                              setSubmitError("Choose a PDF, JPG or PNG file of up to 5 MB.");
+                              setSubmitError("Choose a PDF, JPG or PNG file of up to 4 MB. Existing valid attachments are retained.");
                               event.target.value = "";
                               return;
                             }

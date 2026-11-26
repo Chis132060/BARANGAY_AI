@@ -108,7 +108,60 @@ jobs:
             if curl -fsS http://localhost:5173/~offline >/dev/null; then break; fi
             sleep 2
           done
-          node apps/resident-pwa/tests/offline-browser-smoke.mjs
+          mkdir -p qa-evidence
+          set -o pipefail
+          node apps/resident-pwa/tests/offline-browser-smoke.mjs 2>&1 | tee qa-evidence/chromium.log
       - name: Show server logs if failed
         if: failure()
         run: tail -n 120 /tmp/resident-pwa.log || true
+      - name: Publish Chromium screenshot and trace evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromium-qa-evidence
+          path: qa-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  public-http-contract:
+    name: Live public HTTP contracts (no resident mutations)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright API request runner
+        run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - name: Check live public Resident PWA, Admin Portal and Railway API
+        env:
+          BARANGAY_API_TEST_URL: 'https://barangayai-production-de7aa4c0.up.railway.app'
+        run: |
+          mkdir -p qa-evidence
+          set -o pipefail
+          node --input-type=module <<'JS' | tee qa-evidence/live-http.log
+          import assert from 'node:assert/strict';
+          import { request } from 'playwright';
+          import { runHttpMethodRegression } from './apps/resident-pwa/tests/http-method-browser-regression.mjs';
+          await runHttpMethodRegression('https://barangay-resident-pwa.vercel.app');
+          const admin = await request.newContext({baseURL:'https://barangay-admin-portal.vercel.app',timeout:15000});
+          try {
+            const login = await admin.get('/login');
+            console.log('HTTP EVIDENCE '+JSON.stringify({service:'admin',method:'GET',path:'/login',status:login.status()}));
+            assert.equal(login.status(),200);
+            const head = await admin.head('/login');
+            console.log('HTTP EVIDENCE '+JSON.stringify({service:'admin',method:'HEAD',path:'/login',status:head.status()}));
+            assert.equal(head.status(),200);
+            assert.equal((await head.body()).length,0);
+            console.log('PASS: live Admin Portal GET/HEAD login');
+          } finally { await admin.dispose(); }
+          JS
+      - name: Publish HTTP verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-http-qa-evidence
+          path: qa-evidence/
+          if-no-files-found: error
+          retention-days: 14

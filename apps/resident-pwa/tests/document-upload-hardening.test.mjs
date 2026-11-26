@@ -26,7 +26,8 @@ test("rejects duplicate attachment keys and excludes user filenames from stored 
 });
 
 test("combined document attachments are limited before storage writes", () => {
-  assert.match(source, /MAX_TOTAL_UPLOAD_SIZE = 20 \* 1024 \* 1024/);
+  assert.match(source, /MAX_TOTAL_UPLOAD_SIZE = 4_000_000/);
+  assert.match(source, /MAX_FILE_SIZE = 4_000_000/);
   assert.match(source, /totalUploadSize > MAX_TOTAL_UPLOAD_SIZE/);
   assert.ok(source.indexOf("totalUploadSize > MAX_TOTAL_UPLOAD_SIZE") < source.indexOf(".upload(filePath, file"));
 });

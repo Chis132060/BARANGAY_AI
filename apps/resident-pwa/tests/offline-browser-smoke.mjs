@@ -1,11 +1,15 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
+import { runFormRegression } from "./form-upload-browser-regression.mjs";
+import { runHttpMethodRegression } from "./http-method-browser-regression.mjs";
 
 const base = process.env.PWA_TEST_BASE_URL || "http://localhost:5173";
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ serviceWorkers: "allow" });
 const page = await context.newPage();
 try {
+  await runFormRegression(browser);
+  await runHttpMethodRegression(base);
   // Reproduce the reported phone screenshot in the *guest* chat. A 100%-high
   // chat inside a min-height-only shell used to leave a large blank strip
   // under the composer. Test typing, click targets and layout before the
@@ -98,6 +102,16 @@ try {
     await phone.getByText(/Please sign in with your resident account to access the current application form/).waitFor({ timeout: 15000 });
     assert.equal(guestApiCalls.length, 0, "guest service navigation must not send requests to /api/chat");
     console.log("PASS: mobile guest composer stays bottom-aligned, accepts typing and submits a chat turn");
+    // The PWA's reloadOnOnline defaults to true unless explicitly disabled.
+    // A real browser connectivity transition must not discard unsent input.
+    await input.fill("Unsent reconnect regression draft");
+    await mobileContext.setOffline(true);
+    await phone.waitForFunction(() => !navigator.onLine);
+    await mobileContext.setOffline(false);
+    await phone.waitForFunction(() => navigator.onLine);
+    await phone.waitForTimeout(750);
+    assert.equal(await input.inputValue(), "Unsent reconnect regression draft");
+    console.log("PASS: production-build guest chat retains typed draft across actual browser reconnect");
   } finally {
     await mobileContext.close();
   }

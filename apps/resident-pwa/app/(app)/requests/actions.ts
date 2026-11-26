@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { formatRequestReference, isValidIdRequirement } from "@/lib/request-receipt";
 import { hasRegistrationIdOnFile, isResidencyProofRequirement } from "@/lib/verified-resident-evidence";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_TOTAL_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB per request
+const MAX_FILE_SIZE = 4_000_000; // hosted multipart upload headroom
+const MAX_TOTAL_UPLOAD_SIZE = 4_000_000; // combined file bytes per request
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 async function validateFileSignature(file: File): Promise<boolean> {
@@ -166,12 +166,12 @@ export async function submitDocumentRequest(formData: FormData) {
     }
 
     if (file.size === 0 || file.size > MAX_FILE_SIZE) {
-      throw new Error(`File ${file.name} must be non-empty and at most 5MB`);
+      throw new Error(`File ${file.name} must be non-empty and at most 4 MB`);
     }
 
     totalUploadSize += file.size;
     if (totalUploadSize > MAX_TOTAL_UPLOAD_SIZE) {
-      throw new Error("Combined attachments exceed the 20MB request limit");
+      throw new Error("Combined attachments exceed the 4 MB request limit");
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {

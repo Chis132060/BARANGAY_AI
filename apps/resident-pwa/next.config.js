@@ -5,6 +5,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   // For local Web Push testing, temporarily set this to false and run `npm run build && npm start`.
   disable: process.env.NODE_ENV === "development",
   register: true,
+  // Reconnect must not reload the document and discard selected files/drafts.
+  reloadOnOnline: false,
   skipWaiting: true,
   // Keep authenticated and dynamic app pages fresh after deploys. The offline
   // document fallback below handles navigation when the network is unavailable.
@@ -76,6 +78,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 
 const nextConfig = {
   reactStrictMode: true,
+  // Keep below Vercel function request-body limit, including multipart overhead.
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },

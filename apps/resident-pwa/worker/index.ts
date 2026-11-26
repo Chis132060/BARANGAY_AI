@@ -10,7 +10,13 @@ self.addEventListener("activate", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) =>
       Promise.all(
         clients
-          .filter((client) => new URL(client.url).origin === self.location.origin)
+          .filter((client) => {
+            const url = new URL(client.url);
+            // Never force-reload a live application/photo picker. A normal
+            // navigation can pick up the new build without destroying drafts.
+            return url.origin === self.location.origin &&
+              !/^\/(?:chat|requests)(?:\/|$)/.test(url.pathname);
+          })
           .map((client) => client.navigate(client.url).catch(() => null))
       )
     )
