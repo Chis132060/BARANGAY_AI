@@ -109,7 +109,7 @@ export function RegisterForm() {
       const res=await registerResidentAction(payload);
       if(res.fieldErrors){
         for(let n=1;n<=4;n++){
-          const keys=Object.keys(registrationFieldErrors({...initial,password:"",idType:""},n));
+          const keys=[["firstName","middleName","lastName","birthDate","gender","contactNumber"],["purok","street","houseNumber","householdCode"],["email","password"],["idType","idBlob"]][n-1];
           const matches=Object.fromEntries(Object.entries(res.fieldErrors).filter(([key])=>keys.includes(key)|| (n===4&&key==="idBlob") || (n===2&&key==="householdCode")));
           if(Object.keys(matches).length){reveal(n,matches);return;}
         }
