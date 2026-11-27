@@ -3,9 +3,11 @@ import {mkdirSync} from "node:fs";
 import {join} from "node:path";
 export async function runRegistrationRegression(browser,base){
  const evidence=process.env.QA_EVIDENCE_DIR||"qa-evidence";mkdirSync(evidence,{recursive:true});
+ let page;
  const context=await browser.newContext({viewport:{width:390,height:844},permissions:["camera"],serviceWorkers:"block"});
  try{
-  const page=await context.newPage();const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  page=await context.newPage();
+  await context.tracing.start({screenshots:true,snapshots:true,sources:true});const errors=[];page.on("pageerror",e=>errors.push(e.message));
   const email="synthetic-registration@example.invalid",password="QA-only-long-passphrase";
   await page.goto(base+"/register");
   const next1=page.getByRole("button",{name:"Next: Residency Address"}), next2=page.getByRole("button",{name:"Next: Account Info"}),next3=page.getByRole("button",{name:"Next: Upload Valid ID"});
@@ -34,7 +36,7 @@ export async function runRegistrationRegression(browser,base){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),"registration horizontal overflow at "+width);
   }
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole("button",{name:"Start Camera"}).click();
+  await page.getByRole("button",{name:"Start Camera",exact:true}).click();
   await page.waitForFunction(()=>document.querySelector("video")?.videoWidth>0);
   await page.getByRole("button",{name:"Capture",exact:true}).click();
   await page.getByRole("button",{name:"Confirm",exact:true}).click();
@@ -63,5 +65,6 @@ export async function runRegistrationRegression(browser,base){
   await page.getByText("Enter your real email address.",{exact:false}).waitFor();
   assert.deepEqual(errors,[]);
   console.log("PASS: built registration page: step validation, back/forward retention, mobile/tablet/desktop width, synthetic camera JPG, multipart credential retention, failed submission, privacy refresh, recovery input validation");
- }finally{await context.close();}
+ }catch(error){if(page) await page.screenshot({path:join(evidence,"registration-failure.png"),fullPage:true}).catch(()=>{});throw error;}
+ finally{await context.tracing.stop({path:join(evidence,"registration-trace.zip")}).catch(()=>{});await context.close();}
 }
