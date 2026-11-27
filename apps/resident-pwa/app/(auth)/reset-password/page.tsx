@@ -16,7 +16,7 @@ export default function ResetPasswordPage() {
  },[]);
  async function submit(e:React.FormEvent){
   e.preventDefault();
-  if(password.length<12){setMessage("Use at least 12 characters.");return;}
+  if(password.length<12||password.length>128){setMessage("Use 12 to 128 characters.");return;}
   if(password!==confirm){setMessage("Passwords do not match.");return;}
   setLoading(true);setMessage("");
   const supabase=createClient();
@@ -34,11 +34,12 @@ export default function ResetPasswordPage() {
   {success?<div className="rounded-xl border bg-emerald-50 p-4 space-y-3"><p className="text-sm text-emerald-800">Password updated. Sign in again with your new password.</p><Link href="/login" className="text-sm font-bold text-blue-700">Go to Sign In</Link></div>
   :<form onSubmit={submit} className="space-y-4">
    <label className="block text-sm font-semibold">New password
-    <input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-3"/>
+    <input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-3"/>
    </label>
    <label className="block text-sm font-semibold">Confirm password
-    <input type="password" autoComplete="new-password" minLength={12} required value={confirm} onChange={e=>setConfirm(e.target.value)} className="mt-1 w-full rounded-lg border p-3"/>
+    <input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={confirm} onChange={e=>setConfirm(e.target.value)} className="mt-1 w-full rounded-lg border p-3"/>
    </label>
+   <Link href="/forgot-password" className="text-sm font-semibold text-blue-700">Request a new reset email</Link>
    {message&&<p role="alert" className="text-sm text-red-700">{message}</p>}
    <button disabled={loading||authenticated!==true} className="w-full rounded-lg bg-blue-600 text-white p-3 font-bold disabled:opacity-50">{loading?"Updating...":"Update password"}</button>
   </form>}

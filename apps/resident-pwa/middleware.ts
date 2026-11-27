@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME } from "./lib/supabase/constants";
 
-const PUBLIC_ROUTES = ["/login", "/register", "/support", "/reset-password", "/auth", "/chat", "/announcements"];
+const PUBLIC_ROUTES = ["/login", "/register", "/support", "/forgot-password", "/reset-password", "/auth", "/chat", "/announcements"];
 const isPublicRoute = (pathname: string) => PUBLIC_ROUTES.some(
   (route) => pathname === route || pathname.startsWith(`${route}/`)
 );
@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
         .eq("id", user.id)
         .maybeSingle();
       if (userError) {
-        const metaRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
+        const metaRole = (user.app_metadata?.role) as string | undefined;
         if (metaRole && metaRole.toLowerCase() === "resident") {
           userRole = "Resident";
         } else {
@@ -108,7 +108,7 @@ export async function middleware(request: NextRequest) {
           .eq("id", userData.role_id)
           .maybeSingle();
         if (roleError) {
-          const metaRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
+          const metaRole = (user.app_metadata?.role) as string | undefined;
           if (metaRole && metaRole.toLowerCase() === "resident") {
             userRole = "Resident";
           } else {
@@ -118,7 +118,7 @@ export async function middleware(request: NextRequest) {
           userRole = roleData?.name ?? null;
         }
       } else {
-        const metaRole = (user.user_metadata?.role || user.app_metadata?.role) as string | undefined;
+        const metaRole = (user.app_metadata?.role) as string | undefined;
         if (metaRole && metaRole.toLowerCase() === "resident") {
           userRole = "Resident";
         }
@@ -171,7 +171,7 @@ export async function middleware(request: NextRequest) {
         .maybeSingle();
       const status = resident?.verification_status;
       const isApprovalRoute = pathname.startsWith("/pending-approval");
-      const isAuthCallback = pathname.startsWith("/auth") || pathname === "/reset-password";
+      const isAuthCallback = pathname.startsWith("/auth") || pathname === "/reset-password" || pathname === "/forgot-password";
       const isSupportRoute = pathname === "/support" || pathname.startsWith("/support/");
       if (status !== "Verified" && !isApprovalRoute && !isAuthCallback && !isSupportRoute) {
         const redirectUrl = request.nextUrl.clone();

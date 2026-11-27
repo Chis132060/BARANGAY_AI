@@ -3,10 +3,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { v4 as uuidv4 } from "uuid";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { validateRegistrationInput, validateIdFile } = require("../../../lib/registration-validation.cjs");
+const { registrationFieldErrors, validateIdFile, MAX_ID_BYTES } = require("../../../lib/registration-validation.cjs");
 const { inspectImage } = require("../../../lib/id-image-validation.cjs");
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = MAX_ID_BYTES;
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function detectedImageExtension(bytes: Buffer): "jpg" | "png" | "webp" | null {
@@ -16,7 +16,7 @@ function detectedImageExtension(bytes: Buffer): "jpg" | "png" | "webp" | null {
   return null;
 }
 
-export async function registerResidentAction(formData: FormData): Promise<{ success?: boolean; error?: string; emailWarning?: string }> {
+export async function registerResidentAction(formData: FormData): Promise<{ success?: boolean; error?: string; emailWarning?: string; fieldErrors?: Record<string,string> }> {
   try {
     const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
     const password = formData.get("password") as string;
@@ -33,12 +33,9 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     const idType = formData.get("idType") as string;
     const idBlob = formData.get("idBlob") as Blob | null;
 
-    if (!email || !password || !firstName || !lastName || !birthDate || !idBlob) {
-      return { error: "Missing required fields." };
-    }
-
-    const inputErrors = validateRegistrationInput({ email, password, firstName, lastName, birthDate, contactNumber, street, purok, idType });
-    if (inputErrors.length) return { error: inputErrors[0] };
+    const fieldErrors = registrationFieldErrors({ email, password, firstName, lastName, birthDate, contactNumber, street, purok, idType, householdCode, gender, middleName, houseNumber });
+    if (Object.keys(fieldErrors).length) return { fieldErrors, error: "Please correct the highlighted fields." };
+    if (!(idBlob instanceof Blob)) return {fieldErrors:{idBlob:"Capture your identification photo."},error:"Identification photo is required."};
     if (householdCode.length > 80) return { error: "Household code is too long." };
     const fileErrors = validateIdFile({ type: idBlob.type, size: idBlob.size });
     if (fileErrors.length) return { error: fileErrors[0] };
@@ -48,7 +45,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     }
 
     if (idBlob.size === 0 || idBlob.size > MAX_FILE_SIZE) {
-      return { error: "Image size exceeds 5MB limit." };
+      return { error: "Image size exceeds 4 MB limit." };
     }
 
     const idBytes = Buffer.from(await idBlob.arrayBuffer());
@@ -96,6 +93,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       email,
       password,
       email_confirm: false,
+      app_metadata: { role: "Resident" },
       user_metadata: {
         role: "Resident",
         full_name: `${firstName} ${lastName}`.trim(),
@@ -117,6 +115,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
     // Every resource below belongs to this newly-created auth user.
     // Compensate for partial failures so registration can be safely retried.
     let uploadedPath: string | null = null;
+    let createdResidentId: string | null = null;
     try {
       const fileName = `id_capture_${uuidv4()}.${extension}`;
       const storagePath = `${authUserId}/${fileName}`;
@@ -176,6 +175,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
         updated_at: new Date().toISOString(),
       }).select("id").single()).data?.id;
       if (!residentId) throw new Error("Unable to create resident profile.");
+      if (!matchedResidentId) createdResidentId = residentId;
 
       const { error: addressError } = await supabase.from("addresses").upsert({
         resident_id: residentId,
@@ -200,8 +200,12 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
       if (uploadedPath) {
         await supabase.storage.from("resident-ids").remove([uploadedPath]);
       }
-      // residents.user_id is ON DELETE CASCADE; deleting the new auth identity
-      // rolls back dependent profiles in schemas with cascading foreign keys.
+      // The resident foreign key can SET NULL on auth deletion. Remove only a
+      // newly-created resident belonging to this attempt; never delete a linked family record.
+      if (createdResidentId) {
+        const {error: residentCleanupError}=await supabase.from("residents").delete().eq("id",createdResidentId).eq("user_id",authUserId);
+        if(residentCleanupError) { console.error("Registration resident cleanup failed"); return {error:"Registration could not finish. Please contact support before retrying."}; }
+      }
       const { error: cleanupError } = await supabase.auth.admin.deleteUser(authUserId);
       if (cleanupError) {
         console.error("Registration cleanup failed; manual review required", { authUserId, cleanupError });
@@ -213,7 +217,7 @@ export async function registerResidentAction(formData: FormData): Promise<{ succ
 
     // Admin-created accounts do not automatically send a signup confirmation.
     // Request one only after the resident profile and ID upload are committed.
-    const { error: confirmationError } = await supabase.auth.resend({ type: "signup", email });
+    const { error: confirmationError } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: (process.env.NEXT_PUBLIC_PWA_URL || "https://barangay-resident-pwa.vercel.app").replace(/\/$/,"") + "/auth/callback?next=/home" } });
     if (confirmationError) {
       console.error("Resident confirmation email could not be sent", { authUserId, message: confirmationError.message });
       return { success: true, emailWarning: "Your registration was saved, but we could not send the confirmation email. Please contact barangay support before trying to register again." };

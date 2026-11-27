@@ -74,7 +74,7 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         ? [
             resident.address.house_number,
             resident.address.street,
-            resident.address.purok ? `Purok ${resident.address.purok}` : "",
+            resident.address.purok ?? "",
           ].filter(Boolean).join(" ")
         : "";
 
@@ -86,6 +86,8 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
         address,
         resident.address?.purok ?? "",
         resident.contact_number ?? "",
+        resident.email ?? "",
+        resident.resident_code ?? "",
         resident.id,
       ].some((value) => value.toLowerCase().includes(normalizedSearch));
 
@@ -191,7 +193,7 @@ export function ResidentsClient({ initialResidents, initialSearch = "", onRefres
               type="search"
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Search name, address, purok, contact…"
+              placeholder="Search name, email, address, contact…"
               className="w-full pl-9 pr-8 py-2 text-xs font-medium bg-card border border-input rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-2xs"
             />
             {filters.search && (

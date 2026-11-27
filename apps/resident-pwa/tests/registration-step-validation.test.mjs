@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import validation from "../lib/registration-validation.cjs";
+const {registrationFieldErrors:validate,validateIdFile}=validation;
+const good={firstName:"Synthetic",middleName:"",lastName:"Tester",birthDate:"1990-01-01",gender:"Male",contactNumber:"09123456789",street:"Test Street",purok:"Purok 1",householdCode:"",email:"synthetic@example.invalid",password:"a-unique-long-passphrase",idType:"Postal ID"};
+test("shared registration validator accepts each valid step and complete submission",()=>{for(const n of [0,1,2,3,4])assert.deepEqual(validate(good,n),{});});
+test("account validation rejects empty, 6-11 and overlength passwords and malformed emails before step 4",()=>{for(const password of ["","123456","12345678901","x".repeat(129)])assert.ok(validate({...good,password},3).password);for(const email of ["","not-email","a@b"])assert.ok(validate({...good,email},3).email);});
+test("identification validation never revalidates previous password in isolation; final validation does",()=>{assert.deepEqual(validate({...good,password:""},4),{});assert.ok(validate({...good,password:""},0).password);});
+test("personal and address errors remain in their corresponding step",()=>{assert.ok(validate({...good,firstName:"",contactNumber:"123",birthDate:"2026-02-30"},1).birthDate);assert.ok(validate({...good,street:""},2).street);assert.ok(!validate({...good,street:""},3).street);});
+test("ID size and type enforce hosted transport limit",()=>{assert.deepEqual(validateIdFile({type:"image/jpeg",size:4_000_000}),[]);for(const f of [{type:"image/jpeg",size:4_000_001},{type:"image/jpeg",size:0},{type:"application/pdf",size:15}])assert.ok(validateIdFile(f).length);});

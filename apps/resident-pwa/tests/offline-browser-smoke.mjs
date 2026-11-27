@@ -1,13 +1,15 @@
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
+import { runRegistrationRegression } from "./registration-browser-regression.mjs";
 import { runFormRegression } from "./form-upload-browser-regression.mjs";
 import { runHttpMethodRegression } from "./http-method-browser-regression.mjs";
 
 const base = process.env.PWA_TEST_BASE_URL || "http://localhost:5173";
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, args: ["--use-fake-device-for-media-stream","--use-fake-ui-for-media-stream"] });
 const context = await browser.newContext({ serviceWorkers: "allow" });
 const page = await context.newPage();
 try {
+  await runRegistrationRegression(browser,base);
   await runFormRegression(browser);
   await runHttpMethodRegression(base);
   // Reproduce the reported phone screenshot in the *guest* chat. A 100%-high

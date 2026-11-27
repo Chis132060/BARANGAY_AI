@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 const RESIDENT_CODE_DOMAIN = "smartbarangay.local";
@@ -73,7 +74,7 @@ export function LoginForm() {
     // Map BRY- resident code → synthetic email; otherwise use as-is
     const authEmail = isResidentCode(values.username)
       ? residentCodeToEmail(values.username)
-      : values.username.trim();
+      : values.username.trim().toLowerCase();
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -82,7 +83,9 @@ export function LoginForm() {
       });
       if (error) {
         setErrorMsg(
-          error.message === "Invalid login credentials"
+          error.code === "email_not_confirmed" || /email not confirmed/i.test(error.message)
+            ? "Confirm your registration email before signing in. Use Forgot password / confirm email below to resend it."
+            : error.message === "Invalid login credentials"
             ? "Incorrect username or password. Please try again."
             : error.message === "fetch failed"
               ? "Cannot reach the sign-in service. Check your internet connection and try again."
@@ -93,7 +96,7 @@ export function LoginForm() {
       }
 
       // Check role resolution with fallback to user metadata
-      const metaRole = (data.user.user_metadata?.role || data.user.app_metadata?.role) as string | undefined;
+      const metaRole = (data.user.app_metadata?.role) as string | undefined;
       const ADMIN_ROLES = new Set(["Super Admin", "Barangay Captain", "Secretary", "Treasurer", "Staff"]);
 
       let isAdmin = metaRole ? ADMIN_ROLES.has(metaRole) : false;
@@ -195,6 +198,7 @@ export function LoginForm() {
         )}
       </div>
 
+      <Link href="/forgot-password" className="block text-sm font-semibold text-blue-700 hover:underline">Forgot password / confirm email</Link>
       <button
         type="submit"
         disabled={loading}

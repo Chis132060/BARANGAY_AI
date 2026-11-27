@@ -15,7 +15,7 @@ self.addEventListener("activate", (event) => {
             // Never force-reload a live application/photo picker. A normal
             // navigation can pick up the new build without destroying drafts.
             return url.origin === self.location.origin &&
-              !/^\/(?:chat|requests)(?:\/|$)/.test(url.pathname);
+              !/^\/(?:chat|requests|register|forgot-password|reset-password)(?:\/|$)/.test(url.pathname);
           })
           .map((client) => client.navigate(client.url).catch(() => null))
       )
