@@ -163,7 +163,7 @@ export function RegisterForm() {
           <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
             {isCapturing?<CameraCapture onCapture={blob=>{const issues=validateIdFile(blob);if(issues.length){setErrors(prev=>({...prev,idBlob:"Capture an image of up to 4 MB."}));setIsCapturing(false);return;}setCapturedBlob(blob);setIsCapturing(false);setErrors(prev=>{const next={...prev};delete next.idBlob;return next;});}} onCancel={()=>setIsCapturing(false)}/>:<>
               {preview&&<img src={preview} alt="ID Preview" className="mx-auto max-h-56 w-full rounded-lg object-contain"/>}
-              <button id="idBlob" type="button" disabled={loading} onClick={()=>setIsCapturing(true)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Camera className="h-5 w-5"/>{preview?"Retake ID Photo":"Start Camera"}</button>
+              <button id="idBlob" aria-label={preview?"Retake ID Photo":"Start Camera"} type="button" disabled={loading} onClick={()=>setIsCapturing(true)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Camera className="h-5 w-5"/>{preview?"Retake ID Photo":"Start Camera"}</button>
             </>}
           </div>
         </Field>
